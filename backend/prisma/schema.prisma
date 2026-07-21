@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  Admin
+  Engineer
+  Viewer
+}
+
+model User {
+  id           String       @id @default(cuid())
+  name         String
+  email        String       @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  assessments  Assessment[]
+  externalPipeData ExternalPipeData[]
+  reports      Report[]
+  deviceRecords DeviceRecord[]
+}
+
+model Assessment {
+  id           String   @id @default(cuid())
+  type         String
+  pipelineName String
+  riskLevel    String
+  riskScore    Int
+  input        Json
+  result       Json
+  createdAt    DateTime @default(now())
+  authorId     String?
+  author       User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+}
+
+model Report {
+  id             String   @id @default(cuid())
+  assessmentId   String
+  assessmentType String
+  pipelineName   String
+  riskLevel      String
+  input          Json
+  result         Json
+  generatedAt    DateTime
+  createdAt      DateTime @default(now())
+  authorId       String?
+  author         User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+}
+
+model ExternalPipeData {
+  id           String   @id @default(cuid())
+  type         String
+  pipelineName String
+  pipeId       String?
+  locationId   String?
+  input        Json
+  result       Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  authorId     String?
+  author       User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([pipelineName])
+  @@index([pipeId])
+  @@index([locationId])
+  @@index([createdAt])
+}
+
+model DeviceRecord {
+  id                  String   @id @default(cuid())
+  deviceId            String   @unique
+  deviceType          String
+  pipelineOrLocation  String
+  status              String
+  latestReadingOrState String
+  unit                String?
+  lastUpdatedAt       DateTime
+  isDemoData          Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  authorId            String?
+  author              User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([deviceType])
+  @@index([status])
+  @@index([pipelineOrLocation])
+  @@index([lastUpdatedAt])
+}

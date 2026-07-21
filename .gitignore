@@ -17,3 +17,5 @@ backend/.env*
 .DS_Store
 Thumbs.db
 *.tsbuildinfo
+backend/data/devices.json
+backend/data/reports.json

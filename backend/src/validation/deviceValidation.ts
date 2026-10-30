@@ -15,19 +15,25 @@ const deviceTypes = [
 
 const deviceStatuses = ["Active", "Inactive", "Fault"] as const;
 
-const deviceRecordSchema = z
+const deviceInputSchema = z
   .object({
-    id: z.string().trim().min(1),
     deviceId: z.string().trim().min(1).max(120),
     deviceType: z.enum(deviceTypes),
     pipelineOrLocation: z.string().trim().min(1).max(200),
     status: z.enum(deviceStatuses),
     latestReadingOrState: z.string().trim().min(1).max(200),
-    unit: z.string().trim().max(50).optional(),
+    unit: z.string().trim().max(50).optional()
+  })
+  .strict();
+
+const deviceRecordSchema = deviceInputSchema
+  .extend({
+    id: z.string().trim().min(1),
     lastUpdatedAt: z.string().trim().refine((value) => !Number.isNaN(Date.parse(value)), {
       message: "Must be a valid date-time string"
     }),
-    isDemoData: z.boolean()
+    isDemoData: z.boolean(),
+    authorId: z.string().trim().min(1).optional()
   })
   .strict();
 
@@ -39,6 +45,14 @@ export function validateDeviceRecord(value: unknown) {
     throw createValidationErrorFromZod(result.error);
   }
 
+  return result.data;
+}
+
+export function validateDeviceInput(value: unknown) {
+  const result = deviceInputSchema.safeParse(value);
+  if (!result.success) {
+    throw createValidationErrorFromZod(result.error);
+  }
   return result.data;
 }
 

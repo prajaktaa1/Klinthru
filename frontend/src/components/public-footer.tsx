@@ -1,105 +1,107 @@
 import Link from "next/link";
 
-const platformLinks = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "External Corrosion Assessment", href: "/external-corrosion-assessment" },
-  { label: "Internal Corrosion Assessment", href: "/internal-corrosion-assessment" },
-  { label: "Sensor Monitoring", href: "/sensors" },
+const productLinks = [
+  { label: "Home", href: "/" },
+  { label: "Features", href: "/features" },
+  { label: "Modules", href: "/modules" },
   { label: "Reports", href: "/report" }
 ];
 
-const capabilityLinks = [
-  "Manual Data Entry",
-  "IoT Sensor Integration",
-  "Corrosion Assessment",
-  "Risk and Remaining-Life Review",
-  "Report Generation"
+const companyLinks = [
+  { label: "About", href: "/about" },
+  { label: "Contact Us", href: "/contact" },
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Disclaimer", href: "/disclaimer" }
 ];
 
+const supportLinks = [
+  { label: "Help Center", href: "/contact" },
+  { label: "Terms", href: "/terms" },
+  { label: "Cookies", href: "/cookies" },
+  { label: "Start Now", href: "/login" }
+];
+
+const capabilityLinks = [
+  { label: "External Corrosion Assessment", href: "/external-corrosion-assessment" },
+  { label: "Internal Corrosion Assessment", href: "/internal-corrosion-assessment" },
+  { label: "Sensor Monitoring", href: "/sensors" }
+];
+
+const linkClass = "group inline-flex items-center gap-2 rounded-sm text-sm text-slate-400 outline-none transition duration-200 hover:translate-x-0.5 hover:text-cyan-300 focus-visible:text-cyan-300 focus-visible:ring-4 focus-visible:ring-cyan-400/20";
+const contactRowClass = "group flex items-start gap-2 rounded-sm text-sm leading-6 text-slate-400 outline-none transition hover:translate-x-0.5 hover:text-cyan-300 focus-visible:text-cyan-300 focus-visible:ring-4 focus-visible:ring-cyan-400/20";
+
+function ArrowIcon() {
+  return <svg aria-hidden="true" className="h-3.5 w-3.5 opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
+}
+
+function EmailIcon() {
+  return <svg aria-hidden="true" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" viewBox="0 0 24 24"><rect height="14" rx="2" width="18" x="3" y="5" /><path d="m3 7 9 6 9-6" /></svg>;
+}
+
+function PhoneIcon() {
+  return <svg aria-hidden="true" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M6.5 3.5 9 3l2 5-2.5 1.5a13 13 0 0 0 6 6L16 13l5 2 .5 2.5A3 3 0 0 1 18.5 21C10 20.5 3.5 14 3 5.5A3 3 0 0 1 6.5 3.5Z" /></svg>;
+}
+
+function LocationIcon() {
+  return <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></svg>;
+}
+
 export function PublicFooter() {
+  const year = new Date().getFullYear();
+
   return (
-    <footer className="bg-[#0B1739] text-[#C8D4E5]">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-2 lg:grid-cols-[1.25fr_0.9fr_0.95fr_1fr] lg:px-8 lg:py-14">
-        <div>
-          <p className="text-2xl font-semibold tracking-tight text-white">Klinthru</p>
-          <p className="mt-3 text-sm font-medium text-[#D6E6FF]">
-            Pipeline Integrity and Corrosion Assessment Platform
-          </p>
-          <p className="mt-4 max-w-sm text-sm leading-6 text-[#A9BCD5]">
-            Enter pipeline and sensor data, assess corrosion risk, and generate engineering reports.
-          </p>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-white">
-            Platform
-          </h3>
-          <div className="mt-5 grid gap-3 text-sm">
-            {platformLinks.map((item) => (
-              <Link
-                key={item.label}
-                className="rounded-sm outline-none transition hover:text-[#60A5FA] focus-visible:text-[#60A5FA] focus-visible:ring-4 focus-visible:ring-blue-100/20"
-                href={item.href}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-white">
-            Capabilities
-          </h3>
-          <div className="mt-5 grid gap-3 text-sm">
-            {capabilityLinks.map((item) => (
-              <a
-                key={item}
-                className="rounded-sm outline-none transition hover:text-[#22D3EE] focus-visible:text-[#22D3EE] focus-visible:ring-4 focus-visible:ring-cyan-100/20"
-                href="#"
-              >
-                {item}
-              </a>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-white">
-            Contact
-          </h3>
-          <div className="mt-5 space-y-3 text-sm">
-            <p>Email: info@saqrontech.com</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 text-xs text-[#A9BCD5] sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-            <p>&copy; 2026 Klinthru. All rights reserved.</p>
-            <p>Built for pipeline integrity and corrosion assessment.</p>
-          </div>
-          <div className="flex flex-wrap gap-4">
-            <a
-              className="rounded-sm outline-none transition hover:text-[#60A5FA] focus-visible:text-[#60A5FA] focus-visible:ring-4 focus-visible:ring-blue-100/20"
-              href="#"
-            >
-              Privacy Policy
-            </a>
-            <Link
-              className="rounded-sm outline-none transition hover:text-[#60A5FA] focus-visible:text-[#60A5FA] focus-visible:ring-4 focus-visible:ring-blue-100/20"
-              href="/terms"
-            >
-              Terms & Conditions
+    <footer className="relative overflow-hidden border-t border-slate-800 bg-slate-950 text-slate-300">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(34,211,238,0.13),transparent_30%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(7,11,18,1))]" />
+      <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.15fr_0.82fr_0.92fr_0.82fr_1fr_1.1fr]">
+          <div className="max-w-xs">
+            <Link className="inline-flex rounded-sm outline-none transition focus-visible:ring-4 focus-visible:ring-cyan-400/20" href="/">
+              <img
+                alt="Klinthru"
+                className="h-12 w-auto"
+                src="/klinthru-logo.png"
+              />
             </Link>
-            <a
-              className="rounded-sm outline-none transition hover:text-[#22D3EE] focus-visible:text-[#22D3EE] focus-visible:ring-4 focus-visible:ring-cyan-100/20"
-              href="#"
-            >
-              Disclaimer
-            </a>
+            <p className="mt-4 text-sm font-medium text-cyan-300">Pipeline integrity management</p>
+            <p className="mt-3 text-sm leading-6 text-slate-400">A focused workspace for pipeline integrity data, engineering assessment, monitoring context, and traceable reporting.</p>
           </div>
+
+          {[
+            { title: "Platform", links: productLinks },
+            { title: "Company", links: companyLinks },
+            { title: "Support", links: supportLinks },
+            { title: "Capabilities", links: capabilityLinks }
+          ].map((group) => (
+            <div key={group.title}>
+              <h2 className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-200">{group.title}</h2>
+              <nav aria-label={`${group.title} links`} className="mt-5 grid gap-3">
+                {group.links.map((link) => <Link className={linkClass} href={link.href} key={link.href}>{link.label}<ArrowIcon /></Link>)}
+              </nav>
+            </div>
+          ))}
+
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-200">Contact</h2>
+            <div className="mt-5 grid gap-3">
+              <a className={contactRowClass} href="mailto:info@klinthru.com">
+                <EmailIcon />
+                <span>info@klinthru.com</span>
+              </a>
+              <a className={contactRowClass} href="tel:+971543900939">
+                <PhoneIcon />
+                <span>+971 543 900 939</span>
+              </a>
+              <div className="flex items-start gap-2 text-sm leading-6 text-slate-400">
+                <LocationIcon />
+                <span>Office no. 6, PO Box 20317, Abu Dhabi, UAE</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-10 flex flex-col gap-4 border-t border-white/10 pt-5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <p>&copy; {year} Klinthru. All rights reserved.</p>
+          <Link className="rounded-sm transition hover:text-cyan-300 focus-visible:text-cyan-300 focus-visible:ring-4 focus-visible:ring-cyan-400/20" href="/terms">Terms &amp; Conditions</Link>
         </div>
       </div>
     </footer>

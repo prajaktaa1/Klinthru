@@ -666,7 +666,7 @@ export function SearchableGroupedDropdown({
                 ) : (
                   filteredGroups.map((group) => (
                     <div key={group.label} className="py-1">
-                      <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      <div className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                         {group.label}
                       </div>
                       <div className="space-y-1">
@@ -717,10 +717,12 @@ export function SearchableGroupedDropdown({
 
 export function PipeMaterialDropdown({
   value,
-  onChange
+  onChange,
+  disabled = false
 }: {
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <SearchableGroupedDropdown
@@ -730,6 +732,7 @@ export function PipeMaterialDropdown({
       placeholder="Select pipe material"
       searchPlaceholder="Search pipe material..."
       emptyMessage="No material found"
+      disabled={disabled}
     />
   );
 }
@@ -737,11 +740,13 @@ export function PipeMaterialDropdown({
 export function PipeGradeDropdown({
   material,
   value,
-  onChange
+  onChange,
+  disabled = false
 }: {
   material: string;
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   const materialOption = getPipeMaterialOption(material);
   const gradeOptions: PipeGradeOption[] = materialOption?.grades ?? [];
@@ -759,7 +764,7 @@ export function PipeGradeDropdown({
       placeholder={materialOption ? `Select ${materialOption.gradeLabel.toLowerCase()}` : "Select pipe material first"}
       searchPlaceholder="Search pipe grade..."
       emptyMessage="No grade found"
-      disabled={!materialOption}
+      disabled={disabled || !materialOption}
     />
   );
 }

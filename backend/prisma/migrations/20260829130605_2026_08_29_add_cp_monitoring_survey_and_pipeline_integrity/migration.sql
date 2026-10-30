@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "ExternalPipeData" ALTER COLUMN "type" SET DEFAULT 'External';
+
+-- AlterTable
+ALTER TABLE "Pipeline" ALTER COLUMN "status" SET DEFAULT 'Active',
+ALTER COLUMN "updatedAt" SET DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable
+ALTER TABLE "User" ALTER COLUMN "updatedAt" SET DEFAULT CURRENT_TIMESTAMP;

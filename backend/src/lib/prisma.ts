@@ -1,15 +1,87 @@
 import { env } from "../config/env";
 
 type PrismaClientLike = {
+  // Optional until the additive Reports contract migration is explicitly deployed.
+  reportDefinition?: any;
+  reportDefinitionVersion?: any;
+  reportingField?: any;
+  reportingJoin?: any;
+  customReportDefinition?: any;
+  reportInputSnapshot?: any;
+  reportSourceLink?: any;
+  reportRun?: any;
+  reportRunEvent?: any;
+  reportSchedule?: any;
+  reportDelivery?: any;
+  reportExportJob?: any;
+  reportExportTemplate?: any;
+  reportTemplate?: any;
+  reportTemplateVersion?: any;
+  reportConfiguration?: any;
+  reportAuditEvent?: any;
+  riskTreatment?: import("../types/riskTreatment").TreatmentReadClient["riskTreatment"];
+  // Optional until the separately approved risk schema/client deployment occurs.
+  risk?: import("../types/riskAssessment").RiskReadClient["risk"];
+  riskMethodologyVersion?: import("../types/riskAssessment").RiskReadClient["riskMethodologyVersion"];
   $connect(): Promise<void>;
   $disconnect(): Promise<void>;
+  $transaction<T>(callback: (client: Omit<PrismaClientLike, "$transaction" | "$connect" | "$disconnect">) => Promise<T>, options?: { timeout?: number }): Promise<T>;
+  $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
   user: {
+    count(args?: unknown): Promise<number>;
+    findMany(args: unknown): Promise<any[]>;
     findUnique(args: unknown): Promise<any>;
     create(args: unknown): Promise<any>;
     update(args: unknown): Promise<any>;
   };
   assessment: {
     findMany(args: unknown): Promise<any[]>;
+    findUnique(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
+  };
+  pipeline: {
+    findMany(args: unknown): Promise<any[]>;
+    findFirst(args: unknown): Promise<any>;
+    findUnique(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
+  };
+  segment: {
+    findMany(args: unknown): Promise<any[]>;
+    findUnique(args: unknown): Promise<any>;
+    findFirst(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+  };
+  asset: {
+    findMany(args: unknown): Promise<any[]>;
+    findUnique(args: unknown): Promise<any>;
+    findFirst(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+  };
+  cpTestPoint: {
+    findMany(args: unknown): Promise<any[]>;
+    findUnique(args: unknown): Promise<any>;
+    findFirst(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+  };
+  cpReadingHistory: {
+    findMany(args: unknown): Promise<any[]>;
+  };
+  cpRectifier: {
+    findMany(args: unknown): Promise<any[]>;
+    findUnique(args: unknown): Promise<any>;
+    findFirst(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+  };
+  cpCalculation: {
+    findMany(args: unknown): Promise<any[]>;
+    findUnique(args: unknown): Promise<any>;
     create(args: unknown): Promise<any>;
   };
   report: {
@@ -17,18 +89,75 @@ type PrismaClientLike = {
     findFirst(args: unknown): Promise<any>;
     findUnique(args: unknown): Promise<any>;
     create(args: unknown): Promise<any>;
+    upsert(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
   };
   externalPipeData: {
     findMany(args: unknown): Promise<any[]>;
     findUnique(args: unknown): Promise<any>;
     create(args: unknown): Promise<any>;
     update(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
   };
   deviceRecord: {
     findMany(args: unknown): Promise<any[]>;
     findUnique(args: unknown): Promise<any>;
     create(args: unknown): Promise<any>;
     update(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
+  };
+  sensorAssignment: {
+    findMany(args: unknown): Promise<any[]>;
+    findFirst(args: unknown): Promise<any>;
+    findUnique(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
+  };
+  letterHead: {
+    findUnique(args: unknown): Promise<any>;
+    upsert(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
+  };
+  integrationConnector: {
+    findMany(args: unknown): Promise<any[]>;
+    findFirst(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
+  };
+  integrationEvent: {
+    findMany(args: unknown): Promise<any[]>;
+    create(args: unknown): Promise<any>;
+  };
+  integrationHubRecord: {
+    findMany(args: unknown): Promise<any[]>;
+    findFirst(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
+  };
+  managedDocument: {
+    count(args: unknown): Promise<number>;
+    findMany(args: unknown): Promise<any[]>;
+    findFirst(args: unknown): Promise<any>;
+    findUnique(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+  };
+  documentVersion: {
+    findMany(args: unknown): Promise<any[]>;
+    findFirst(args: unknown): Promise<any>;
+    findUnique(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+    aggregate(args: unknown): Promise<any>;
+  };
+  documentLink: {
+    findMany(args: unknown): Promise<any[]>;
+    findFirst(args: unknown): Promise<any>;
+    findUnique(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
   };
 };
 

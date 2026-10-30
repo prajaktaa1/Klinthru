@@ -10,6 +10,9 @@ const MAX_IDENTIFIER_LENGTH = 100;
 const riskLevels = ["High", "Medium", "Low"] as const;
 const assessmentTypes = ["External", "Internal"] as const;
 const diameterUnitValues = ["mm", "cm", "m", "inch", "ft"] as const;
+const pressureUnitValues = ["bar", "MPa", "kPa", "psi"] as const;
+const temperatureUnitValues = ["C", "F", "K"] as const;
+const wallThicknessUnitValues = ["mm", "in"] as const;
 const groundwaterPresenceValues = [
   "No Groundwater",
   "Seasonal Groundwater",
@@ -36,6 +39,14 @@ const cpSystemTypeValues = [
 ] as const;
 const cinderAndCokeValues = ["Yes", "No"] as const;
 const cpInputTypeValues = ["CP Polarization", "CP Polarized Potential", "Polarized Potential"] as const;
+const manualCpStatusOverrideValues = [
+  "No Override",
+  "Acceptable",
+  "Marginal / Review Required",
+  "Unacceptable",
+  "Not Assessed",
+  "Insufficient Data"
+] as const;
 const acInputTypeValues = [
   "AC Current Density",
   "AC Voltage to Remote Earth",
@@ -58,7 +69,25 @@ const externalCoatingValues = [
   "Three-Layer Polypropylene (3LPP)",
   "Other"
 ] as const;
-const internalCoatingValues = ["Bare", "Cement Lining", "Epoxy", "Epoxy/Others", "Other"] as const;
+const internalCoatingValues = [
+  "Bare / Uncoated",
+  "Liquid Epoxy",
+  "Fusion-Bonded Epoxy (FBE)",
+  "Phenolic Epoxy",
+  "Polyurethane",
+  "Polyethylene (PE) Lining",
+  "Cement Mortar Lining",
+  "Glass-Flake Epoxy",
+  "Rubber Lining",
+  "Fiberglass-Reinforced Plastic (FRP/GRP) Lining",
+  "Corrosion-Resistant Alloy (CRA) Cladding",
+  "Other",
+  "Unknown",
+  "Bare",
+  "Cement Lining",
+  "Epoxy",
+  "Epoxy/Others"
+] as const;
 const soilTypeValues = [
   "Clay",
   "Silt",
@@ -199,6 +228,10 @@ const nonNegativeNumber = () =>
 const positiveNumber = () =>
   finiteNumber().refine((value) => value > 0, { message: "Must be a positive number" });
 
+const optionalPositiveNumber = () => positiveNumber().optional();
+const optionalFiniteNumber = () => finiteNumber().optional();
+const optionalNonNegativeNumber = () => nonNegativeNumber().optional();
+
 const trimmedString = (maxLength: number, requiredMessage = "Must be a non-empty string") =>
   z
     .string()
@@ -209,10 +242,43 @@ const trimmedString = (maxLength: number, requiredMessage = "Must be a non-empty
 const optionalTrimmedString = (maxLength: number) =>
   z.string().trim().max(maxLength, `Must be ${maxLength} characters or fewer`).optional();
 
+const isoDateOnlyPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+const isoDateTimePattern =
+  /^(\d{4})-(\d{2})-(\d{2})T([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d{1,9})?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?$/;
+
+function isRealCalendarDate(year: number, month: number, day: number) {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+function isValidIsoDateOrDateTime(value: string) {
+  const dateOnlyMatch = isoDateOnlyPattern.exec(value);
+  const dateTimeMatch = isoDateTimePattern.exec(value);
+  const match = dateOnlyMatch ?? dateTimeMatch;
+
+  if (!match) {
+    return false;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  return isRealCalendarDate(year, month, day) && !Number.isNaN(Date.parse(value));
+}
+
+const optionalIsoInspectionDate = z
+  .string()
+  .trim()
+  .refine(isValidIsoDateOrDateTime, {
+    message: "Must be a valid ISO date or date-time string"
+  })
+  .optional();
+
 const assessmentEnvelopeSchema = z
   .object({
     id: optionalTrimmedString(MAX_IDENTIFIER_LENGTH),
     type: z.enum(assessmentTypes),
+    pipelineId: optionalTrimmedString(MAX_IDENTIFIER_LENGTH),
     pipelineName: trimmedString(MAX_PIPELINE_NAME_LENGTH, "Pipeline name is required"),
     createdAt: z
       .string()
@@ -221,6 +287,7 @@ const assessmentEnvelopeSchema = z
         message: "Must be a valid date-time string"
       })
       .optional(),
+    inspectionDate: optionalIsoInspectionDate,
     riskLevel: z.enum(riskLevels),
     riskScore: finiteNumber(),
     input: z.unknown(),
@@ -231,6 +298,7 @@ const assessmentEnvelopeSchema = z
 const externalInputSchema = z
   .object({
     pipelineName: optionalTrimmedString(MAX_PIPELINE_NAME_LENGTH),
+    pipelineId: optionalTrimmedString(MAX_IDENTIFIER_LENGTH),
     pipeLocationId: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
     pipeMaterial: z.enum(pipeMaterialValues),
     pipeMaterialOther: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
@@ -241,14 +309,29 @@ const externalInputSchema = z
     pipeIdDiameter: positiveNumber(),
     pipeIdDiameterDisplayValue: positiveNumber().optional(),
     pipeIdDiameterUnit: z.enum(diameterUnitValues),
+    smys: optionalPositiveNumber(),
+    maop: optionalPositiveNumber(),
+    operatingPressure: optionalPositiveNumber(),
+    operatingPressureDisplayValue: optionalNonNegativeNumber(),
+    operatingPressureUnit: z.enum(pressureUnitValues).optional(),
+    installationYear: optionalPositiveNumber(),
+    inspectionYear: optionalPositiveNumber(),
     wallThickness: positiveNumber(),
+    wallThicknessDisplayValue: positiveNumber().optional(),
+    wallThicknessUnit: z.enum(wallThicknessUnitValues).optional(),
     coatingType: z.enum(externalCoatingValues),
     coatingTypeOther: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
+    coatingAge: optionalNonNegativeNumber(),
+    holidayFound: z.enum(["Yes", "No"]).optional(),
+    holidaySize: optionalNonNegativeNumber(),
+    coatingCondition: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
     soilPh: finiteNumber(),
     soilType: z.enum(soilTypeValues),
     soilMoisture: nonNegativeNumber(),
     soilResistivity: finiteNumber(),
     soilTemperature: finiteNumber(),
+    soilTemperatureInputValue: optionalFiniteNumber(),
+    soilTemperatureUnit: z.enum(temperatureUnitValues).optional(),
     chloride: nonNegativeNumber(),
     sulphate: nonNegativeNumber(),
     sulphideH2S: nonNegativeNumber(),
@@ -260,10 +343,23 @@ const externalInputSchema = z
     cpSystemType: z.enum(cpSystemTypeValues).optional(),
     cpInputType: z.enum(cpInputTypeValues),
     cpInputValue: finiteNumber(),
+    onPotential: finiteNumber().optional(),
+    offPotential: finiteNumber().optional(),
+    referenceElectrode: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
+    cpStatus: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
+    calculatedCpStatus: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
+    manualCpStatusOverride: z.enum(manualCpStatusOverrideValues).optional(),
+    cpStatusOverrideReason: optionalTrimmedString(MAX_RESULT_TEXT_LENGTH),
     dcCurrentDensity: nonNegativeNumber(),
     acInputType: z.enum(acInputTypeValues),
     acInputValue: finiteNumber(),
-    strayCurrentDensity: nonNegativeNumber()
+    strayCurrentDensity: nonNegativeNumber(),
+    measuredThickness: optionalPositiveNumber(),
+    corrosionLength: optionalNonNegativeNumber(),
+    corrosionWidth: optionalNonNegativeNumber(),
+    previousInspectionDate: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
+    previousRemainingThickness: optionalNonNegativeNumber(),
+    minimumRequiredThickness: optionalPositiveNumber()
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -271,6 +367,15 @@ const externalInputSchema = z
     validateOtherField(value.pipeMaterial, value.pipeMaterialOther, "Other", ["pipeMaterialOther"], ctx);
     validateOtherField(value.pipeGrade, value.pipeGradeOther, "Other", ["pipeGradeOther"], ctx);
     validateOtherField(value.coatingType, value.coatingTypeOther, "Other", ["coatingTypeOther"], ctx);
+    validateTemperatureNormalization(
+      {
+        normalizedValue: value.soilTemperature,
+        inputValue: value.soilTemperatureInputValue,
+        unit: value.soilTemperatureUnit
+      },
+      ctx,
+      ["soilTemperature"]
+    );
 
     if (value.groundwaterPresence === "No Groundwater") {
       if (value.groundwaterCondition && value.groundwaterCondition !== "Not Applicable") {
@@ -290,6 +395,18 @@ const externalInputSchema = z
       });
     }
 
+    if (
+      value.maop !== undefined &&
+      value.operatingPressure !== undefined &&
+      value.operatingPressure > value.maop
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["operatingPressure"],
+        message: "Operating Pressure cannot exceed MAOP."
+      });
+    }
+
     if (value.cpInputType === "CP Polarization" && value.cpInputValue < 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -305,11 +422,24 @@ const externalInputSchema = z
         message: "Must be negative for CP Polarized Potential"
       });
     }
+
+    if (
+      value.manualCpStatusOverride &&
+      value.manualCpStatusOverride !== "No Override" &&
+      !value.cpStatusOverrideReason?.trim()
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["cpStatusOverrideReason"],
+        message: "Override reason is required when Manual CP Status Override is selected"
+      });
+    }
   });
 
 const internalInputSchema = z
   .object({
     pipelineName: optionalTrimmedString(MAX_PIPELINE_NAME_LENGTH),
+    pipelineId: optionalTrimmedString(MAX_IDENTIFIER_LENGTH),
     pipeLocationId: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
     pipeMaterial: z.enum(pipeMaterialValues),
     pipeMaterialOther: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
@@ -320,14 +450,20 @@ const internalInputSchema = z
     pipeIdDiameterDisplayValue: positiveNumber().optional(),
     pipeIdDiameterUnit: z.enum(diameterUnitValues),
     wallThickness: positiveNumber(),
+    wallThicknessDisplayValue: positiveNumber().optional(),
+    wallThicknessUnit: z.enum(wallThicknessUnitValues).optional(),
     designLife: nonNegativeNumber(),
     internalCoating: z.enum(internalCoatingValues),
     internalCoatingOther: optionalTrimmedString(MAX_SHORT_TEXT_LENGTH),
     waterPh: finiteNumber(),
     temperature: finiteNumber(),
+    temperatureInputValue: optionalFiniteNumber(),
+    temperatureUnit: z.enum(temperatureUnitValues).optional(),
     dissolvedOxygen: nonNegativeNumber(),
     waterVelocity: nonNegativeNumber(),
-    pipelinePressure: nonNegativeNumber()
+    pipelinePressure: nonNegativeNumber(),
+    pipelinePressureDisplayValue: nonNegativeNumber().optional(),
+    pipelinePressureUnit: z.enum(pressureUnitValues).optional()
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -335,6 +471,15 @@ const internalInputSchema = z
     validateOtherField(value.pipeMaterial, value.pipeMaterialOther, "Other", ["pipeMaterialOther"], ctx);
     validateOtherField(value.pipeGrade, value.pipeGradeOther, "Other", ["pipeGradeOther"], ctx);
     validateOtherField(value.internalCoating, value.internalCoatingOther, "Other", ["internalCoatingOther"], ctx);
+    validateTemperatureNormalization(
+      {
+        normalizedValue: value.temperature,
+        inputValue: value.temperatureInputValue,
+        unit: value.temperatureUnit
+      },
+      ctx,
+      ["temperature"]
+    );
   });
 
 const externalResultSchema = z
@@ -342,7 +487,12 @@ const externalResultSchema = z
     soilCorrosivityLevel: trimmedString(MAX_RESULT_TEXT_LENGTH),
     corrosionRate: finiteNumber(),
     corrosionDepth: finiteNumber(),
+    metalLossPercent: finiteNumber().optional(),
     remainingLife: finiteNumber(),
+    failurePressure: finiteNumber().optional(),
+    failurePressureRatio: finiteNumber().optional(),
+    safetyMargin: finiteNumber().optional(),
+    recommendation: optionalTrimmedString(MAX_RESULT_TEXT_LENGTH),
     highPhSccProbability: trimmedString(MAX_RESULT_TEXT_LENGTH),
     nearNeutralPhSccProbability: trimmedString(MAX_RESULT_TEXT_LENGTH),
     micWarning: trimmedString(MAX_RESULT_TEXT_LENGTH),
@@ -429,6 +579,49 @@ function validatePipeGradeForMaterial(
   }
 }
 
+function temperatureToCelsius(value: number, unit: (typeof temperatureUnitValues)[number]) {
+  if (unit === "F") {
+    return ((value - 32) * 5) / 9;
+  }
+
+  if (unit === "K") {
+    return value - 273.15;
+  }
+
+  return value;
+}
+
+function validateTemperatureNormalization(
+  value: {
+    normalizedValue: number;
+    inputValue?: number;
+    unit?: (typeof temperatureUnitValues)[number];
+  },
+  ctx: z.RefinementCtx,
+  path: (string | number)[]
+) {
+  const unit = value.unit ?? "C";
+  const inputValue = value.inputValue ?? value.normalizedValue;
+  const normalizedCelsius = temperatureToCelsius(inputValue, unit);
+
+  if (normalizedCelsius < -273.15) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path,
+      message: "Temperature must be at or above absolute zero"
+    });
+    return;
+  }
+
+  if (Math.abs(value.normalizedValue - normalizedCelsius) > 0.000001) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path,
+      message: "Temperature must match the selected unit after conversion to Celsius"
+    });
+  }
+}
+
 function validateEnvelopeResultConsistency(
   envelope: { riskLevel: (typeof riskLevels)[number]; riskScore: number },
   result: { riskLevel: (typeof riskLevels)[number]; riskScore: number },
@@ -465,6 +658,20 @@ function validateNestedPipelineNameConsistency(
   }
 }
 
+function validateNestedPipelineIdConsistency(
+  envelopePipelineId: string | undefined,
+  input: { pipelineId?: string },
+  ctx: z.RefinementCtx
+) {
+  if (input.pipelineId && envelopePipelineId && input.pipelineId !== envelopePipelineId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["input", "pipelineId"],
+      message: "Must match pipelineId"
+    });
+  }
+}
+
 const newAssessmentSubmissionSchema = assessmentEnvelopeSchema.superRefine((value, ctx) => {
   if (value.type === "External") {
     const inputResult = externalInputSchema.safeParse(value.input);
@@ -485,6 +692,7 @@ const newAssessmentSubmissionSchema = assessmentEnvelopeSchema.superRefine((valu
 
     if (inputResult.success) {
       validateNestedPipelineNameConsistency(value.pipelineName, inputResult.data, ctx);
+      validateNestedPipelineIdConsistency(value.pipelineId, inputResult.data, ctx);
     }
     return;
   }
@@ -507,6 +715,7 @@ const newAssessmentSubmissionSchema = assessmentEnvelopeSchema.superRefine((valu
 
   if (inputResult.success) {
     validateNestedPipelineNameConsistency(value.pipelineName, inputResult.data, ctx);
+    validateNestedPipelineIdConsistency(value.pipelineId, inputResult.data, ctx);
   }
 });
 
@@ -530,6 +739,7 @@ const compatibilityAssessmentSchema = compatibilityEnvelopeSchema.superRefine((v
 
     if (inputResult.success) {
       validateNestedPipelineNameConsistency(value.pipelineName, inputResult.data, ctx);
+      validateNestedPipelineIdConsistency(value.pipelineId, inputResult.data, ctx);
     }
     return;
   }
@@ -552,6 +762,7 @@ const compatibilityAssessmentSchema = compatibilityEnvelopeSchema.superRefine((v
 
   if (inputResult.success) {
     validateNestedPipelineNameConsistency(value.pipelineName, inputResult.data, ctx);
+    validateNestedPipelineIdConsistency(value.pipelineId, inputResult.data, ctx);
   }
 });
 
@@ -611,7 +822,7 @@ export function createUnknownFieldValidationError(path: string, key: string) {
 export const legacyAcceptedValues = {
   assessmentTypes: ["external", "internal"],
   externalCoating: ["FBE / PE / PP"],
-  internalCoating: ["Epoxy/Others"],
+  internalCoating: ["Bare", "Cement Lining", "Epoxy", "Epoxy/Others"],
   cpInputType: ["Polarized Potential"],
   acInputType: ["Pipe AC Voltage to Remote Earth"]
 } as const;

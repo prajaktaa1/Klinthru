@@ -6,8 +6,8 @@ export default function SensorsPage() {
     <div>
       <PageHeader
         eyebrow="SENSOR MONITORING"
-        title="Sensors & Field Equipment"
-        description="Monitor the availability and operating status of pipeline field instruments."
+        title=""
+        description="Monitor sensor devices, connectivity, data quality, calibration and maintenance status."
       />
 
       <SensorsView />

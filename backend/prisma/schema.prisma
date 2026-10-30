@@ -13,84 +13,3062 @@ enum Role {
   Viewer
 }
 
+enum TestPointAssetStatus {
+  Active
+  Inactive
+  Maintenance
+}
+
+enum ReferenceElectrode {
+  CSE
+  AgAgCl
+  CuCuSO4
+}
+
+enum CpMeasurementType {
+  ON_POTENTIAL
+  INSTANT_OFF_POTENTIAL
+  PIPE_TO_SOIL_POTENTIAL
+  STRAY_CURRENT
+}
+
+enum ProtectionStatus {
+  Protected
+  UnderProtected
+  Critical
+  Unknown
+}
+
+enum RectifierStatus {
+  Active
+  Standby
+  Fault
+  Offline
+  Maintenance
+}
+
+enum AssetType {
+  STATION
+  VALVE
+  TEST_POST
+  RECTIFIER
+  COMPRESSOR
+  SENSOR
+  PUMP
+  METER
+  PIG_LAUNCHER
+  PIG_RECEIVER
+  PIPELINE_FITTING
+  FLANGE
+  INSULATING_JOINT
+  PIPELINE_CROSSING
+  OTHER
+}
+
+enum AssetPhysicalStatus {
+  Active
+  Inactive
+  Maintenance
+  Decommissioned
+  Unknown
+}
+
+enum AssetSide {
+  LHS
+  RHS
+}
+
+enum CpMonitoringSurveyStatus {
+  Draft
+  Submitted
+  Reviewed
+  Archived
+}
+
+enum ZoneStatus {
+  Protected
+  UnderProtected
+  Critical
+  Unknown
+}
+
+enum InterferenceStatus {
+  Normal
+  Monitoring
+  Warning
+  Critical
+}
+
+enum CpCriteriaApprovalStatus {
+  Draft
+  Approved
+  Superseded
+  Retired
+}
+
+enum CpOperationalStatus {
+  WithinCriteria
+  Marginal
+  OutOfCriteria
+  NotAssessed
+  Stale
+  Invalid
+  Unknown
+}
+
+enum IliInspectionRunStatus {
+  Draft
+  Imported
+  Reviewed
+  Archived
+}
+
+enum IliAnomalyOrientation {
+  Internal
+  External
+  Unknown
+}
+
+enum IliAssessmentStatus {
+  Repair
+  Monitor
+  Safe
+  Pending
+}
+
+enum IntegrationConnectorType {
+  REST
+}
+
+enum IntegrationConnectorStatus {
+  Ready
+  Degraded
+  Failed
+  Disabled
+}
+
+enum IntegrationEventOperation {
+  Test
+  MetadataPreview
+}
+
+enum IntegrationEventOutcome {
+  Success
+  Failure
+}
+
+enum DocumentApprovalStatus {
+  Draft
+  Submitted
+  UnderReview          @map("Under Review")
+  Approved
+  ApprovedWithComments @map("Approved with Comments")
+  Rejected
+  Superseded
+  Archived
+}
+
+enum DocumentValidityStatus {
+  Current
+  ReviewDue    @map("Review Due")
+  ExpiringSoon @map("Expiring Soon")
+  Expired
+  NoExpiry     @map("No Expiry")
+}
+
+enum DocumentProcessingStatus {
+  Uploading
+  Processing
+  PendingMetadata @map("Pending Metadata")
+  ProcessingError @map("Processing Error")
+}
+
 model User {
-  id           String       @id @default(cuid())
-  name         String
-  email        String       @unique
-  passwordHash String
-  role         Role
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  assessments  Assessment[]
-  externalPipeData ExternalPipeData[]
-  reports      Report[]
-  deviceRecords DeviceRecord[]
+  aiBack_AiModel_ownerId AiModel[] @relation("AiModel_ownerId")
+  aiBack_AiModel_createdById AiModel[] @relation("AiModel_createdById")
+  aiBack_AiModelVersion_ownerId AiModelVersion[] @relation("AiModelVersion_ownerId")
+  aiBack_AiModelVersion_createdById AiModelVersion[] @relation("AiModelVersion_createdById")
+  aiBack_AiConfigurationRevision_ownerId AiConfigurationRevision[] @relation("AiConfigurationRevision_ownerId")
+  aiBack_AiConfigurationRevision_createdById AiConfigurationRevision[] @relation("AiConfigurationRevision_createdById")
+  aiBack_AiInputSnapshot_ownerId AiInputSnapshot[] @relation("AiInputSnapshot_ownerId")
+  aiBack_AiInputSnapshot_createdById AiInputSnapshot[] @relation("AiInputSnapshot_createdById")
+  aiBack_AiSnapshotSource_ownerId AiSnapshotSource[] @relation("AiSnapshotSource_ownerId")
+  aiBack_AiSnapshotSource_createdById AiSnapshotSource[] @relation("AiSnapshotSource_createdById")
+  aiBack_AiRunRequest_ownerId AiRunRequest[] @relation("AiRunRequest_ownerId")
+  aiBack_AiRunRequest_createdById AiRunRequest[] @relation("AiRunRequest_createdById")
+  aiBack_AiRunKey_ownerId AiRunKey[] @relation("AiRunKey_ownerId")
+  aiBack_AiRunKey_createdById AiRunKey[] @relation("AiRunKey_createdById")
+  aiBack_AiModelRun_ownerId AiModelRun[] @relation("AiModelRun_ownerId")
+  aiBack_AiModelRun_createdById AiModelRun[] @relation("AiModelRun_createdById")
+  aiBack_AiPrediction_ownerId AiPrediction[] @relation("AiPrediction_ownerId")
+  aiBack_AiPrediction_createdById AiPrediction[] @relation("AiPrediction_createdById")
+  aiBack_AiForecast_ownerId AiForecast[] @relation("AiForecast_ownerId")
+  aiBack_AiForecast_createdById AiForecast[] @relation("AiForecast_createdById")
+  aiBack_AiRecommendation_ownerId AiRecommendation[] @relation("AiRecommendation_ownerId")
+  aiBack_AiRecommendation_createdById AiRecommendation[] @relation("AiRecommendation_createdById")
+  aiBack_AiScenario_ownerId AiScenario[] @relation("AiScenario_ownerId")
+  aiBack_AiScenario_createdById AiScenario[] @relation("AiScenario_createdById")
+  aiBack_AiModelValidation_ownerId AiModelValidation[] @relation("AiModelValidation_ownerId")
+  aiBack_AiModelValidation_createdById AiModelValidation[] @relation("AiModelValidation_createdById")
+  aiBack_AiPredictionOutcomeLink_adjudicatedById AiPredictionOutcomeLink[] @relation("AiPredictionOutcomeLink_adjudicatedById")
+  aiBack_AiPredictionOutcomeLink_ownerId AiPredictionOutcomeLink[] @relation("AiPredictionOutcomeLink_ownerId")
+  aiBack_AiPredictionOutcomeLink_createdById AiPredictionOutcomeLink[] @relation("AiPredictionOutcomeLink_createdById")
+  aiBack_AiGovernanceEvent_actorId AiGovernanceEvent[] @relation("AiGovernanceEvent_actorId")
+  aiBack_AiGovernanceEvent_ownerId AiGovernanceEvent[] @relation("AiGovernanceEvent_ownerId")
+  aiBack_AiGovernanceEvent_createdById AiGovernanceEvent[] @relation("AiGovernanceEvent_createdById")
+  aiBack_AiOutboxEvent_ownerId AiOutboxEvent[] @relation("AiOutboxEvent_ownerId")
+  aiBack_AiOutboxEvent_createdById AiOutboxEvent[] @relation("AiOutboxEvent_createdById")
+  aiBack_AiEventDelivery_ownerId AiEventDelivery[] @relation("AiEventDelivery_ownerId")
+  aiBack_AiEventDelivery_createdById AiEventDelivery[] @relation("AiEventDelivery_createdById")
+  officialRisksOwned Risk[] @relation("OfficialRiskOwner")
+  basisEventActorIdLinks CpDesignBasisEvent[] @relation("CpDesignBasisEvent_actorId")
+  basisCheckReviewerIdLinks CpDesignBasisCheck[] @relation("CpDesignBasisCheck_reviewerId")
+  basisAssumptionEngineerIdLinks CpDesignBasisAssumption[] @relation("CpDesignBasisAssumption_engineerId")
+  basisRevisionCreatedByIdLinks CpDesignBasisRevision[] @relation("CpDesignBasisRevision_createdById")
+  basisRevisionSubmittedByIdLinks CpDesignBasisRevision[] @relation("CpDesignBasisRevision_submittedById")
+  basisCreatedByIdLinks CpDesignBasis[] @relation("CpDesignBasis_createdById")
+  id                    String                      @id @default(cuid())
+  name                  String
+  email                 String                      @unique
+  passwordHash          String
+  role                  Role
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @default(now()) @updatedAt
+  assessments           Assessment[]
+  externalPipeData      ExternalPipeData[]
+  reports               Report[]
+  pipelines             Pipeline[]
+  cpCalculations        CpCalculation[]
+  cpSurveys             CpMonitoringSurvey[]
+  cpTestPoints          CpTestPoint[]
+  cpReadingHistory      CpReadingHistory[]
+  cpRectifiers          CpRectifier[]
+  cpRectifierReads      CpRectifierReadingHistory[]
+  cpProtectionRules     CpProtectionRule[]
+  cpCriteriaApprovals   CpCriteriaVersion[]
+  cpZones               CpMonitoringZone[]
+  deviceRecords         DeviceRecord[]
+  sensorAssignments     SensorAssignment[]
+  letterHead            LetterHead?
+  iliInspectionRuns     IliInspectionRun[]
+  iliAnomalies          IliAnomaly[]
+  iliAssessments        IliAssessmentResult[]
+  integrationConnectors IntegrationConnector[]
+  integrationEvents     IntegrationEvent[]
+  integrationHubRecords IntegrationHubRecord[]
+  scadaConfigChanges    ScadaConfigChange[]
+  managedDocuments      ManagedDocument[]
+  documentFamilies      DocumentFamily[]
+  documentVersions      DocumentVersion[]
+  documentLinks         DocumentLink[]
+}
+
+model LetterHead {
+  id          String   @id @default(cuid())
+  ownerId     String   @unique
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  fileName    String
+  mimeType    String
+  fileSize    Int
+  fileContent Bytes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
+model DocumentFamily {
+  documentFamilyId String            @id @default(cuid()) @map("Document_Family_ID")
+  ownerId          String            @map("Owner_ID")
+  owner            User              @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt        DateTime          @default(now()) @map("Created_At")
+  documents        ManagedDocument[]
+
+  @@index([ownerId, createdAt])
+  @@map("Document_Family")
+}
+
+model ManagedDocument {
+  basisEvidenceDocumentIdLinks CpDesignBasisEvidence[] @relation("CpDesignBasisEvidence_documentId")
+  documentId       String            @id @default(cuid()) @map("Document_ID")
+  documentFamilyId String            @map("Document_Family_ID")
+  family           DocumentFamily    @relation(fields: [documentFamilyId], references: [documentFamilyId], onDelete: Restrict)
+  documentNumber   String?           @map("Document_Number")
+  title            String            @map("Title")
+  documentType     String            @map("Document_Type")
+  category         String            @map("Document_Category")
+  description      String?           @map("Description")
+  isGlobal         Boolean           @default(false) @map("Is_Global")
+  ownerId          String            @map("Owner_ID")
+  owner            User              @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt        DateTime          @default(now()) @map("Created_At")
+  updatedAt        DateTime          @updatedAt @map("Updated_At")
+  versions         DocumentVersion[]
+  links            DocumentLink[]
+
+  @@index([documentFamilyId])
+  @@index([ownerId, updatedAt])
+  @@index([documentNumber])
+  @@map("Managed_Document")
+}
+
+model DocumentVersion {
+  aiBack_AiModelVersion_artifactDocumentVersionId AiModelVersion[] @relation("AiModelVersion_artifactDocumentVersionId")
+  aiBack_AiModelValidation_artifactDocumentVersionId AiModelValidation[] @relation("AiModelValidation_artifactDocumentVersionId")
+  aiBack_AiGovernanceEvent_evidenceDocumentVersionId AiGovernanceEvent[] @relation("AiGovernanceEvent_evidenceDocumentVersionId")
+  basisEvidenceDocumentVersionIdLinks CpDesignBasisEvidence[] @relation("CpDesignBasisEvidence_documentVersionId")
+  documentVersionId String                    @id @default(cuid()) @map("Document_Version_ID")
+  documentId        String                    @map("Document_ID")
+  document          ManagedDocument           @relation(fields: [documentId], references: [documentId], onDelete: Restrict)
+  revision          String?                   @map("Document_Revision")
+  fileName          String                    @map("File_Name")
+  mimeType          String                    @map("MIME_Type")
+  fileSize          Int                       @map("File_Size_Bytes")
+  fileHash          String                    @unique @map("File_Hash_SHA256")
+  fileContent       Bytes                     @map("File_Content")
+  approvalStatus    DocumentApprovalStatus    @default(Draft) @map("Approval_Status")
+  validityStatus    DocumentValidityStatus?   @map("Validity_Review_Status")
+  processingStatus  DocumentProcessingStatus? @map("Processing_Status")
+  uploadedById      String                    @map("Uploaded_By_ID")
+  uploadedBy        User                      @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  uploadedAt        DateTime                  @default(now()) @map("Uploaded_At")
+  issueDate         DateTime?                 @map("Issue_Date")
+  reviewDueDate     DateTime?                 @map("Review_Due_Date")
+  expiryDate        DateTime?                 @map("Expiry_Date")
+  links             DocumentLink[]
+
+  @@unique([documentId, revision])
+  @@index([documentId, uploadedAt])
+  @@index([approvalStatus, validityStatus])
+  @@index([processingStatus])
+  @@map("Document_Version")
+}
+
+model DocumentLink {
+  documentLinkId    String           @id @default(cuid()) @map("Document_Link_ID")
+  documentId        String           @map("Document_ID")
+  document          ManagedDocument  @relation(fields: [documentId], references: [documentId], onDelete: Restrict)
+  documentVersionId String?          @map("Document_Version_ID")
+  documentVersion   DocumentVersion? @relation(fields: [documentVersionId], references: [documentVersionId], onDelete: Restrict)
+  pipelineId        String?          @map("Pipeline_ID")
+  pipeline          Pipeline?        @relation("DocumentLinkPipeline", fields: [pipelineId], references: [id], onDelete: Restrict)
+  segmentId         String?          @map("Segment_ID")
+  segment           Segment?         @relation("DocumentLinkSegment", fields: [segmentId], references: [id], onDelete: Restrict)
+  assetId           String?          @map("Asset_ID")
+  asset             Asset?           @relation("DocumentLinkAsset", fields: [assetId], references: [id], onDelete: Restrict)
+  createdById       String           @map("Created_By_ID")
+  createdBy         User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt         DateTime         @default(now()) @map("Created_At")
+
+  @@unique([documentId, pipelineId])
+  @@unique([documentId, segmentId])
+  @@unique([documentId, assetId])
+  @@index([documentId])
+  @@index([documentVersionId])
+  @@index([pipelineId])
+  @@index([segmentId])
+  @@index([assetId])
+  @@map("Document_Link")
 }
 
 model Assessment {
-  id           String   @id @default(cuid())
-  type         String
-  pipelineName String
-  riskLevel    String
-  riskScore    Int
-  input        Json
-  result       Json
-  createdAt    DateTime @default(now())
-  authorId     String?
-  author       User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  id             String    @id @default(cuid())
+  type           String
+  pipelineId     String?
+  pipeline       Pipeline? @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  pipelineName   String
+  riskLevel      String
+  riskScore      Int
+  input          Json
+  result         Json
+  inspectionDate DateTime?
+  createdAt      DateTime  @default(now())
+  authorId       String?
+  author         User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  reports        Report[]  @relation("InspectionReports")
+
+  @@index([authorId])
+  @@index([pipelineId])
+  @@index([pipelineId, inspectionDate])
+  @@index([type, inspectionDate])
+  @@index([createdAt])
 }
 
 model Report {
-  id             String   @id @default(cuid())
-  assessmentId   String
-  assessmentType String
-  pipelineName   String
-  riskLevel      String
-  input          Json
-  result         Json
-  generatedAt    DateTime
-  createdAt      DateTime @default(now())
-  authorId       String?
-  author         User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  id                  String      @id @default(cuid())
+  assessmentId        String
+  reportSubmissionKey String?     @unique
+  assessmentType      String
+  inspectionId        String?
+  inspection          Assessment? @relation("InspectionReports", fields: [inspectionId], references: [id], onDelete: SetNull)
+  pipelineId          String?
+  pipeline            Pipeline?   @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  pipelineName        String
+  riskLevel           String
+  input               Json
+  result              Json
+  generatedAt         DateTime
+  createdAt           DateTime    @default(now())
+  authorId            String?
+  author              User?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([authorId])
+  @@index([pipelineId])
+  @@index([assessmentId])
+  @@index([inspectionId])
+  @@index([createdAt])
 }
 
 model ExternalPipeData {
-  id           String   @id @default(cuid())
-  type         String
+  id           String    @id @default(cuid())
+  assessmentId String?   @unique
+  type         String    @default("External")
+  pipelineId   String?
+  pipeline     Pipeline? @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
   pipelineName String
   pipeId       String?
   locationId   String?
   input        Json
   result       Json
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   authorId     String?
-  author       User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  author       User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([type])
+  @@index([pipelineId])
   @@index([pipelineName])
   @@index([pipeId])
   @@index([locationId])
+  @@index([authorId])
   @@index([createdAt])
 }
 
-model DeviceRecord {
-  id                  String   @id @default(cuid())
-  deviceId            String   @unique
-  deviceType          String
-  pipelineOrLocation  String
-  status              String
-  latestReadingOrState String
-  unit                String?
-  lastUpdatedAt       DateTime
-  isDemoData          Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+model Pipeline {
+  // Chainage Agent: additive preparation only; review draft SQL before deployment.
+  chainageOriginMeters        Decimal? @db.Decimal(24, 9)
+  chainageOriginName          String?
+  chainageOriginDescription   String?
+  chainageOriginReference     String?
+  chainageOriginLatitude      Float?
+  chainageOriginLongitude     Float?
+  chainageDirection           ChainageDirection?
+  chainagePrecision           Int?
+  allowNegativeChainage       Boolean?
+  chainageMatchToleranceMeters Decimal? @db.Decimal(24, 9)
+  chainageBoundaryPolicy      ChainageBoundaryPolicy?
+  parentPipelineId            String?
+  parentTieInChainageMeters   Decimal? @db.Decimal(24, 9)
+  chainageCalibration         Json?
+  chainageCoordinateSystem    String?
+  chainageParent              Pipeline? @relation("PipelineChainageBranch", fields: [parentPipelineId], references: [id], onDelete: Restrict)
+  chainageBranches            Pipeline[] @relation("PipelineChainageBranch")
+  @@index([parentPipelineId])
+
+  inspectionRecords InspectionRecord[]
+  aiBack_AiInputSnapshot_pipelineId AiInputSnapshot[] @relation("AiInputSnapshot_pipelineId")
+  aiBack_AiRunRequest_pipelineId AiRunRequest[] @relation("AiRunRequest_pipelineId")
+  aiBack_AiRunKey_pipelineId AiRunKey[] @relation("AiRunKey_pipelineId")
+  aiBack_AiModelRun_pipelineId AiModelRun[] @relation("AiModelRun_pipelineId")
+  aiBack_AiPrediction_pipelineId AiPrediction[] @relation("AiPrediction_pipelineId")
+  aiBack_AiForecast_pipelineId AiForecast[] @relation("AiForecast_pipelineId")
+  aiBack_AiRecommendation_pipelineId AiRecommendation[] @relation("AiRecommendation_pipelineId")
+  aiBack_AiScenario_pipelineId AiScenario[] @relation("AiScenario_pipelineId")
+  aiBack_AiModelValidation_pipelineId AiModelValidation[] @relation("AiModelValidation_pipelineId")
+  aiBack_AiPredictionOutcomeLink_pipelineId AiPredictionOutcomeLink[] @relation("AiPredictionOutcomeLink_pipelineId")
+  officialRisks Risk[] @relation("OfficialRiskPipeline")
+  basisPipelineIdLinks CpDesignBasis[] @relation("CpDesignBasis_pipelineId")
+  id                          String                      @id @default(cuid())
+  pipelineCode                String
+  normalizedPipelineCode      String
+  pipelineName                String
+  location                    String?
+  serviceOrProduct            String?
+  pipeMaterial                String?
+  pipeMaterialOther           String?
+  pipeGrade                   String?
+  pipeGradeOther              String?
+  pipeLocationId              String?
+  pipeAgeYears                Float?
+  pipeLengthKm                Float?
+  pipeInsideDiameter          Float?
+  pipeOutsideDiameter         Float?
+  diameterUnit                String?
+  smysMpa                     Float?
+  maopBar                     Float?
+  nominalWallThickness        Float?
+  wallThicknessInputValue     Float?
+  wallThicknessUnit           String?
+  designPressure              Float?
+  designPressureUnit          String?
+  coatingType                 String?
+  operatingPressure           Float?
+  operatingPressureInputValue Float?
+  operatingPressureUnit       String?
+  installationYear            Int?
+  inspectionYear              Int?
+  installationDate            DateTime?
+  designLife                  Int?
+  routeGeometry               Json?
+  status                      String                      @default("Active")
+  createdById                 String?
+  createdBy                   User?                       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt                   DateTime                    @default(now())
+  updatedAt                   DateTime                    @default(now()) @updatedAt
+  assessments                 Assessment[]
+  reports                     Report[]
+  externalPipeData            ExternalPipeData[]
+  cpCalculations              CpCalculation[]
+  cpSurveys                   CpMonitoringSurvey[]
+  cpTestPoints                CpTestPoint[]
+  cpReadingHistory            CpReadingHistory[]
+  cpRectifiers                CpRectifier[]
+  cpRectifierReads            CpRectifierReadingHistory[]
+  cpProtectionRules           CpProtectionRule[]
+  cpCriteriaSets              CpCriteriaSet[]
+  cpZones                     CpMonitoringZone[]
+  iliInspectionRuns           IliInspectionRun[]
+  segments                    Segment[]
+  assets                      Asset[]
+  scadaTags                   ScadaTag[]
+  scadaEvents                 ScadaEvent[]
+  scadaAnomalies              ScadaAnomaly[]
+  scadaIndicators             ScadaIndicator[]
+  dataQualityRecords          DataQualityRecord[]
+  pollingConfig               ScadaPollingConfig?
+  routingConfig               ScadaRoutingConfig?
+  unitMappings                ScadaUnitMapping[]
+  configChanges               ScadaConfigChange[]
+  documentLinks               DocumentLink[]              @relation("DocumentLinkPipeline")
+  monitoringPoints            MonitoringPoint[]
+
+  @@unique([createdById, normalizedPipelineCode])
+  @@index([createdById])
+  @@index([pipelineName])
+  @@index([createdAt])
+}
+
+model InspectionRecord {
+  id String @id @default(cuid())
+  pipelineId String
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  reference String
+  type String
+  date String
+  segmentId String @default("")
+  vendor String @default("")
+  findings String @default("")
+  status String
+  nextDue String @default("")
+  risk String @default("")
+  authorId String
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@index([pipelineId, date])
+}
+
+model Segment {
+  startChainageMeters Decimal? @db.Decimal(24, 9)
+  endChainageMeters   Decimal? @db.Decimal(24, 9)
+  @@index([pipelineId, startChainageMeters])
+
+  aiBack_AiPrediction_segmentId AiPrediction[] @relation("AiPrediction_segmentId")
+  officialRisks Risk[] @relation("OfficialRiskSegment")
+  basisScopeSegmentIdLinks CpDesignBasisScope[] @relation("CpDesignBasisScope_segmentId")
+  id               String            @id @default(cuid())
+  pipelineId       String
+  pipeline         Pipeline          @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  segmentId        String
+  name             String?
+  description      String?
+  startKp          String?
+  endKp            String?
+  coatingType      String?
+  cpType           String?
+  terrain          String?
+  status           String?
+  routeGeometry    Json?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  assets           Asset[]
+  documentLinks    DocumentLink[]    @relation("DocumentLinkSegment")
+  monitoringPoints MonitoringPoint[]
+
+  @@unique([pipelineId, segmentId])
+  @@index([pipelineId])
+}
+
+model Asset {
+  chainageMeters      Decimal? @db.Decimal(24, 9)
+  startChainageMeters Decimal? @db.Decimal(24, 9)
+  endChainageMeters   Decimal? @db.Decimal(24, 9)
+  @@index([pipelineId, chainageMeters])
+  @@index([pipelineId, assetType, chainageMeters])
+
+  aiBack_AiPrediction_assetId AiPrediction[] @relation("AiPrediction_assetId")
+  officialRisks Risk[] @relation("OfficialRiskAsset")
+  basisScopeAssetIdLinks CpDesignBasisScope[] @relation("CpDesignBasisScope_assetId")
+  id               String              @id @default(cuid())
+  assetId          String
+  name             String?
+  facilityType     String?
+  equipmentType    String?
+  assetType        AssetType
+  pipelineId       String
+  pipeline         Pipeline            @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  segmentId        String?
+  segment          Segment?            @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  kp               String?
+  latitude         Float?
+  longitude        Float?
+  coordinates      String?
+  side             AssetSide?
+  installationDate DateTime?
+  manufacturer     String?
+  model            String?
+  physicalStatus   AssetPhysicalStatus @default(Unknown)
+  parentAssetId    String?
+  parentAsset      Asset?              @relation("AssetParent", fields: [parentAssetId], references: [id], onDelete: SetNull)
+  childAssets      Asset[]             @relation("AssetParent")
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  cpTestPoint      CpTestPoint?
+  cpRectifier      CpRectifier?
+  scadaTags        ScadaTag[]
+  documentLinks    DocumentLink[]      @relation("DocumentLinkAsset")
+  monitoringPoints MonitoringPoint[]
+
+  @@unique([pipelineId, assetId])
+  @@index([pipelineId, assetType])
+  @@index([segmentId])
+  @@index([parentAssetId])
+  @@index([physicalStatus])
+}
+
+model IliInspectionRun {
+  id                 String                 @id @default(cuid())
+  pipelineId         String
+  pipeline           Pipeline               @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  runReference       String
+  toolType           String
+  vendor             String?
+  inspectionDate     DateTime
+  assessmentStandard String?
+  status             IliInspectionRunStatus @default(Draft)
+  notes              String?
+  sourceMetadata     Json?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  authorId           String?
+  author             User?                  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  anomalies          IliAnomaly[]
+
+  @@unique([pipelineId, runReference])
+  @@index([pipelineId, inspectionDate])
+  @@index([authorId])
+}
+
+model IliAnomaly {
+  id                  String                @id @default(cuid())
+  inspectionRunId     String
+  inspectionRun       IliInspectionRun      @relation(fields: [inspectionRunId], references: [id], onDelete: Cascade)
+  featureId           String
+  anomalyType         String
+  kpKm                Float?
+  location            String?
+  depthMm             Float?
+  depthPercent        Float?
+  lengthMm            Float?
+  widthMm             Float?
+  clockPosition       String?
+  orientation         IliAnomalyOrientation @default(Unknown)
+  measurementMetadata Json?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
   authorId            String?
-  author              User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  author              User?                 @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  assessments         IliAssessmentResult[]
+
+  @@unique([inspectionRunId, featureId])
+  @@index([inspectionRunId, kpKm])
+  @@index([authorId])
+}
+
+model IliAssessmentResult {
+  id                 String              @id @default(cuid())
+  anomalyId          String
+  anomaly            IliAnomaly          @relation(fields: [anomalyId], references: [id], onDelete: Restrict)
+  methodology        String
+  methodologyVersion String
+  status             IliAssessmentStatus @default(Pending)
+  inputSnapshot      Json
+  result             Json
+  calculationSteps   Json
+  calculatedAt       DateTime
+  createdAt          DateTime            @default(now())
+  authorId           String?
+  author             User?               @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([anomalyId, calculatedAt])
+  @@index([status])
+  @@index([authorId])
+}
+
+model IntegrationConnector {
+  id                   String                     @id @default(cuid())
+  name                 String
+  connectorType        IntegrationConnectorType   @default(REST)
+  enabled              Boolean                    @default(true)
+  status               IntegrationConnectorStatus @default(Ready)
+  endpoint             String
+  configuration        Json?
+  secretReference      String?
+  secretConfigured     Boolean                    @default(false)
+  lastTestedAt         DateTime?
+  lastSuccessfulTestAt DateTime?
+  lastFailureAt        DateTime?
+  lastFailureCode      String?
+  lastFailureMessage   String?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  authorId             String?
+  author               User?                      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  events               IntegrationEvent[]
+  hubRecords           IntegrationHubRecord[]
+  scadaTags            ScadaTag[]
+  gatewayLinks         GatewayLink[]
+
+  @@unique([authorId, name])
+  @@index([authorId, enabled])
+  @@index([authorId, status])
+  @@index([lastTestedAt])
+}
+
+model IntegrationHubRecord {
+  id          String                @id @default(cuid())
+  module      String
+  name        String
+  status      String                @default("Active")
+  details     Json                  @default("{}")
+  connectorId String?
+  connector   IntegrationConnector? @relation(fields: [connectorId], references: [id], onDelete: SetNull)
+  authorId    String
+  author      User                  @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([module, name])
+  @@index([module, updatedAt])
+  @@index([authorId, module])
+}
+
+model IntegrationEvent {
+  id           String                    @id @default(cuid())
+  connectorId  String
+  connector    IntegrationConnector      @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+  operation    IntegrationEventOperation
+  outcome      IntegrationEventOutcome
+  errorCode    String?
+  errorMessage String?
+  durationMs   Int?
+  itemCount    Int?
+  createdAt    DateTime                  @default(now())
+  authorId     String?
+  author       User?                     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([connectorId, createdAt])
+  @@index([authorId, createdAt])
+  @@index([outcome, createdAt])
+}
+
+model CpCalculation {
+  id              String   @id @default(cuid())
+  pipelineId      String
+  pipeline        Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  calculationType String
+  input           Json
+  result          Json
+  createdAt       DateTime @default(now())
+  authorId        String?
+  author          User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([pipelineId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model CpMonitoringSurvey {
+  id         String                   @id @default(cuid())
+  pipelineId String
+  pipeline   Pipeline                 @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  surveyDate DateTime
+  surveyName String?
+  status     CpMonitoringSurveyStatus @default(Draft)
+  notes      String?
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+  authorId   String?
+  author     User?                    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  readings CpReadingHistory[]
+
+  @@unique([id, pipelineId])
+  @@index([pipelineId, surveyDate])
+  @@index([authorId])
+}
+
+model CpTestPoint {
+  id            String               @id @default(cuid())
+  pipelineId    String
+  pipeline      Pipeline             @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  code          String
+  name          String?
+  location      String?
+  kp            String?
+  assetStatus   TestPointAssetStatus @default(Active)
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  authorId      String?
+  author        User?                @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  assetMasterId String?
+  assetMaster   Asset?               @relation(fields: [assetMasterId], references: [id], onDelete: SetNull)
+
+  readings    CpReadingHistory[]
+  memberships CpMonitoringZoneMembership[]
+
+  @@unique([id, pipelineId])
+  @@unique([pipelineId, code])
+  @@unique([assetMasterId])
+  @@index([pipelineId, assetStatus])
+  @@index([location])
+}
+
+model CpProtectionRule {
+  id                        String             @id @default(cuid())
+  pipelineId                String?
+  pipeline                  Pipeline?          @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  name                      String
+  referenceElectrode        ReferenceElectrode
+  measurementType           CpMeasurementType
+  protectionThresholdMv     Float
+  overProtectionThresholdMv Float?
+  notes                     String?
+  isDefault                 Boolean            @default(false)
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  authorId                  String?
+  author                    User?              @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([pipelineId, measurementType, referenceElectrode])
+  @@index([isDefault])
+}
+
+model CpCriteriaSet {
+  basisCriteriaBindingCriteriaSetIdLinks CpDesignBasisCriteriaBinding[] @relation("CpDesignBasisCriteriaBinding_criteriaSetId")
+  id                     String                @id @default(cuid())
+  criteriaSetId          String                @unique
+  name                   String
+  standardReference      String?
+  companyReference       String?
+  applicableAssetType    AssetType?
+  applicablePipelineType String?
+  pipelineId             String?
+  pipeline               Pipeline?             @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  versions               CpCriteriaVersion[]
+  evaluations            CpReadingEvaluation[]
+
+  @@index([pipelineId])
+  @@index([applicableAssetType])
+}
+
+model CpCriteriaVersion {
+  basisCriteriaBindingCriteriaVersionIdLinks CpDesignBasisCriteriaBinding[] @relation("CpDesignBasisCriteriaBinding_criteriaVersionId")
+  id                String                   @id @default(cuid())
+  criteriaVersionId String                   @unique
+  criteriaSetId     String
+  criteriaSet       CpCriteriaSet            @relation(fields: [criteriaSetId], references: [id], onDelete: Restrict)
+  version           String
+  effectiveDate     DateTime
+  supersededDate    DateTime?
+  approvalStatus    CpCriteriaApprovalStatus @default(Draft)
+  approvedAt        DateTime?
+  approvedById      String?
+  approvedBy        User?                    @relation(fields: [approvedById], references: [id], onDelete: SetNull)
+  notes             String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  definitions       CpCriterionDefinition[]
+  evaluations       CpReadingEvaluation[]
+
+  @@unique([criteriaSetId, version])
+  @@index([criteriaSetId, approvalStatus])
+  @@index([effectiveDate])
+  @@index([approvedById])
+}
+
+model CpCriterionDefinition {
+  id                        String              @id @default(cuid())
+  criteriaVersionId         String
+  criteriaVersion           CpCriteriaVersion   @relation(fields: [criteriaVersionId], references: [id], onDelete: Cascade)
+  measurementType           CpMeasurementType
+  referenceElectrode        ReferenceElectrode?
+  protectionThresholdMv     Float?
+  overProtectionThresholdMv Float?
+  marginalThresholdMv       Float?
+  unit                      String
+  notes                     String?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  @@index([criteriaVersionId, measurementType, referenceElectrode])
+}
+
+model CpReadingHistory {
+  id         String   @id @default(cuid())
+  pipelineId String
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+
+  surveyId         String?
+  surveyPipelineId String?
+  survey           CpMonitoringSurvey? @relation(fields: [surveyId, surveyPipelineId], references: [id, pipelineId], onDelete: SetNull)
+
+  testPointId         String
+  testPointPipelineId String
+  testPoint           CpTestPoint @relation(fields: [testPointId, testPointPipelineId], references: [id, pipelineId], onDelete: Restrict)
+
+  readingAt          DateTime
+  measurementType    CpMeasurementType
+  referenceElectrode ReferenceElectrode
+  valueMv            Float?
+  valueV             Float?
+  strayCurrentMa     Float?
+  protectionStatus   ProtectionStatus      @default(Unknown)
+  interferenceStatus InterferenceStatus?
+  source             String?
+  quality            String?
+  notes              String?
+  createdAt          DateTime              @default(now())
+  authorId           String?
+  author             User?                 @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  evaluations        CpReadingEvaluation[]
+
+  @@index([pipelineId, testPointId, readingAt])
+  @@index([pipelineId, measurementType, readingAt])
+  @@index([surveyId, surveyPipelineId, readingAt])
+  @@index([protectionStatus, readingAt])
+}
+
+model CpReadingEvaluation {
+  id                      String              @id @default(cuid())
+  readingId               String
+  reading                 CpReadingHistory    @relation(fields: [readingId], references: [id], onDelete: Restrict)
+  criteriaSetId           String
+  criteriaSet             CpCriteriaSet       @relation(fields: [criteriaSetId], references: [id], onDelete: Restrict)
+  criteriaVersionId       String
+  criteriaVersion         CpCriteriaVersion   @relation(fields: [criteriaVersionId], references: [id], onDelete: Restrict)
+  status                  CpOperationalStatus
+  evaluatedAt             DateTime            @default(now())
+  evaluationMethod        String
+  evaluationMethodVersion String
+  reasonCode              String?
+  notes                   String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  @@unique([readingId, criteriaVersionId, evaluationMethod, evaluationMethodVersion])
+  @@index([criteriaSetId])
+  @@index([criteriaVersionId])
+  @@index([status, evaluatedAt])
+}
+
+model CpRectifier {
+  id            String                      @id @default(cuid())
+  pipelineId    String
+  pipeline      Pipeline                    @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  rectifierCode String
+  name          String?
+  location      String?
+  kp            String?
+  status        RectifierStatus             @default(Active)
+  notes         String?
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+  authorId      String?
+  author        User?                       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  assetMasterId String?
+  assetMaster   Asset?                      @relation(fields: [assetMasterId], references: [id], onDelete: SetNull)
+  readings      CpRectifierReadingHistory[]
+
+  @@unique([id, pipelineId])
+  @@unique([pipelineId, rectifierCode])
+  @@unique([assetMasterId])
+  @@index([pipelineId, status])
+}
+
+model CpRectifierReadingHistory {
+  id                  String          @id @default(cuid())
+  pipelineId          String
+  pipeline            Pipeline        @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  rectifierId         String
+  rectifierPipelineId String
+  rectifier           CpRectifier     @relation(fields: [rectifierId, rectifierPipelineId], references: [id, pipelineId], onDelete: Restrict)
+  readingAt           DateTime
+  status              RectifierStatus @default(Active)
+  outputVoltageV      Float?
+  outputCurrentA      Float?
+  notes               String?
+  createdAt           DateTime        @default(now())
+  authorId            String?
+  author              User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([pipelineId, rectifierId, readingAt])
+  @@index([status, readingAt])
+}
+
+model CpMonitoringZone {
+  id              String                       @id @default(cuid())
+  pipelineId      String
+  pipeline        Pipeline                     @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  code            String
+  name            String?
+  segmentCode     String?
+  locationLabel   String?
+  status          ZoneStatus                   @default(Unknown)
+  statusUpdatedAt DateTime?
+  notes           String?
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  authorId        String?
+  author          User?                        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  members         CpMonitoringZoneMembership[]
+
+  @@unique([id, pipelineId])
+  @@unique([pipelineId, code])
+  @@index([pipelineId, status])
+}
+
+model CpMonitoringZoneMembership {
+  id                  String           @id @default(cuid())
+  zoneId              String
+  zonePipelineId      String
+  zone                CpMonitoringZone @relation(fields: [zoneId, zonePipelineId], references: [id, pipelineId], onDelete: Cascade)
+  testPointId         String
+  testPointPipelineId String
+  testPoint           CpTestPoint      @relation(fields: [testPointId, testPointPipelineId], references: [id, pipelineId], onDelete: Restrict)
+
+  @@unique([zoneId, testPointId])
+  @@index([testPointId])
+}
+
+model DeviceRecord {
+  id                   String   @id @default(cuid())
+  deviceId             String   @unique
+  deviceType           String
+  pipelineOrLocation   String
+  status               String
+  latestReadingOrState String
+  unit                 String?
+  lastUpdatedAt        DateTime
+  isDemoData           Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  authorId             String?
+  author               User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([deviceType])
   @@index([status])
   @@index([pipelineOrLocation])
+  @@index([authorId])
   @@index([lastUpdatedAt])
+}
+
+model SensorAssignment {
+  scadaTags            ScadaTag[]
+  id                   String     @id @default(cuid())
+  sensorId             String
+  sensorName           String
+  sensorCategory       String
+  sensorDeviceType     String
+  pipelineOrAsset      String
+  installationLocation String
+  installationType     String
+  valuesMeasured       String
+  measurementUnit      String
+  installationDate     DateTime
+  dataSource           String
+  assignmentStatus     String
+  notes                String?
+  activeFrom           DateTime   @default(now())
+  activeTo             DateTime?
+  previousAssignmentId String?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  authorId             String?
+  author               User?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([sensorId])
+  @@index([sensorCategory])
+  @@index([sensorDeviceType])
+  @@index([pipelineOrAsset])
+  @@index([installationLocation])
+  @@index([assignmentStatus])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model MonitoringPoint {
+  id                String    @id @default(cuid())
+  monitoringPointId String    @unique
+  pipelineId        String?
+  pipeline          Pipeline? @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  segmentId         String?
+  segment           Segment?  @relation(fields: [segmentId], references: [id], onDelete: Restrict)
+  assetId           String?
+  asset             Asset?    @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  sensors           Sensor[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([pipelineId])
+  @@index([segmentId])
+  @@index([assetId])
+}
+
+model Sensor {
+  id                String           @id @default(cuid())
+  sensorId          String           @unique
+  monitoringPointId String?
+  monitoringPoint   MonitoringPoint? @relation(fields: [monitoringPointId], references: [id], onDelete: Restrict)
+  channels          Channel[]
+  gatewayLinks      GatewayLink[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([monitoringPointId])
+}
+
+model Channel {
+  id        String   @id @default(cuid())
+  channelId String   @unique
+  sensorId  String
+  sensor    Sensor   @relation(fields: [sensorId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sensorId])
+}
+
+model Gateway {
+  id           String        @id @default(cuid())
+  gatewayId    String        @unique
+  gatewayLinks GatewayLink[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model GatewayLink {
+  id            String                @id @default(cuid())
+  gatewayLinkId String                @unique
+  gatewayId     String
+  gateway       Gateway               @relation(fields: [gatewayId], references: [id], onDelete: Restrict)
+  sensorId      String
+  sensor        Sensor                @relation(fields: [sensorId], references: [id], onDelete: Restrict)
+  connectorId   String?
+  connector     IntegrationConnector? @relation(fields: [connectorId], references: [id], onDelete: Restrict)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@unique([gatewayId, sensorId])
+  @@index([gatewayId])
+  @@index([sensorId])
+  @@index([connectorId])
+}
+
+model ScadaTag {
+  id                  String                    @id @default(cuid())
+  sourceTagName       String
+  displayName         String
+  description         String?
+  measurementType     String
+  engineeringUnit     String
+  scanIntervalSeconds Int
+  staleAfterSeconds   Int
+  pipelineId          String
+  pipeline            Pipeline                  @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  assetId             String
+  asset               Asset                     @relation(fields: [assetId], references: [id], onDelete: Restrict)
+  connectorId         String
+  connector           IntegrationConnector      @relation(fields: [connectorId], references: [id], onDelete: Restrict)
+  sourceSystemId      String
+  sensorAssignmentId  String?
+  sensorAssignment    SensorAssignment?         @relation(fields: [sensorAssignmentId], references: [id], onDelete: Restrict)
+  documentIds         String[]                  @default([])
+  highHigh            Float?
+  high                Float?
+  low                 Float?
+  lowLow              Float?
+  thresholdSource     String?
+  groupName           String?
+  historianEnabled    Boolean                   @default(true)
+  displayPrecision    Int                       @default(2)
+  updatedAt           DateTime                  @default(now()) @updatedAt
+  active              Boolean                   @default(true)
+  activeFrom          DateTime                  @default(dbgenerated("(CURRENT_TIMESTAMP AT TIME ZONE 'UTC'::text)"))
+  createdAt           DateTime                  @default(dbgenerated("(CURRENT_TIMESTAMP AT TIME ZONE 'UTC'::text)"))
+  readings            SharedTimeSeriesReading[]
+  alarms              ScadaAlarm[]
+  events              ScadaEvent[]
+  anomalies           ScadaAnomaly[]
+  qualityRecords      DataQualityRecord[]
+
+  @@unique([connectorId, sourceTagName])
+  @@index([pipelineId, active])
+}
+
+model SharedTimeSeriesReading {
+  id                     String   @id @default(cuid())
+  tagId                  String
+  tag                    ScadaTag @relation(fields: [tagId], references: [id], onDelete: Restrict)
+  sourceTimestamp        DateTime
+  sourceTimezone         String
+  normalizedUtcTimestamp DateTime
+  receiveTimestamp       DateTime @default(dbgenerated("(CURRENT_TIMESTAMP AT TIME ZONE 'UTC'::text)"))
+  sequence               String   @default("")
+  value                  Float?
+  rawValue               Json?
+  state                  String?
+  engineeringUnit        String
+  quality                String
+
+  @@unique([tagId, sourceTimestamp, sequence])
+  @@index([tagId, sourceTimestamp])
+  @@index([receiveTimestamp])
+}
+
+model ScadaAlarm {
+  id             String           @id @default(cuid())
+  tagId          String
+  tag            ScadaTag         @relation(fields: [tagId], references: [id], onDelete: Restrict)
+  sourceAlarmId  String
+  description    String
+  sourcePriority String
+  severity       String
+  measuredValue  Float?
+  threshold      Float?
+  comparator     String?
+  raisedAt       DateTime
+  clearedAt      DateTime?
+  sourceStatus   String
+  klinthruStatus String           @default("New")
+  acknowledgedAt DateTime?
+  acknowledgedBy String?
+  notes          ScadaAlarmNote[]
+
+  @@unique([tagId, sourceAlarmId])
+  @@index([tagId, raisedAt])
+}
+
+model ScadaEvent {
+  id              String    @id @default(cuid())
+  eventId         String    @unique
+  pipelineId      String
+  pipeline        Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  tagId           String?
+  tag             ScadaTag? @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  eventType       String
+  severity        String
+  description     String
+  value           Float?
+  engineeringUnit String?
+  occurredAt      DateTime
+  status          String    @default("Open")
+  sourceSystemId  String
+  createdAt       DateTime  @default(now())
+
+  @@index([pipelineId, occurredAt])
+  @@index([tagId, occurredAt])
+}
+
+model ScadaAnomaly {
+  id              String    @id @default(cuid())
+  anomalyId       String    @unique
+  pipelineId      String
+  pipeline        Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  tagId           String?
+  tag             ScadaTag? @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  anomalyType     String
+  severity        String
+  description     String
+  detectedAt      DateTime
+  sourceReadingId String?
+  createdAt       DateTime  @default(now())
+
+  @@index([pipelineId, detectedAt])
+  @@index([tagId, detectedAt])
+}
+
+model ScadaIndicator {
+  id              String   @id @default(cuid())
+  indicatorId     String   @unique
+  pipelineId      String
+  pipeline        Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  name            String
+  value           Float?
+  engineeringUnit String?
+  measuredAt      DateTime
+  sourceSystemId  String
+  createdAt       DateTime @default(now())
+
+  @@index([pipelineId, measuredAt])
+}
+
+model DataQualityRecord {
+  id         String    @id @default(cuid())
+  recordId   String    @unique
+  pipelineId String
+  pipeline   Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  tagId      String?
+  tag        ScadaTag? @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  readingId  String?
+  quality    String
+  reason     String?
+  recordedAt DateTime
+  createdAt  DateTime  @default(now())
+
+  @@index([pipelineId, recordedAt])
+  @@index([tagId, recordedAt])
+}
+
+model ScadaPollingConfig {
+  id                   String   @id @default(cuid())
+  pipelineId           String   @unique
+  pipeline             Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  globalScanSeconds    Int?
+  slowScanMinutes      Int?
+  connectionTimeoutSec Int?
+  retryAttempts        Int?
+  failedScanBackoffMin Int?
+  updatedAt            DateTime @updatedAt
+  createdAt            DateTime @default(now())
+}
+
+model ScadaRoutingConfig {
+  id                     String   @id @default(cuid())
+  pipelineId             String   @unique
+  pipeline               Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  realtimeToPlatform     Boolean  @default(true)
+  storeInHistorian       Boolean  @default(true)
+  enableQualityChecks    Boolean  @default(true)
+  forwardToAnalytics     Boolean  @default(false)
+  publishExternalSystems Boolean  @default(false)
+  managedBy              String   @default("Integration Hub")
+  updatedAt              DateTime @updatedAt
+  createdAt              DateTime @default(now())
+}
+
+model ScadaUnitMapping {
+  id           String   @id @default(cuid())
+  pipelineId   String
+  pipeline     Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  sourceUnit   String
+  platformUnit String
+  conversion   String
+  createdAt    DateTime @default(now())
+
+  @@unique([pipelineId, sourceUnit, platformUnit])
+}
+
+model ScadaConfigChange {
+  id          String   @id @default(cuid())
+  pipelineId  String
+  pipeline    Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  changeType  String
+  description String
+  impact      String?
+  status      String   @default("Applied")
+  createdAt   DateTime @default(now())
+
+  @@index([pipelineId, createdAt])
+}
+
+model ScadaAlarmNote {
+  id        String     @id @default(cuid())
+  alarmId   String
+  alarm     ScadaAlarm @relation(fields: [alarmId], references: [id], onDelete: Cascade)
+  authorId  String?
+  note      String
+  followUp  String?
+  createdAt DateTime   @default(now())
+
+  @@index([alarmId, createdAt])
+}
+
+// Additive Design Basis models. Custom guards/CHECKs/partial indexes remain in reviewed SQL.
+model CpDesignBasis {
+  id String @id
+  basisNumber String @unique
+  pipelineId String
+  createdById String
+  createdAt DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  refPipelineId Pipeline @relation("CpDesignBasis_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refCreatedById User @relation("CpDesignBasis_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  basisRevisionBasisIdLinks CpDesignBasisRevision[] @relation("CpDesignBasisRevision_basisId")
+  basisEventBasisIdLinks CpDesignBasisEvent[] @relation("CpDesignBasisEvent_basisId")
+}
+
+model CpDesignBasisRevision {
+  id String @id
+  basisId String
+  revisionCode String
+  predecessorRevisionId String?
+  title String
+  categoryKey String
+  categoryLabel String
+  description String?
+  systemType String?
+  nextReviewDueAt DateTime? @db.Timestamptz(6)
+  checklistVersion String?
+  checklistSnapshot Json @default("{}") @db.JsonB
+  metricPolicyVersion String?
+  metricPolicySnapshot Json @default("{}") @db.JsonB
+  lockState String @default("DRAFT")
+  contentHash String?
+  submittedAt DateTime? @db.Timestamptz(6)
+  submittedById String?
+  createdById String
+  createdAt DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  lastContentUpdatedAt DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  rowVersion Int @default(1)
+  @@unique([basisId, revisionCode])
+  @@unique([id, basisId])
+  refBasisId CpDesignBasis @relation("CpDesignBasisRevision_basisId", fields: [basisId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refSubmittedById User? @relation("CpDesignBasisRevision_submittedById", fields: [submittedById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refCreatedById User @relation("CpDesignBasisRevision_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refPredecessorRevisionId CpDesignBasisRevision? @relation("CpDesignBasisRevision_predecessorRevisionId", fields: [predecessorRevisionId, basisId], references: [id, basisId], onDelete: Restrict, onUpdate: NoAction)
+  basisRevisionPredecessorRevisionIdLinks CpDesignBasisRevision[] @relation("CpDesignBasisRevision_predecessorRevisionId")
+  basisEvidenceRevisionIdLinks CpDesignBasisEvidence[] @relation("CpDesignBasisEvidence_revisionId")
+  basisAssumptionRevisionIdLinks CpDesignBasisAssumption[] @relation("CpDesignBasisAssumption_revisionId")
+  basisScopeRevisionIdLinks CpDesignBasisScope[] @relation("CpDesignBasisScope_revisionId")
+  basisStandardRevisionIdLinks CpDesignBasisStandard[] @relation("CpDesignBasisStandard_revisionId")
+  basisCriteriaBindingRevisionIdLinks CpDesignBasisCriteriaBinding[] @relation("CpDesignBasisCriteriaBinding_revisionId")
+  basisCheckRevisionIdLinks CpDesignBasisCheck[] @relation("CpDesignBasisCheck_revisionId")
+  basisEventRevisionIdLinks CpDesignBasisEvent[] @relation("CpDesignBasisEvent_revisionId")
+}
+
+model CpDesignBasisEvidence {
+  id String @id
+  revisionId String
+  documentId String
+  documentVersionId String
+  purpose String
+  capturedFileName String
+  capturedDocumentRevision String?
+  capturedFileHash String
+  sourceSnapshot Json @db.JsonB
+  capturedAt DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  @@unique([id, revisionId])
+  @@unique([revisionId, documentVersionId, purpose])
+  refRevisionId CpDesignBasisRevision @relation("CpDesignBasisEvidence_revisionId", fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refDocumentId ManagedDocument @relation("CpDesignBasisEvidence_documentId", fields: [documentId], references: [documentId], onDelete: Restrict, onUpdate: NoAction)
+  refDocumentVersionId DocumentVersion @relation("CpDesignBasisEvidence_documentVersionId", fields: [documentVersionId], references: [documentVersionId], onDelete: Restrict, onUpdate: NoAction)
+  basisAssumptionSourceEvidenceIdLinks CpDesignBasisAssumption[] @relation("CpDesignBasisAssumption_sourceEvidenceId")
+  basisStandardSourceEvidenceIdLinks CpDesignBasisStandard[] @relation("CpDesignBasisStandard_sourceEvidenceId")
+  basisCheckEvidenceIdLinks CpDesignBasisCheck[] @relation("CpDesignBasisCheck_evidenceId")
+}
+
+model CpDesignBasisAssumption {
+  id String @id
+  revisionId String
+  parameterKey String
+  parameterLabel String
+  valueKind String
+  numericValue Decimal? @db.Decimal
+  textValue String?
+  booleanValue Boolean?
+  unit String?
+  rangeMin Decimal? @db.Decimal
+  rangeMax Decimal? @db.Decimal
+  sourceModule String
+  sourceRecordId String?
+  sourceRevision String?
+  sourceEvidenceId String?
+  sourceSnapshot Json @db.JsonB
+  capturedAt DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  engineerId String
+  rationale String?
+  @@unique([revisionId, parameterKey])
+  @@unique([id, revisionId])
+  refRevisionId CpDesignBasisRevision @relation("CpDesignBasisAssumption_revisionId", fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refEngineerId User @relation("CpDesignBasisAssumption_engineerId", fields: [engineerId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refSourceEvidenceId CpDesignBasisEvidence? @relation("CpDesignBasisAssumption_sourceEvidenceId", fields: [sourceEvidenceId, revisionId], references: [id, revisionId], onDelete: Restrict, onUpdate: NoAction)
+  basisCheckAssumptionIdLinks CpDesignBasisCheck[] @relation("CpDesignBasisCheck_assumptionId")
+}
+
+model CpDesignBasisScope {
+  id String @id
+  revisionId String
+  scopeType String
+  segmentId String?
+  assetId String?
+  sourceRevision String?
+  sourceSnapshot Json @db.JsonB
+  capturedAt DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  refRevisionId CpDesignBasisRevision @relation("CpDesignBasisScope_revisionId", fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refSegmentId Segment? @relation("CpDesignBasisScope_segmentId", fields: [segmentId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refAssetId Asset? @relation("CpDesignBasisScope_assetId", fields: [assetId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+}
+
+model CpDesignBasisStandard {
+  id String @id
+  revisionId String
+  code String
+  edition String
+  displayCitation String
+  sourceEvidenceId String
+  @@unique([revisionId, code, edition])
+  refRevisionId CpDesignBasisRevision @relation("CpDesignBasisStandard_revisionId", fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refSourceEvidenceId CpDesignBasisEvidence? @relation("CpDesignBasisStandard_sourceEvidenceId", fields: [sourceEvidenceId, revisionId], references: [id, revisionId], onDelete: Restrict, onUpdate: NoAction)
+}
+
+model CpDesignBasisCriteriaBinding {
+  id String @id
+  revisionId String
+  criteriaSetId String
+  criteriaVersionId String
+  definitionSnapshot Json @db.JsonB
+  definitionHash String
+  capturedAt DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  @@unique([revisionId, criteriaVersionId])
+  refRevisionId CpDesignBasisRevision @relation("CpDesignBasisCriteriaBinding_revisionId", fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refCriteriaSetId CpCriteriaSet @relation("CpDesignBasisCriteriaBinding_criteriaSetId", fields: [criteriaSetId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refCriteriaVersionId CpCriteriaVersion @relation("CpDesignBasisCriteriaBinding_criteriaVersionId", fields: [criteriaVersionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+}
+
+model CpDesignBasisCheck {
+  id String @id
+  revisionId String
+  checkKey String
+  categoryKey String
+  categoryLabel String
+  applicability String
+  required Boolean
+  critical Boolean
+  outcome String
+  reason String?
+  evidenceId String?
+  assumptionId String?
+  reviewerId String?
+  reviewedAt DateTime? @db.Timestamptz(6)
+  @@unique([revisionId, checkKey])
+  refRevisionId CpDesignBasisRevision @relation("CpDesignBasisCheck_revisionId", fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refReviewerId User? @relation("CpDesignBasisCheck_reviewerId", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refEvidenceId CpDesignBasisEvidence? @relation("CpDesignBasisCheck_evidenceId", fields: [evidenceId, revisionId], references: [id, revisionId], onDelete: Restrict, onUpdate: NoAction)
+  refAssumptionId CpDesignBasisAssumption? @relation("CpDesignBasisCheck_assumptionId", fields: [assumptionId, revisionId], references: [id, revisionId], onDelete: Restrict, onUpdate: NoAction)
+}
+
+model CpDesignBasisEvent {
+  id String @id @default(dbgenerated("gen_random_uuid()::text"))
+  basisId String
+  revisionId String?
+  eventType String
+  actorId String
+  occurredAt DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  effectiveAt DateTime? @db.Timestamptz(6)
+  requestId String
+  idempotencyKey String? @unique
+  reason String?
+  comment String?
+  entityType String?
+  entityId String?
+  before Json? @db.JsonB
+  after Json? @db.JsonB
+  contentHash String?
+  refBasisId CpDesignBasis @relation("CpDesignBasisEvent_basisId", fields: [basisId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refActorId User @relation("CpDesignBasisEvent_actorId", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  refRevisionId CpDesignBasisRevision? @relation("CpDesignBasisEvent_revisionId", fields: [revisionId, basisId], references: [id, basisId], onDelete: Restrict, onUpdate: NoAction)
+}
+
+// REVIEW ONLY: additive official-risk foundation. No migration/client generation or
+// deployment is authorized. Database immutability triggers and policy approval are
+// prerequisites to enabling any mutation API. UUIDs are storage keys, not Risk_IDs.
+model Risk {
+  treatments RiskTreatment[]
+  id String @id @default(uuid())
+  riskId String @unique
+  pipelineId String
+  segmentId String?
+  assetId String?
+  ownerId String?
+  title String
+  scenario String
+  threatType String
+  failureMode String
+  locationContext Json
+  correlationKey String
+  separateScenarioReason String?
+  status String @default("Draft")
+  currentApprovedRevisionId String? @unique
+  createdAt DateTime @default(now())
+  pipeline Pipeline @relation("OfficialRiskPipeline", fields: [pipelineId], references: [id], onDelete: Restrict)
+  segment Segment? @relation("OfficialRiskSegment", fields: [segmentId], references: [id], onDelete: Restrict)
+  asset Asset? @relation("OfficialRiskAsset", fields: [assetId], references: [id], onDelete: Restrict)
+  owner User? @relation("OfficialRiskOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  currentApprovedRevision RiskAssessmentRevision? @relation("OfficialRiskCurrent", fields: [id, currentApprovedRevisionId], references: [riskRecordId, id], onDelete: Restrict, onUpdate: NoAction)
+  assessments RiskAssessment[]
+  revisions RiskAssessmentRevision[] @relation("OfficialRiskRevisions")
+  sourceLinks RiskSourceLink[]
+  reviews RiskReview[]
+  events RiskEvent[]
+  @@unique([pipelineId, correlationKey])
+  @@unique([id, currentApprovedRevisionId])
+  @@index([pipelineId, status])
+}
+
+model RiskSourceLink {
+  id String @id @default(uuid())
+  riskRecordId String
+  sourceModule String
+  sourceRecordType String
+  sourceRecordId String
+  sourceVersion String?
+  relationship String
+  contributionType String
+  confidence String?
+  linkedById String
+  linkedAt DateTime @default(now())
+  retiredAt DateTime?
+  retirementReason String?
+  risk Risk @relation(fields: [riskRecordId], references: [id], onDelete: Restrict)
+  @@unique([riskRecordId, sourceModule, sourceRecordType, sourceRecordId, contributionType])
+  @@index([sourceModule, sourceRecordType, sourceRecordId])
+}
+
+model RiskAssessment {
+  id String @id @default(uuid())
+  riskRecordId String
+  createdById String
+  createdAt DateTime @default(now())
+  risk Risk @relation(fields: [riskRecordId], references: [id], onDelete: Restrict)
+  revisions RiskAssessmentRevision[]
+  @@unique([id, riskRecordId])
+}
+
+model RiskAssessmentRevision {
+  treatmentBaselines RiskTreatmentRevision[] @relation("TreatmentBaseline")
+  id String @id @default(uuid())
+  riskRecordId String
+  assessmentId String
+  revisionNumber Int
+  approvalStatus String @default("Draft")
+  concurrencyVersion Int @default(1)
+  methodologyVersionId String
+  matrixVersionId String
+  assessmentDate DateTime
+  assessorId String
+  category String
+  primarySourceCategory String
+  scopeScenarioSnapshot Json
+  likelihoodAssessment Json
+  consequenceAssessment Json
+  controls Json
+  inherentResult Json
+  currentResult Json
+  residualResult Json
+  assumptions Json
+  limitations Json
+  sourceSnapshot Json
+  confidence String?
+  dataSufficiency String
+  submittedAt DateTime?
+  approvedAt DateTime?
+  contentHash String?
+  risk Risk @relation("OfficialRiskRevisions", fields: [riskRecordId], references: [id], onDelete: Restrict)
+  assessment RiskAssessment @relation(fields: [assessmentId, riskRecordId], references: [id, riskRecordId], onDelete: Restrict)
+  currentForRisk Risk? @relation("OfficialRiskCurrent")
+  methodologyVersion RiskMethodologyVersion @relation(fields: [methodologyVersionId, matrixVersionId], references: [id, matrixVersionId], onDelete: Restrict)
+  matrixVersion RiskMatrixVersion @relation(fields: [matrixVersionId], references: [id], onDelete: Restrict)
+  reviews RiskReview[]
+  approvals RiskApproval[]
+  events RiskEvent[]
+  @@unique([riskRecordId, id])
+  @@unique([assessmentId, revisionNumber])
+  @@index([methodologyVersionId, approvalStatus])
+}
+
+model RiskMethodologyVersion {
+  id String @id @default(uuid())
+  methodologyId String
+  version String
+  name String
+  approvalStatus String @default("Draft")
+  matrixVersionId String
+  likelihoodRuleVersion String
+  consequenceRuleVersion String
+  rules Json
+  approvedAt DateTime?
+  approvedById String?
+  matrixVersion RiskMatrixVersion @relation(fields: [matrixVersionId], references: [id], onDelete: Restrict)
+  revisions RiskAssessmentRevision[]
+  @@unique([methodologyId, version])
+  @@unique([id, matrixVersionId])
+}
+
+model RiskMatrixVersion {
+  id String @id @default(uuid())
+  matrixId String
+  version String
+  name String
+  approvalStatus String @default("Draft")
+  cells Json
+  likelihoodDictionary Json
+  consequenceDictionary Json
+  approvedAt DateTime?
+  approvedById String?
+  methodologies RiskMethodologyVersion[]
+  revisions RiskAssessmentRevision[]
+  @@unique([matrixId, version])
+}
+
+model RiskReview {
+  id String @id @default(uuid())
+  riskRecordId String
+  revisionId String
+  dueDate DateTime @db.Date
+  purpose String
+  reviewerId String?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  risk Risk @relation(fields: [riskRecordId], references: [id], onDelete: Restrict)
+  revision RiskAssessmentRevision @relation(fields: [riskRecordId, revisionId], references: [riskRecordId, id], onDelete: Restrict)
+  approvals RiskApproval[]
+  @@index([riskRecordId, dueDate])
+}
+
+model RiskApproval {
+  id String @id @default(uuid())
+  revisionId String
+  reviewId String?
+  decision String
+  actorId String
+  justification String
+  evidenceReferences Json
+  decidedAt DateTime @default(now())
+  revision RiskAssessmentRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  review RiskReview? @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  @@index([revisionId, decidedAt])
+}
+
+model RiskEvent {
+  riskTreatmentRevisionId String?
+  riskAlarpAssessmentId String?
+  treatmentRevision RiskTreatmentRevision? @relation(fields: [riskRecordId, riskTreatmentRevisionId], references: [riskRecordId, id], onDelete: Restrict, onUpdate: NoAction)
+  alarpAssessment RiskAlarpAssessment? @relation(fields: [riskRecordId, riskAlarpAssessmentId], references: [riskRecordId, id], onDelete: Restrict, onUpdate: NoAction)
+  id String @id @default(uuid())
+  riskRecordId String
+  revisionId String?
+  eventType String
+  actorId String?
+  sourceReference Json?
+  details Json
+  occurredAt DateTime @default(now())
+  risk Risk @relation(fields: [riskRecordId], references: [id], onDelete: Restrict)
+  revision RiskAssessmentRevision? @relation(fields: [riskRecordId, revisionId], references: [riskRecordId, id], onDelete: Restrict)
+  @@index([riskRecordId, occurredAt])
+}
+
+// IMG-02 REVIEW ONLY. No migration, client generation or deployment authorized.
+// These own strategy/evaluation and references, never central implementation tasks.
+model RiskTreatment {
+  id String @id @default(uuid())
+  treatmentId String @unique
+  riskRecordId String
+  currentApprovedRevisionId String? @unique
+  createdById String
+  createdAt DateTime @default(now())
+  risk Risk @relation(fields: [riskRecordId], references: [id], onDelete: Restrict)
+  revisions RiskTreatmentRevision[] @relation("TreatmentRevisions")
+  currentApprovedRevision RiskTreatmentRevision? @relation("TreatmentCurrent", fields: [id, currentApprovedRevisionId], references: [treatmentId, id], onDelete: Restrict, onUpdate: NoAction)
+  @@unique([id, riskRecordId])
+  @@unique([id, currentApprovedRevisionId])
+}
+
+model RiskTreatmentRevision {
+  id String @id @default(uuid())
+  treatmentId String
+  riskRecordId String
+  revisionNumber Int
+  baselineRevisionId String
+  state String @default("Draft")
+  title String
+  description String?
+  treatmentType String?
+  controlReferences Json
+  proposedResidualResult Json?
+  expectedBenefit Json?
+  costAmount Decimal? @db.Decimal(20, 4)
+  currency String?
+  costBasis String?
+  costCategory String?
+  costEstimateDate DateTime? @db.Date
+  costSourceReference Json?
+  implementationStart DateTime? @db.Date
+  implementationEnd DateTime? @db.Date
+  evidenceReferences Json
+  createdById String
+  createdAt DateTime @default(now())
+  submittedAt DateTime?
+  contentHash String?
+  concurrencyVersion Int @default(1)
+  treatment RiskTreatment @relation("TreatmentRevisions", fields: [treatmentId, riskRecordId], references: [id, riskRecordId], onDelete: Restrict)
+  currentForTreatment RiskTreatment? @relation("TreatmentCurrent")
+  baselineRevision RiskAssessmentRevision @relation("TreatmentBaseline", fields: [riskRecordId, baselineRevisionId], references: [riskRecordId, id], onDelete: Restrict)
+  alarpAssessments RiskAlarpAssessment[]
+  actionLinks RiskTreatmentActionLink[]
+  events RiskEvent[]
+  @@unique([treatmentId, revisionNumber])
+  @@unique([treatmentId, id])
+  @@unique([riskRecordId, id])
+}
+
+model RiskAlarpAssessment {
+  id String @id @default(uuid())
+  alarpId String
+  version Int
+  riskRecordId String
+  treatmentRevisionId String
+  criteriaId String?
+  criteriaVersion String?
+  criteriaSnapshot Json?
+  alternatives Json?
+  justification String?
+  outcome String?
+  evidenceReferences Json
+  state String @default("Draft")
+  createdById String
+  createdAt DateTime @default(now())
+  submittedAt DateTime?
+  contentHash String?
+  treatmentRevision RiskTreatmentRevision @relation(fields: [riskRecordId, treatmentRevisionId], references: [riskRecordId, id], onDelete: Restrict)
+  events RiskEvent[]
+  @@unique([alarpId, version])
+  @@unique([riskRecordId, id])
+}
+
+model RiskTreatmentActionLink {
+  id String @id @default(uuid())
+  riskRecordId String
+  treatmentRevisionId String
+  actionId String
+  linkedById String
+  linkedAt DateTime @default(now())
+  evidenceReference Json?
+  treatmentRevision RiskTreatmentRevision @relation(fields: [riskRecordId, treatmentRevisionId], references: [riskRecordId, id], onDelete: Restrict)
+  @@unique([treatmentRevisionId, actionId])
+  @@index([actionId])
+}
+
+// Development-approved AI additions. No schema deployment or operational approval inferred.
+
+model AiModel {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  name String
+  useCase String
+  ref_ownerId User @relation("AiModel_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiModel_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiModelVersion_modelId AiModelVersion[] @relation("AiModelVersion_modelId")
+  @@unique([id, ownerId])
+  @@index([ownerId, createdAt, id])
+}
+
+model AiModelVersion {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  modelId String
+  version String
+  artifactDocumentVersionId String
+  artifactHash String
+  featureSchemaVersion String
+  inputSchema Json @db.JsonB
+  outputSchema Json @db.JsonB
+  supportedHorizons Json @db.JsonB
+  missingInputPolicy Json @db.JsonB
+  ref_modelId AiModel @relation("AiModelVersion_modelId", fields: [modelId, ownerId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_artifactDocumentVersionId DocumentVersion @relation("AiModelVersion_artifactDocumentVersionId", fields: [artifactDocumentVersionId], references: [documentVersionId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiModelVersion_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiModelVersion_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiConfigurationRevision_modelVersionId AiConfigurationRevision[] @relation("AiConfigurationRevision_modelVersionId")
+  aiBack_AiInputSnapshot_modelVersionId AiInputSnapshot[] @relation("AiInputSnapshot_modelVersionId")
+  aiBack_AiModelRun_modelVersionId AiModelRun[] @relation("AiModelRun_modelVersionId")
+  aiBack_AiModelValidation_modelVersionId AiModelValidation[] @relation("AiModelValidation_modelVersionId")
+  @@unique([modelId, version])
+  @@unique([id, ownerId])
+  @@index([ownerId, createdAt, id])
+}
+
+model AiConfigurationRevision {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  modelVersionId String
+  revision Int
+  settings Json @db.JsonB
+  settingsSchemaVersion String
+  contentHash String
+  supersedesId String?
+  ref_modelVersionId AiModelVersion @relation("AiConfigurationRevision_modelVersionId", fields: [modelVersionId, ownerId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiConfigurationRevision_supersedesId AiConfigurationRevision[] @relation("AiConfigurationRevision_supersedesId")
+  ref_supersedesId AiConfigurationRevision? @relation("AiConfigurationRevision_supersedesId", fields: [supersedesId, modelVersionId, ownerId], references: [id, modelVersionId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiConfigurationRevision_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiConfigurationRevision_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiInputSnapshot_configurationRevisionId AiInputSnapshot[] @relation("AiInputSnapshot_configurationRevisionId")
+  aiBack_AiModelRun_configurationRevisionId AiModelRun[] @relation("AiModelRun_configurationRevisionId")
+  @@unique([modelVersionId, revision])
+  @@unique([id, modelVersionId, ownerId])
+  @@index([ownerId, createdAt, id])
+}
+
+model AiInputSnapshot {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  pipelineId String
+  cutoffAt DateTime @db.Timestamptz(6)
+  capturedAt DateTime @db.Timestamptz(6)
+  featureSetVersion String
+  featureSchemaVersion String
+  featureValues Json @db.JsonB
+  modelVersionId String
+  configurationRevisionId String
+  contentHash String
+  captureManifest Json @db.JsonB
+  ref_pipelineId Pipeline @relation("AiInputSnapshot_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_modelVersionId AiModelVersion @relation("AiInputSnapshot_modelVersionId", fields: [modelVersionId, ownerId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_configurationRevisionId AiConfigurationRevision @relation("AiInputSnapshot_configurationRevisionId", fields: [configurationRevisionId, modelVersionId, ownerId], references: [id, modelVersionId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiInputSnapshot_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiInputSnapshot_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiSnapshotSource_snapshotId AiSnapshotSource[] @relation("AiSnapshotSource_snapshotId")
+  aiBack_AiModelRun_snapshotId AiModelRun[] @relation("AiModelRun_snapshotId")
+  aiBack_AiScenario_baseSnapshotId AiScenario[] @relation("AiScenario_baseSnapshotId")
+  aiBack_AiScenario_hypotheticalSnapshotId AiScenario[] @relation("AiScenario_hypotheticalSnapshotId")
+  aiBack_AiModelValidation_datasetSnapshotId AiModelValidation[] @relation("AiModelValidation_datasetSnapshotId")
+  @@unique([id, pipelineId, ownerId])
+  @@unique([id, modelVersionId, configurationRevisionId, pipelineId, ownerId])
+  @@unique([id, ownerId])
+  @@index([ownerId, pipelineId, createdAt, id])
+}
+
+model AiSnapshotSource {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  snapshotId String
+  sourceModule String
+  sourceType String
+  sourceRecordId String
+  sourceRevision String
+  observedAt DateTime @db.Timestamptz(6)
+  availableAt DateTime @db.Timestamptz(6)
+  sourceHash String
+  unitMetadata Json @db.JsonB
+  qualityMetadata Json @db.JsonB
+  ref_snapshotId AiInputSnapshot @relation("AiSnapshotSource_snapshotId", fields: [snapshotId, ownerId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiSnapshotSource_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiSnapshotSource_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([snapshotId, sourceModule, sourceType, sourceRecordId, sourceRevision])
+  @@index([sourceModule, sourceType, sourceRecordId, sourceRevision])
+  @@index([ownerId, createdAt, id])
+}
+
+model AiRunRequest {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  pipelineId String
+  requestKey String
+  payloadHash String
+  fingerprint String
+  leaseOwner String?
+  leaseUntil DateTime? @db.Timestamptz(6)
+  attempt Int @default(0)
+  lastErrorCode String?
+  ref_pipelineId Pipeline @relation("AiRunRequest_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiRunRequest_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiRunRequest_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiRunKey_requestId AiRunKey[] @relation("AiRunKey_requestId")
+  run AiModelRun? @relation("AiModelRun_requestId")
+  @@unique([ownerId, requestKey])
+  @@unique([ownerId, fingerprint])
+  @@unique([id, pipelineId, ownerId])
+  @@index([ownerId, pipelineId, createdAt, id])
+}
+
+model AiRunKey {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  pipelineId String
+  requestId String
+  requestKey String
+  payloadHash String
+  ref_pipelineId Pipeline @relation("AiRunKey_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_requestId AiRunRequest @relation("AiRunKey_requestId", fields: [requestId, pipelineId, ownerId], references: [id, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiRunKey_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiRunKey_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([ownerId, requestKey])
+  @@index([ownerId, pipelineId, createdAt, id])
+}
+
+model AiModelRun {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  requestId String @unique
+  pipelineId String
+  modelVersionId String
+  configurationRevisionId String
+  snapshotId String
+  purpose String
+  predictionType String
+  horizon Json @db.JsonB
+  parameterManifest Json @db.JsonB
+  executionManifest Json @db.JsonB
+  fingerprint String
+  contentHash String
+  ref_requestId AiRunRequest @relation("AiModelRun_requestId", fields: [requestId, pipelineId, ownerId], references: [id, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_pipelineId Pipeline @relation("AiModelRun_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_modelVersionId AiModelVersion @relation("AiModelRun_modelVersionId", fields: [modelVersionId, ownerId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_configurationRevisionId AiConfigurationRevision @relation("AiModelRun_configurationRevisionId", fields: [configurationRevisionId, modelVersionId, ownerId], references: [id, modelVersionId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_snapshotId AiInputSnapshot @relation("AiModelRun_snapshotId", fields: [snapshotId, modelVersionId, configurationRevisionId, pipelineId, ownerId], references: [id, modelVersionId, configurationRevisionId, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiModelRun_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiModelRun_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiPrediction_runId AiPrediction[] @relation("AiPrediction_runId")
+  aiBack_AiForecast_runId AiForecast[] @relation("AiForecast_runId")
+  aiBack_AiRecommendation_runId AiRecommendation[] @relation("AiRecommendation_runId")
+  aiBack_AiScenario_baselineRunId AiScenario[] @relation("AiScenario_baselineRunId")
+  aiBack_AiScenario_scenarioRunId AiScenario[] @relation("AiScenario_scenarioRunId")
+  aiBack_AiModelValidation_evaluationRunId AiModelValidation[] @relation("AiModelValidation_evaluationRunId")
+  @@unique([id, pipelineId, ownerId])
+  @@unique([id, modelVersionId, ownerId])
+  @@unique([requestId, pipelineId, ownerId])
+  @@unique([id, snapshotId, pipelineId, ownerId])
+  @@unique([id, modelVersionId, snapshotId, pipelineId, ownerId])
+  @@index([snapshotId])
+  @@index([modelVersionId])
+  @@index([ownerId, pipelineId, createdAt, id])
+}
+
+model AiPrediction {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  runId String
+  outputKey String
+  pipelineId String
+  segmentId String?
+  assetId String?
+  locationScope Json @db.JsonB
+  predictionType String
+  predictedOutcome String
+  predictionAt DateTime @db.Timestamptz(6)
+  horizon Json @db.JsonB
+  value Float?
+  probability Float?
+  unit String?
+  confidence Float?
+  confidenceDefinitionVersion String?
+  explanation Json @db.JsonB
+  contentHash String
+  ref_runId AiModelRun @relation("AiPrediction_runId", fields: [runId, pipelineId, ownerId], references: [id, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_pipelineId Pipeline @relation("AiPrediction_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_segmentId Segment? @relation("AiPrediction_segmentId", fields: [segmentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_assetId Asset? @relation("AiPrediction_assetId", fields: [assetId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiPrediction_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiPrediction_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiForecast_predictionId AiForecast[] @relation("AiForecast_predictionId")
+  aiBack_AiRecommendationPrediction_predictionId AiRecommendationPrediction[] @relation("AiRecommendationPrediction_predictionId")
+  aiBack_AiPredictionOutcomeLink_predictionId AiPredictionOutcomeLink[] @relation("AiPredictionOutcomeLink_predictionId")
+  @@unique([runId, outputKey])
+  @@unique([id, runId, pipelineId, ownerId])
+  @@unique([id, pipelineId, ownerId])
+  @@index([ownerId, pipelineId, createdAt, id])
+}
+
+model AiForecast {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  pipelineId String
+  runId String
+  predictionId String?
+  outputKey String
+  sourceMetric String
+  unit String
+  horizon Json @db.JsonB
+  forecastStartAt DateTime @db.Timestamptz(6)
+  points Json @db.JsonB
+  contentHash String
+  ref_pipelineId Pipeline @relation("AiForecast_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_runId AiModelRun @relation("AiForecast_runId", fields: [runId, pipelineId, ownerId], references: [id, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_predictionId AiPrediction? @relation("AiForecast_predictionId", fields: [predictionId, runId, pipelineId, ownerId], references: [id, runId, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiForecast_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiForecast_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([runId, outputKey])
+  @@index([ownerId, pipelineId, createdAt, id])
+}
+
+model AiRecommendation {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  pipelineId String
+  runId String
+  outputKey String
+  kind String
+  locationScope Json @db.JsonB
+  concern String
+  priorityValue Float?
+  priorityMethodVersion String?
+  inspectionWindow Json? @db.JsonB
+  inspectionMethod String?
+  lifeEstimate Float?
+  lifeUnit String?
+  confidence Float?
+  evidence Json @db.JsonB
+  contentHash String
+  ref_pipelineId Pipeline @relation("AiRecommendation_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_runId AiModelRun @relation("AiRecommendation_runId", fields: [runId, pipelineId, ownerId], references: [id, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiRecommendation_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiRecommendation_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiRecommendationPrediction_recommendationId AiRecommendationPrediction[] @relation("AiRecommendationPrediction_recommendationId")
+  @@unique([runId, outputKey])
+  @@unique([id, runId, pipelineId, ownerId])
+  @@index([ownerId, pipelineId, createdAt, id])
+}
+
+model AiRecommendationPrediction {
+  recommendationId String
+  predictionId String
+  @@id([recommendationId, predictionId])
+  ref_recommendationId AiRecommendation @relation("AiRecommendationPrediction_recommendationId", fields: [recommendationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_predictionId AiPrediction @relation("AiRecommendationPrediction_predictionId", fields: [predictionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+}
+
+model AiScenario {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  pipelineId String
+  baseSnapshotId String
+  hypotheticalSnapshotId String
+  parameterSchemaVersion String
+  parameters Json @db.JsonB
+  baselineRunId String
+  scenarioRunId String
+  comparisonDefinitionVersion String
+  contentHash String
+  ref_pipelineId Pipeline @relation("AiScenario_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_baseSnapshotId AiInputSnapshot @relation("AiScenario_baseSnapshotId", fields: [baseSnapshotId, pipelineId, ownerId], references: [id, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_hypotheticalSnapshotId AiInputSnapshot @relation("AiScenario_hypotheticalSnapshotId", fields: [hypotheticalSnapshotId, pipelineId, ownerId], references: [id, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_baselineRunId AiModelRun @relation("AiScenario_baselineRunId", fields: [baselineRunId, baseSnapshotId, pipelineId, ownerId], references: [id, snapshotId, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_scenarioRunId AiModelRun @relation("AiScenario_scenarioRunId", fields: [scenarioRunId, hypotheticalSnapshotId, pipelineId, ownerId], references: [id, snapshotId, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiScenario_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiScenario_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@index([ownerId, pipelineId, createdAt, id])
+}
+
+model AiModelValidation {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  pipelineId String
+  modelVersionId String
+  evaluationRunId String
+  datasetSnapshotId String
+  datasetHash String
+  cohortDefinitionVersion String
+  metricDefinitionVersion String
+  metrics Json @db.JsonB
+  qualityResults Json @db.JsonB
+  benchmarkVersion String
+  passed Boolean
+  artifactDocumentVersionId String
+  ref_pipelineId Pipeline @relation("AiModelValidation_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_modelVersionId AiModelVersion @relation("AiModelValidation_modelVersionId", fields: [modelVersionId, ownerId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_evaluationRunId AiModelRun @relation("AiModelValidation_evaluationRunId", fields: [evaluationRunId, modelVersionId, datasetSnapshotId, pipelineId, ownerId], references: [id, modelVersionId, snapshotId, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_datasetSnapshotId AiInputSnapshot @relation("AiModelValidation_datasetSnapshotId", fields: [datasetSnapshotId, pipelineId, ownerId], references: [id, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_artifactDocumentVersionId DocumentVersion @relation("AiModelValidation_artifactDocumentVersionId", fields: [artifactDocumentVersionId], references: [documentVersionId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiModelValidation_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiModelValidation_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiGovernanceEvent_validationId AiGovernanceEvent[] @relation("AiGovernanceEvent_validationId")
+  @@unique([id, ownerId])
+  @@index([ownerId, pipelineId, createdAt, id])
+}
+
+model AiPredictionOutcomeLink {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  pipelineId String
+  predictionId String
+  sourceModule String
+  sourceType String
+  sourceRecordId String
+  sourceRevision String
+  observedAt DateTime @db.Timestamptz(6)
+  observationWindow Json @db.JsonB
+  outcome String
+  evaluationStatus String
+  adjudicatedById String
+  supersedesId String?
+  ref_pipelineId Pipeline @relation("AiPredictionOutcomeLink_pipelineId", fields: [pipelineId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_predictionId AiPrediction @relation("AiPredictionOutcomeLink_predictionId", fields: [predictionId, pipelineId, ownerId], references: [id, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_adjudicatedById User @relation("AiPredictionOutcomeLink_adjudicatedById", fields: [adjudicatedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiPredictionOutcomeLink_supersedesId AiPredictionOutcomeLink[] @relation("AiPredictionOutcomeLink_supersedesId")
+  ref_supersedesId AiPredictionOutcomeLink? @relation("AiPredictionOutcomeLink_supersedesId", fields: [supersedesId, predictionId, pipelineId, ownerId], references: [id, predictionId, pipelineId, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiPredictionOutcomeLink_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiPredictionOutcomeLink_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([id, predictionId, pipelineId, ownerId])
+  @@index([sourceModule, sourceType, sourceRecordId, sourceRevision])
+  @@index([ownerId, pipelineId, createdAt, id])
+}
+
+model AiGovernanceEvent {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  aggregateType String
+  aggregateId String
+  sequence Int
+  action String
+  actorId String
+  policyVersion String
+  validationId String?
+  reason String
+  evidenceDocumentVersionId String?
+  payload Json @db.JsonB
+  occurredAt DateTime @db.Timestamptz(6)
+  contentHash String
+  ref_actorId User @relation("AiGovernanceEvent_actorId", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_validationId AiModelValidation? @relation("AiGovernanceEvent_validationId", fields: [validationId, ownerId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_evidenceDocumentVersionId DocumentVersion? @relation("AiGovernanceEvent_evidenceDocumentVersionId", fields: [evidenceDocumentVersionId], references: [documentVersionId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiGovernanceEvent_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiGovernanceEvent_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([aggregateType, aggregateId, sequence])
+  @@index([ownerId, createdAt, id])
+}
+
+model AiOutboxEvent {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  eventKey String @unique
+  aggregateType String
+  aggregateId String
+  eventType String
+  payloadSchemaVersion String
+  payload Json @db.JsonB
+  occurredAt DateTime @db.Timestamptz(6)
+  ref_ownerId User @relation("AiOutboxEvent_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiOutboxEvent_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  aiBack_AiEventDelivery_eventId AiEventDelivery[] @relation("AiEventDelivery_eventId")
+  @@unique([id, ownerId])
+  @@index([ownerId, createdAt, id])
+}
+
+model AiEventDelivery {
+  id String @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  ownerId String
+  createdById String
+  eventId String
+  consumer String
+  attempt Int @default(0)
+  deliveredAt DateTime? @db.Timestamptz(6)
+  ref_eventId AiOutboxEvent @relation("AiEventDelivery_eventId", fields: [eventId, ownerId], references: [id, ownerId], onDelete: Restrict, onUpdate: Restrict)
+  ref_ownerId User @relation("AiEventDelivery_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ref_createdById User @relation("AiEventDelivery_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@unique([eventId, consumer])
+  @@index([ownerId, createdAt, id])
+}
+
+// Additive Reports contracts. These declarations are intentionally not wired
+// to legacy Report rows; the draft migration is unapplied and contains no
+// backfill, update, delete, or destructive operation.
+model ReportDefinition {
+  id String @id @default(cuid())
+  ownerId String
+  name String
+  description String?
+  definitionType String
+  sourceModule String?
+  status String
+  currentVersionId String?
+  createdById String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  @@index([ownerId, status])
+  @@map("report_definitions")
+}
+
+model ReportDefinitionVersion {
+  id String @id @default(cuid())
+  definitionId String
+  ownerId String
+  version Int
+  specification Json @db.JsonB
+  contentHash String
+  createdById String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  @@unique([definitionId, version])
+  @@index([ownerId, definitionId])
+  @@map("report_definition_versions")
+}
+
+model ReportingField {
+  id String @id @default(cuid())
+  ownerId String
+  fieldKey String
+  label String
+  dataType String
+  sourceModule String
+  sourceTable String
+  sourceColumn String
+  unit String?
+  permissionScope String?
+  isAvailable Boolean @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  @@unique([ownerId, fieldKey])
+  @@index([ownerId, sourceModule])
+  @@map("reporting_fields")
+}
+
+model ReportingJoin {
+  id String @id @default(cuid())
+  ownerId String
+  joinKey String
+  leftModule String
+  leftTable String
+  leftColumn String
+  rightModule String
+  rightTable String
+  rightColumn String
+  permissionScope String?
+  isAvailable Boolean @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  @@unique([ownerId, joinKey])
+  @@map("reporting_joins")
+}
+
+model CustomReportDefinition {
+  id String @id @default(cuid())
+  ownerId String
+  definitionId String
+  name String
+  specification Json @db.JsonB
+  approvalStatus String
+  createdById String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  @@index([ownerId, definitionId])
+  @@map("custom_report_definitions")
+}
+
+model ReportInputSnapshot {
+  id String @id @default(cuid())
+  ownerId String
+  reportDefinitionVersionId String
+  snapshotHash String
+  capturedAt DateTime @default(now()) @db.Timestamptz(6)
+  sourceManifest Json @db.JsonB
+  immutable Boolean @default(true)
+  @@unique([reportDefinitionVersionId, snapshotHash])
+  @@index([ownerId, capturedAt])
+  @@map("report_input_snapshots")
+}
+
+model ReportSourceLink {
+  id String @id @default(cuid())
+  ownerId String
+  snapshotId String
+  sourceModule String
+  sourceTable String
+  sourceRecordId String
+  sourceRevision String?
+  sourceDocumentVersionId String?
+  sourceRole String
+  observedAt DateTime @db.Timestamptz(6)
+  @@index([ownerId, snapshotId])
+  @@index([sourceModule, sourceTable, sourceRecordId, sourceRevision])
+  @@map("report_source_links")
+}
+
+model ReportRun {
+  id String @id @default(cuid())
+  ownerId String
+  definitionId String
+  definitionVersionId String
+  inputSnapshotId String
+  pipelineId String?
+  requestedById String
+  status String
+  outputDocumentId String?
+  outputDocumentVersionId String?
+  startedAt DateTime? @db.Timestamptz(6)
+  completedAt DateTime? @db.Timestamptz(6)
+  failureCode String?
+  failureMessage String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  @@index([ownerId, createdAt])
+  @@index([pipelineId, createdAt])
+  @@map("report_runs")
+}
+
+model ReportRunEvent {
+  id String @id @default(cuid())
+  ownerId String
+  runId String
+  sequence Int
+  eventType String
+  payload Json @db.JsonB
+  occurredAt DateTime @db.Timestamptz(6)
+  contentHash String
+  @@unique([runId, sequence])
+  @@map("report_run_events")
+}
+
+model ReportSchedule {
+  id String @id @default(cuid())
+  ownerId String
+  definitionId String
+  status String
+  timezone String
+  recurrence Json @db.JsonB
+  nextRunAt DateTime?
+  createdById String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  @@index([ownerId, status, nextRunAt])
+  @@map("report_schedules")
+}
+
+model ReportDelivery {
+  id String @id @default(cuid())
+  ownerId String
+  scheduleId String
+  integrationConnectorId String?
+  documentId String?
+  recipientRefs Json @db.JsonB
+  deliveryStatus String
+  deliveredAt DateTime?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  @@index([ownerId, scheduleId, createdAt])
+  @@map("report_deliveries")
+}
+
+model ReportExportJob {
+  id String @id @default(cuid())
+  ownerId String
+  requestedById String
+  sourceModule String
+  fieldKeys Json @db.JsonB
+  filters Json @db.JsonB
+  outputFormat String
+  status String
+  documentId String?
+  documentVersionId String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  completedAt DateTime?
+  @@index([ownerId, createdAt])
+  @@map("report_export_jobs")
+}
+
+model ReportExportTemplate {
+  id String @id @default(cuid())
+  ownerId String
+  name String
+  sourceModule String
+  fieldKeys Json @db.JsonB
+  filters Json @db.JsonB
+  outputFormat String
+  createdById String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  @@index([ownerId, sourceModule])
+  @@map("report_export_templates")
+}
+
+model ReportTemplate {
+  id String @id @default(cuid())
+  ownerId String
+  name String
+  category String
+  description String?
+  status String
+  createdById String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  @@index([ownerId, category, status])
+  @@map("report_templates")
+}
+
+model ReportTemplateVersion {
+  id String @id @default(cuid())
+  templateId String
+  ownerId String
+  version Int
+  specification Json @db.JsonB
+  contentHash String
+  createdById String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  @@unique([templateId, version])
+  @@map("report_template_versions")
+}
+
+model ReportConfiguration {
+  id String @id @default(cuid())
+  ownerId String
+  settings Json @db.JsonB
+  version Int
+  updatedById String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  @@unique([ownerId, version])
+  @@map("report_configurations")
+}
+
+model ReportAuditEvent {
+  id String @id @default(cuid())
+  ownerId String
+  actorId String
+  aggregateType String
+  aggregateId String
+  action String
+  payload Json @db.JsonB
+  occurredAt DateTime @db.Timestamptz(6)
+  contentHash String
+  @@index([ownerId, occurredAt])
+  @@index([aggregateType, aggregateId, occurredAt])
+  @@map("report_audit_events")
+}
+
+// Settings governance contract. Additive preparation only; no migration has been applied.
+// User and module-owned records are referenced by scalar IDs so this contract cannot duplicate them.
+enum SettingsApprovalState {
+  Draft
+  ImpactReview
+  Approval
+  EffectiveDate
+  Active
+  Rejected
+  Retired
+}
+
+enum SettingsRecordState {
+  Active
+  Deprecated
+  Superseded
+  Historical
+}
+
+model SettingsGroup {
+  id          String                    @id @default(cuid()) @map("User_Group_ID")
+  name        String
+  description String?
+  status      SettingsRecordState       @default(Active)
+  createdById String                    @map("Created_By_ID")
+  createdAt   DateTime                  @default(now()) @map("Created_At")
+  updatedAt   DateTime                  @updatedAt @map("Updated_At")
+  memberships SettingsGroupMembership[]
+  @@unique([name])
+  @@index([status])
+  @@map("settings_user_groups")
+}
+
+model SettingsGroupMembership {
+  id        String        @id @default(cuid())
+  groupId   String        @map("User_Group_ID")
+  userId    String        @map("User_ID")
+  validFrom DateTime?     @map("Valid_From")
+  validTo   DateTime?     @map("Valid_To")
+  group     SettingsGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  @@unique([groupId, userId])
+  @@index([userId, validFrom, validTo])
+  @@map("settings_group_memberships")
+}
+
+model SettingsAccessScope {
+  id          String                  @id @default(cuid()) @map("Access_Scope_ID")
+  name        String
+  scopeType   String                  @map("Scope_Type")
+  definition  Json                    @map("Definition")
+  status      SettingsRecordState     @default(Active)
+  createdById String                  @map("Created_By_ID")
+  createdAt   DateTime                @default(now()) @map("Created_At")
+  @@unique([name])
+  @@index([scopeType, status])
+  @@map("settings_access_scopes")
+}
+
+model SettingsUserAccessScope {
+  id        String             @id @default(cuid())
+  userId    String             @map("User_ID")
+  scopeId   String             @map("Access_Scope_ID")
+  validFrom DateTime?          @map("Valid_From")
+  validTo   DateTime?          @map("Valid_To")
+  @@unique([userId, scopeId])
+  @@index([scopeId, validFrom, validTo])
+  @@map("settings_user_access_scopes")
+}
+
+model SettingsRoleDefinition {
+  id          String                @id @default(cuid()) @map("Role_ID")
+  name        String
+  roleType    String                @map("Role_Type")
+  description String?
+  status      SettingsRecordState   @default(Active)
+  version     Int                   @default(1)
+  immutable   Boolean               @default(false)
+  createdById String                @map("Created_By_ID")
+  createdAt   DateTime              @default(now()) @map("Created_At")
+  permissionSets SettingsRolePermissionSet[]
+  @@unique([name, version])
+  @@index([status, name])
+  @@map("settings_role_definitions")
+}
+
+model SettingsUserRole {
+  id        String   @id @default(cuid())
+  userId    String   @map("User_ID")
+  roleId    String   @map("Role_ID")
+  validFrom DateTime? @map("Valid_From")
+  validTo   DateTime? @map("Valid_To")
+  @@unique([userId, roleId])
+  @@index([roleId, validFrom, validTo])
+  @@map("settings_user_roles")
+}
+
+model SettingsPermissionSet {
+  id          String                      @id @default(cuid()) @map("Permission_Set_ID")
+  name        String
+  description String?
+  status      SettingsRecordState         @default(Active)
+  version     Int                         @default(1)
+  immutable   Boolean                     @default(false)
+  grants      SettingsPermissionGrant[]
+  roles       SettingsRolePermissionSet[]
+  @@unique([name, version])
+  @@index([status, name])
+  @@map("settings_permission_sets")
+}
+
+model SettingsPermissionGrant {
+  id             String              @id @default(cuid())
+  permissionSetId String              @map("Permission_Set_ID")
+  module         String
+  action         String
+  effect         String              @default("Allow")
+  scopeRequired  Boolean             @default(true) @map("Scope_Required")
+  permissionSet  SettingsPermissionSet @relation(fields: [permissionSetId], references: [id], onDelete: Restrict)
+  @@unique([permissionSetId, module, action])
+  @@index([module, action])
+  @@map("settings_permission_grants")
+}
+
+model SettingsRolePermissionSet {
+  id             String                @id @default(cuid())
+  roleId         String                @map("Role_ID")
+  permissionSetId String                @map("Permission_Set_ID")
+  role           SettingsRoleDefinition @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  permissionSet  SettingsPermissionSet  @relation(fields: [permissionSetId], references: [id], onDelete: Restrict)
+  @@unique([roleId, permissionSetId])
+  @@index([permissionSetId])
+  @@map("settings_role_permission_sets")
+}
+
+model SettingsDictionary {
+  id          String                    @id @default(cuid()) @map("Dictionary_ID")
+  name        String
+  description String?
+  status      SettingsRecordState       @default(Active)
+  createdById String                    @map("Created_By_ID")
+  createdAt   DateTime                  @default(now()) @map("Created_At")
+  values      SettingsDictionaryValue[]
+  @@unique([name])
+  @@index([status])
+  @@map("settings_dictionaries")
+}
+
+model SettingsDictionaryValue {
+  id           String                         @id @default(cuid()) @map("Dictionary_Value_ID")
+  dictionaryId String                         @map("Dictionary_ID")
+  code         String
+  currentVersionId String?                    @map("Current_Version_ID")
+  dictionary   SettingsDictionary             @relation(fields: [dictionaryId], references: [id], onDelete: Restrict)
+  versions     SettingsDictionaryValueVersion[]
+  @@unique([dictionaryId, code])
+  @@index([currentVersionId])
+  @@map("settings_dictionary_values")
+}
+
+model SettingsDictionaryValueVersion {
+  id               String                  @id @default(cuid()) @map("Dictionary_Value_Version_ID")
+  dictionaryValueId String                  @map("Dictionary_Value_ID")
+  version          Int
+  label            String
+  description      String?
+  category         String?
+  parentValueId    String?                 @map("Parent_Value_ID")
+  status           SettingsRecordState
+  language         String                  @default("en")
+  effectiveDate    DateTime?               @map("Effective_Date")
+  contentHash      String                  @map("Content_Hash")
+  dictionaryValue  SettingsDictionaryValue @relation(fields: [dictionaryValueId], references: [id], onDelete: Restrict)
+  @@unique([dictionaryValueId, version])
+  @@index([status, language, effectiveDate])
+  @@map("settings_dictionary_value_versions")
+}
+
+model SettingsDictionaryUsageReference {
+  id               String @id @default(cuid())
+  dictionaryValueId String @map("Dictionary_Value_ID")
+  ownerModule      String @map("Owner_Module")
+  ownerRecordType  String @map("Owner_Record_Type")
+  ownerRecordId    String @map("Owner_Record_ID")
+  @@index([dictionaryValueId])
+  @@index([ownerModule, ownerRecordType, ownerRecordId])
+  @@map("settings_dictionary_usage_references")
+}
+
+model SettingsUnit {
+  id          String  @id @default(cuid()) @map("Unit_ID")
+  code        String
+  name        String
+  dimension   String
+  isCanonical Boolean @default(false) @map("Is_Canonical")
+  status      SettingsRecordState @default(Active)
+  @@unique([dimension, code])
+  @@index([status, dimension])
+  @@map("settings_units")
+}
+
+model SettingsUnitConversion {
+  id              String  @id @default(cuid()) @map("Unit_Conversion_ID")
+  fromUnitId      String  @map("From_Unit_ID")
+  toUnitId        String  @map("To_Unit_ID")
+  factor          Decimal @db.Decimal(30, 15)
+  offset          Decimal @db.Decimal(30, 15)
+  version         Int     @default(1)
+  status          SettingsRecordState @default(Active)
+  immutable       Boolean @default(false)
+  @@unique([fromUnitId, toUnitId, version])
+  @@index([status, fromUnitId, toUnitId])
+  @@map("settings_unit_conversions")
+}
+
+model SettingsStandard {
+  id          String                    @id @default(cuid()) @map("Standard_ID")
+  code        String
+  name        String
+  applicableModules Json                 @map("Applicable_Modules")
+  status      SettingsRecordState       @default(Active)
+  versions    SettingsStandardVersion[]
+  @@unique([code])
+  @@index([status])
+  @@map("settings_standards")
+}
+
+model SettingsStandardVersion {
+  id          String          @id @default(cuid()) @map("Standard_Version_ID")
+  standardId  String          @map("Standard_ID")
+  revision    String
+  effectiveDate DateTime?     @map("Effective_Date")
+  contentHash String          @map("Content_Hash")
+  status      SettingsRecordState @default(Active)
+  standard    SettingsStandard @relation(fields: [standardId], references: [id], onDelete: Restrict)
+  @@unique([standardId, revision])
+  @@index([status, effectiveDate])
+  @@map("settings_standard_versions")
+}
+
+model SettingsUnitDisplayPreference {
+  id             String @id @default(cuid())
+  scopeType      String @map("Scope_Type")
+  scopeId        String? @map("Scope_ID")
+  parameter      String
+  displayUnitId  String @map("Display_Unit_ID")
+  configurationVersionId String? @map("Configuration_Version_ID")
+  @@unique([scopeType, scopeId, parameter])
+  @@index([displayUnitId])
+  @@map("settings_unit_display_preferences")
+}
+
+model SettingsWorkflowDefinition {
+  id          String                   @id @default(cuid()) @map("Workflow_Definition_ID")
+  name        String
+  description String?
+  ownerModule String?                  @map("Owner_Module")
+  status      SettingsRecordState      @default(Active)
+  versions    SettingsWorkflowVersion[]
+  @@unique([name])
+  @@index([ownerModule, status])
+  @@map("settings_workflow_definitions")
+}
+
+model SettingsWorkflowVersion {
+  id           String                    @id @default(cuid()) @map("Workflow_Version_ID")
+  definitionId String                    @map("Workflow_Definition_ID")
+  version      Int
+  approvalState SettingsApprovalState    @default(Draft) @map("Approval_State")
+  effectiveDate DateTime?                @map("Effective_Date")
+  immutable    Boolean                   @default(false)
+  contentHash  String                    @map("Content_Hash")
+  definition   SettingsWorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+  stages       SettingsWorkflowStage[]
+  rules        SettingsWorkflowRule[]
+  @@unique([definitionId, version])
+  @@index([approvalState, effectiveDate])
+  @@map("settings_workflow_versions")
+}
+
+model SettingsWorkflowStage {
+  id         String                  @id @default(cuid())
+  versionId  String                  @map("Workflow_Version_ID")
+  stageKey   String                  @map("Stage_Key")
+  name       String
+  sequence   Int
+  slaHours   Int?                    @map("SLA_Hours")
+  version    SettingsWorkflowVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  @@unique([versionId, stageKey])
+  @@index([versionId, sequence])
+  @@map("settings_workflow_stages")
+}
+
+model SettingsWorkflowApprover {
+  id        String @id @default(cuid())
+  versionId String @map("Workflow_Version_ID")
+  stageId   String @map("Stage_ID")
+  approverType String @map("Approver_Type")
+  approverRef  String @map("Approver_Ref")
+  @@unique([stageId, approverType, approverRef])
+  @@index([versionId, stageId])
+  @@map("settings_workflow_approvers")
+}
+
+model SettingsWorkflowRule {
+  id        String                  @id @default(cuid())
+  versionId String                  @map("Workflow_Version_ID")
+  ruleType  String                  @map("Rule_Type")
+  definition Json
+  version   SettingsWorkflowVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  @@index([versionId, ruleType])
+  @@map("settings_workflow_rules")
+}
+
+model SettingsWorkflowInstanceReference {
+  id             String @id @default(cuid())
+  workflowVersionId String @map("Workflow_Version_ID")
+  ownerModule    String @map("Owner_Module")
+  ownerRecordType String @map("Owner_Record_Type")
+  ownerRecordId  String @map("Owner_Record_ID")
+  currentStageKey String? @map("Current_Stage_Key")
+  @@unique([ownerModule, ownerRecordType, ownerRecordId])
+  @@index([workflowVersionId, ownerModule])
+  @@map("settings_workflow_instance_references")
+}
+
+model SettingsThresholdRegistry {
+  id              String              @id @default(cuid()) @map("Threshold_Registry_ID")
+  ownerModule     String              @map("Owner_Module")
+  ownerRuleId     String              @map("Owner_Rule_ID")
+  parameter       String
+  standardReference String?            @map("Standard_Reference")
+  ruleVersion     String              @map("Rule_Version")
+  effectiveScope  Json                @map("Effective_Scope")
+  status          SettingsRecordState @default(Active)
+  lastReview      DateTime?           @map("Last_Review")
+  nextReview      DateTime?           @map("Next_Review")
+  @@unique([ownerModule, ownerRuleId, ruleVersion])
+  @@index([ownerModule, parameter, status])
+  @@map("settings_threshold_registries")
+}
+
+model SettingsThresholdReference {
+  id          String @id @default(cuid())
+  registryId  String @map("Threshold_Registry_ID")
+  ownerModule String @map("Owner_Module")
+  ownerRuleId String @map("Owner_Rule_ID")
+  ruleVersion String @map("Rule_Version")
+  @@unique([registryId, ownerModule, ownerRuleId, ruleVersion])
+  @@index([ownerModule, ownerRuleId])
+  @@map("settings_threshold_references")
+}
+
+model SettingsNotificationTemplate {
+  id          String              @id @default(cuid()) @map("Notification_Template_ID")
+  name        String
+  version     Int
+  content     Json
+  status      SettingsRecordState @default(Active)
+  contentHash String              @map("Content_Hash")
+  @@unique([name, version])
+  @@index([status])
+  @@map("settings_notification_templates")
+}
+
+model SettingsNotificationRule {
+  id          String @id @default(cuid()) @map("Notification_Rule_ID")
+  sourceEvent String @map("Source_Event")
+  severity    String
+  recipientRefs Json @map("Recipient_Refs")
+  channelRefs Json @map("Channel_Refs")
+  escalationTimeMinutes Int? @map("Escalation_Time_Minutes")
+  quietHours  Json? @map("Quiet_Hours")
+  templateId  String? @map("Notification_Template_ID")
+  status      SettingsRecordState @default(Active)
+  @@index([sourceEvent, severity, status])
+  @@map("settings_notification_rules")
+}
+
+model SettingsNotificationSubscription {
+  id          String @id @default(cuid()) @map("Subscription_ID")
+  userId      String @map("User_ID")
+  ruleId      String @map("Notification_Rule_ID")
+  status      SettingsRecordState @default(Active)
+  preferences Json?
+  @@unique([userId, ruleId])
+  @@index([ruleId, status])
+  @@map("settings_notification_subscriptions")
+}
+
+model SettingsNotificationChannelReference {
+  id          String @id @default(cuid())
+  channelType String @map("Channel_Type")
+  connectorId String? @map("Connector_ID")
+  status      String
+  @@unique([channelType, connectorId])
+  @@index([status, channelType])
+  @@map("settings_notification_channel_references")
+}
+
+model SettingsNotificationEventReference {
+  id            String @id @default(cuid()) @map("Notification_Event_ID")
+  sourceModule  String @map("Source_Module")
+  sourceEventId String @map("Source_Event_ID")
+  sourceEventType String @map("Source_Event_Type")
+  occurredAt    DateTime @map("Occurred_At")
+  severity      String?
+  @@unique([sourceModule, sourceEventId])
+  @@index([occurredAt, sourceModule, sourceEventType])
+  @@map("settings_notification_event_references")
+}
+
+model SettingsNotificationDelivery {
+  id              String @id @default(cuid()) @map("Delivery_ID")
+  notificationEventId String @map("Notification_Event_ID")
+  channelType     String @map("Channel_Type")
+  connectorId     String? @map("Connector_ID")
+  status          String
+  attemptedAt     DateTime? @map("Attempted_At")
+  deliveredAt     DateTime? @map("Delivered_At")
+  failureCode     String? @map("Failure_Code")
+  @@index([notificationEventId, attemptedAt])
+  @@index([status, channelType])
+  @@map("settings_notification_deliveries")
+}
+
+model SettingsConfigurationSet {
+  id          String                      @id @default(cuid()) @map("Configuration_Set_ID")
+  key         String
+  ownerScope  String                      @map("Owner_Scope")
+  status      SettingsRecordState         @default(Active)
+  versions    SettingsConfigurationVersion[]
+  @@unique([key, ownerScope])
+  @@index([status])
+  @@map("settings_configuration_sets")
+}
+
+model SettingsConfigurationVersion {
+  id             String                    @id @default(cuid()) @map("Configuration_Version_ID")
+  configurationSetId String                 @map("Configuration_Set_ID")
+  version        Int
+  payload        Json
+  contentHash    String                    @map("Content_Hash")
+  approvalState  SettingsApprovalState     @default(Draft) @map("Approval_State")
+  effectiveFrom  DateTime?                 @map("Effective_From")
+  immutable      Boolean                   @default(false)
+  configurationSet SettingsConfigurationSet @relation(fields: [configurationSetId], references: [id], onDelete: Restrict)
+  @@unique([configurationSetId, version])
+  @@index([approvalState, effectiveFrom])
+  @@map("settings_configuration_versions")
+}
+
+model SettingsConfigurationDistribution {
+  id             String @id @default(cuid())
+  configurationVersionId String @map("Configuration_Version_ID")
+  consumingModule String @map("Consuming_Module")
+  status         String
+  acknowledgedAt DateTime? @map("Acknowledged_At")
+  failureReason  String? @map("Failure_Reason")
+  @@unique([configurationVersionId, consumingModule])
+  @@index([consumingModule, status])
+  @@map("settings_configuration_distributions")
+}
+
+model SettingsAuditEvent {
+  id             String   @id @default(cuid()) @map("Audit_Event_ID")
+  userId         String?  @map("User_ID")
+  occurredAt     DateTime @default(now()) @map("Timestamp")
+  sourceModule   String   @map("Module")
+  action         String
+  objectType     String?  @map("Object_Type")
+  objectId       String?  @map("Object_ID")
+  result         String
+  severity       String?
+  ipAddress      String?  @map("IP_Address")
+  sessionId      String?  @map("Session_ID")
+  requestId      String?  @map("Request_ID")
+  details        String?
+  beforeValues   Json?    @map("Before_Values")
+  afterValues    Json?    @map("After_Values")
+  contentHash    String   @map("Content_Hash")
+  @@unique([id])
+  @@index([occurredAt, sourceModule])
+  @@index([userId, occurredAt])
+  @@index([objectType, objectId, occurredAt])
+  @@map("settings_audit_events")
+}
+
+// Prepared for Chainage Agent; nullable fields preserve unknown engineering facts.
+enum ChainageDirection {
+  INCREASING_DOWNSTREAM
+  INCREASING_UPSTREAM
+}
+enum ChainageBoundaryPolicy {
+  REJECT
+  WARN
 }

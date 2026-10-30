@@ -31,20 +31,33 @@ export const externalCoatingOptions: CoatingOptionGroup[] = [
 
 export const internalCoatingOptions: CoatingOptionGroup[] = [
   {
-    label: "No Internal Lining",
-    options: ["Bare"]
+    label: "No Internal Coating",
+    options: ["Bare / Uncoated"]
+  },
+  {
+    label: "Epoxy Coatings",
+    options: ["Liquid Epoxy", "Fusion-Bonded Epoxy (FBE)", "Phenolic Epoxy"]
+  },
+  {
+    label: "Polymeric Linings",
+    options: ["Polyurethane", "Polyethylene (PE) Lining"]
   },
   {
     label: "Cementitious Lining",
-    options: ["Cement Lining"]
+    options: ["Cement Mortar Lining"]
   },
   {
-    label: "Polymeric Lining",
-    options: ["Epoxy"]
+    label: "Specialty Linings",
+    options: [
+      "Glass-Flake Epoxy",
+      "Rubber Lining",
+      "Fiberglass-Reinforced Plastic (FRP/GRP) Lining",
+      "Corrosion-Resistant Alloy (CRA) Cladding"
+    ]
   },
   {
     label: "Other",
-    options: ["Other"]
+    options: ["Other", "Unknown"]
   }
 ];
 
@@ -53,5 +66,8 @@ export const legacyExternalCoatingMap: Record<string, string> = {
 };
 
 export const legacyInternalCoatingMap: Record<string, string> = {
-  "Epoxy/Others": "Epoxy"
+  Bare: "Bare / Uncoated",
+  "Cement Lining": "Cement Mortar Lining",
+  Epoxy: "Liquid Epoxy",
+  "Epoxy/Others": "Liquid Epoxy"
 };

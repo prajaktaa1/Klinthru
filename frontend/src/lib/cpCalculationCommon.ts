@@ -2,6 +2,7 @@ export type CpCoatingSystem = "FBE" | "3LPP" | "Custom";
 export type DiameterInputUnit = "mm" | "cm" | "m" | "inch" | "ft";
 export type LengthInputUnit = "m" | "km" | "ft";
 export type CurrentDensityInputUnit = "A/m2" | "mA/m2";
+export type CableAreaInputUnit = "mm2" | "cm2";
 
 export type CommonCpInputs = {
   diameterValue: number;
@@ -37,15 +38,61 @@ const LENGTH_TO_METERS: Record<LengthInputUnit, number> = {
   ft: 0.3048
 };
 
+const AREA_TO_SQUARE_MILLIMETERS: Record<CableAreaInputUnit, number> = {
+  mm2: 1,
+  cm2: 100
+};
+
+type PercentOptions = {
+  allowZero?: boolean;
+  max?: number;
+};
+
 export function assertPositiveFinite(value: number, fieldName: string) {
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error(`${fieldName} must be greater than 0.`);
   }
 }
 
+export function assertPositiveInteger(value: number, fieldName: string) {
+  assertPositiveFinite(value, fieldName);
+  if (!Number.isInteger(value)) {
+    throw new Error(`${fieldName} must be a whole number.`);
+  }
+}
+
+export function assertNegativeFinite(value: number, fieldName: string) {
+  if (!Number.isFinite(value) || value >= 0) {
+    throw new Error(`${fieldName} must be less than 0.`);
+  }
+}
+
+export function assertFiniteNumber(value: number, fieldName: string) {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${fieldName} must be a valid number.`);
+  }
+}
+
 export function assertNonNegativeFinite(value: number, fieldName: string) {
   if (!Number.isFinite(value) || value < 0) {
     throw new Error(`${fieldName} must be 0 or greater.`);
+  }
+}
+
+export function assertPercent(value: number, fieldName: string, options: PercentOptions = {}) {
+  const { allowZero = false, max } = options;
+  if (!Number.isFinite(value)) {
+    throw new Error(`${fieldName} must be a valid number.`);
+  }
+
+  if (allowZero ? value < 0 : value <= 0) {
+    throw new Error(
+      `${fieldName} must be ${allowZero ? "0 or greater" : "greater than 0"}.`
+    );
+  }
+
+  if (max !== undefined && value > max) {
+    throw new Error(`${fieldName} must be ${max} or less.`);
   }
 }
 
@@ -59,23 +106,28 @@ export function toMetersFromLength(value: number, unit: LengthInputUnit) {
   return value * LENGTH_TO_METERS[unit];
 }
 
+export function toSquareMillimeters(value: number, unit: CableAreaInputUnit) {
+  assertPositiveFinite(value, "Cable cross-sectional area");
+  return value * AREA_TO_SQUARE_MILLIMETERS[unit];
+}
+
 export function toCurrentDensityApm2(value: number, unit: CurrentDensityInputUnit) {
   assertPositiveFinite(value, "Design current density");
   return unit === "A/m2" ? value : value / 1000;
 }
 
-export function toFractionFromPercent(value: number, fieldName: string) {
-  assertPositiveFinite(value, fieldName);
+export function toFractionFromPercent(
+  value: number,
+  fieldName: string,
+  options: PercentOptions = {}
+) {
+  assertPercent(value, fieldName, options);
   return value / 100;
 }
 
 export function round(value: number, digits = 3) {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
-}
-
-export function nextStandardRating(value: number, standards: readonly number[]) {
-  return standards.find((candidate) => candidate >= value) ?? standards[standards.length - 1];
 }
 
 export function calculatePipelineSurfaceArea(
@@ -104,7 +156,8 @@ export function calculateCurrentDemand(inputs: CommonCpInputs): CurrentDemandRes
   );
   const coatingBreakdownFactor = toFractionFromPercent(
     inputs.coatingBreakdownPercent,
-    "Coating breakdown factor"
+    "Coating breakdown factor",
+    { allowZero: true, max: 100 }
   );
   const designCurrentDensityApm2 = toCurrentDensityApm2(
     inputs.designCurrentDensityValue,

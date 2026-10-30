@@ -12,7 +12,6 @@ import {
 } from "@/lib/apiClient";
 import { Panel } from "@/components/ui";
 import { getRiskBadgeClasses } from "@/lib/riskScoring";
-import { clearDemoFallbackData, loadActiveReport, setActiveReport } from "@/lib/storage";
 import { DiameterUnit, StoredAssessment } from "@/lib/types";
 
 const PRELIMINARY_NOTICE =
@@ -24,9 +23,10 @@ type CuratedMetric = {
   format?: (value: unknown) => string;
 };
 
-type ActiveReport = StoredAssessment & {
+type ActiveReport = Omit<StoredAssessment, "riskScore"> & {
   reportId?: string;
   createdByName?: string;
+  riskScore?: number;
 };
 
 function prettyLabel(value: string) {
@@ -56,7 +56,7 @@ function normalizeAssessmentType(value: unknown) {
 
 function formatValue(value: unknown) {
   if (value === null || value === undefined) {
-    return "Not available";
+    return "Not Available";
   }
 
   if (typeof value === "boolean") {
@@ -208,8 +208,6 @@ export function ReportView() {
     let isMounted = true;
 
     async function loadReportData() {
-      clearDemoFallbackData();
-
       try {
         const reports = await searchReports();
         const latestReport = reports[0] ? toActiveReport(reports[0]) : null;
@@ -221,7 +219,6 @@ export function ReportView() {
 
           setReport(latestReport);
           setHistory(reports);
-          setActiveReport(latestReport);
           return;
         }
 
@@ -244,8 +241,7 @@ export function ReportView() {
           setHistoryNotice(error.message);
         }
 
-        const activeReport = loadActiveReport();
-        setReport(activeReport ? { ...activeReport } : null);
+        setReport(null);
       }
     }
 
@@ -342,7 +338,6 @@ export function ReportView() {
       const selectedReport = await fetchReportById(id);
       const nextReport = toActiveReport(selectedReport);
       setReport(nextReport);
-      setActiveReport(nextReport);
     } catch (error) {
       if (isUnauthorizedError(error)) {
         setHistoryNotice("Your session has expired. Please sign in again.");
@@ -431,7 +426,7 @@ export function ReportView() {
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
               Risk Score
             </p>
-            <p className="mt-3 text-lg font-semibold text-slate-900">{report.riskScore}</p>
+            <p className="mt-3 text-lg font-semibold text-slate-900">{typeof report.riskScore === "number" ? report.riskScore : "Not Available"}</p>
           </div>
         </div>
       </Panel>
@@ -517,7 +512,7 @@ function toActiveReport(report: ReportRecord): ActiveReport {
     pipelineName: report.pipelineName,
     createdAt: report.generatedAt,
     riskLevel: report.riskLevel,
-    riskScore: Number(report.result.riskScore ?? 0),
+    riskScore: typeof report.result.riskScore === "number" ? report.result.riskScore : undefined,
     input: report.input as StoredAssessment["input"],
     result: report.result as StoredAssessment["result"],
     createdByName: report.createdByName

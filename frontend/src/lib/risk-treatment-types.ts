@@ -1,0 +1,23 @@
+import type { OfficialRiskResult } from "./risk-assessment-types";
+export type TreatmentAvailability = "available" | "unavailable" | "schema-unavailable" | "approval-needed";
+export type TreatmentFilters = { pipelineId?: string; methodologyVersionId?: string; riskId?: string; q?: string; status?: string; riskLevel?: string; page?: number; pageSize?: number; basis?: "proposed" | "approved" | "verified" };
+export type TreatmentListRow = { treatmentId: string; revisionId: string; revisionNumber: number; title: string; state: string; riskId: string; riskTitle: string; pipelineId: string; pipelineName: string; pipelineCode: string; currentRiskLevel: string; controlType: string | null; benefit: string | null; actionIds: string[] };
+export type TreatmentActionRow = { actionId: string; title: string; status: string; ownerId: string | null; ownerName: string | null; dueDate: string | null; overdue: boolean | null; costAmount: string | null; currency: string | null; asOf: string; treatmentLinks: TreatmentListRow[] };
+export type TreatmentActionPage = { status: TreatmentAvailability; reason: string | null; items: TreatmentActionRow[]; total: number | null; page: number; pageSize: number; statuses: string[] };
+export type TreatmentPage = { status: TreatmentAvailability; reason: string | null; items: TreatmentListRow[]; total: number | null; page: number; pageSize: number; actions: TreatmentActionPage; riskLevels: string[]; pipelines: { id: string; name: string }[] };
+export type TreatmentSummary = { status: TreatmentAvailability; reason: string | null; basis: TreatmentFilters["basis"] | null;
+  actions: { status: TreatmentAvailability; reason: string | null; total: number | null; byStatus: { label: string; count: number }[]; overdue: number | null };
+  cost: { status: TreatmentAvailability; reason: string; amount: string | null; currency: string | null };
+  reduction: { status: TreatmentAvailability; reason: string; before: number | null; after: number | null; percent: number | null; unit: string | null };
+  alarp: { status: TreatmentAvailability; reason: string; outcome: string | null };
+  costReductionChart: { category: string; cost: number; reduction: number }[];
+  residualProfile: { level: string; before: number; after: number }[];
+};
+export type TreatmentDetail = { status: TreatmentAvailability; reason: string | null; item: null | {
+  treatmentId: string; revisionId: string; revisionNumber: number; title: string; state: string; description: string | null; controlType: string | null;
+  riskId: string; riskTitle: string; pipelineName: string; baselineRevisionId: string; methodologyVersionId: string; matrixVersionId: string;
+  inherent: OfficialRiskResult; current: OfficialRiskResult; residual: { proposed: OfficialRiskResult | null; approved: OfficialRiskResult | null; verified: OfficialRiskResult | null; reason: string };
+  estimatedCost: { amount: string | null; currency: string | null; basis: string | null; estimateDate: string | null }; implementationStart: string | null; implementationEnd: string | null; benefit: string | null;
+  alarpAssessments: { alarpId: string; version: number; state: string; outcome: string | null; justification: string | null; criteriaId: string | null; criteriaVersion: string | null; evidenceAvailable: boolean }[];
+  workflow: { stage: string; status: string; actorName: string | null; actorId: string | null; date: string | null }[];
+} };

@@ -1,0 +1,48 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { AlertTriangle, ArrowRight, Clock3, Leaf, Lightbulb, RotateCcw, ShieldCheck, TrendingUp } from "lucide-react";
+
+const filters = [["Pipeline", "All Pipelines"], ["Segment", "All Segments"], ["Defect Category", "All Defect Categories"], ["Time Window", "Next 20 Years"], ["Model Version", "N/A"]];
+const charts = [
+  { title: "Corrosion Growth Trend", unit: "Corrosion Depth (mm)", reason: "Saved corrosion-depth forecasts and uncertainty bounds unavailable." },
+  { title: "Wall-Thickness Decline", unit: "Wall Thickness (mm)", reason: "Compatible wall-thickness history, saved forecasts and approved critical threshold unavailable." },
+  { title: "Defect Growth Trend", unit: "Number of Defects", reason: "Confirmed defect population/history and saved count forecasts unavailable. ILI observations are not Defect_IDs." },
+  { title: "Remaining Life Projection", unit: "Remaining Life (Years)", reason: "Advisory life-estimate history/forecasts and approved end-of-life criterion unavailable." },
+  { title: "Risk Trajectory Over Time", unit: "Risk Score (0 - 100)", reason: "Advisory risk-outlook method, scale, class boundaries and saved forecasts unavailable. No native Risk conversion." }
+];
+const insights = [
+  { title: "Increasing Corrosion Growth", icon: TrendingUp, tone: "bg-rose-50 text-red-600", reason: "Saved corrosion forecast, comparison baseline and source-linked explanation unavailable." },
+  { title: "Accelerated Wall-Thickness Loss", icon: Clock3, tone: "bg-orange-50 text-orange-600", reason: "Approved critical-thickness method and segment-specific forecast evidence unavailable." },
+  { title: "Rising Defect Count", icon: TrendingUp, tone: "bg-rose-50 text-red-600", reason: "Saved defect-count forecast and comparable population unavailable." },
+  { title: "Reduced Remaining Life", icon: AlertTriangle, tone: "bg-orange-50 text-orange-600", reason: "Advisory estimate baseline, aggregation and model/run lineage unavailable." },
+  { title: "Elevated Risk Outlook", icon: ShieldCheck, tone: "bg-emerald-50 text-emerald-600", reason: "Approved outlook classes, mitigation scenario and saved forecast unavailable." }
+];
+
+function TrendLegend() {
+  return <div className="my-3 flex flex-wrap justify-center gap-3 text-[10px] text-blue-900 dark:text-blue-200"><span className="flex items-center gap-1"><span aria-hidden="true" className="h-0.5 w-5 bg-blue-600" />Historical</span><span className="flex items-center gap-1"><span aria-hidden="true" className="w-5 border-t-2 border-dashed border-red-500" />AI Predicted</span><span className="flex items-center gap-1"><span aria-hidden="true" className="h-2 w-5 bg-rose-100" />Confidence Band</span></div>;
+}
+
+function UnavailableTrend({ title, reason }: { title: string; reason: string }) {
+  return <div className="relative min-h-44 rounded-md bg-slate-50 p-4 dark:bg-slate-950">
+    <svg viewBox="0 0 400 160" role="img" aria-label={`${title}: no forecast values or confidence bounds available`} className="h-40 w-full"><path d="M25 8V135H390" fill="none" stroke="currentColor" className="text-slate-300 dark:text-slate-700" /><text x="200" y="65" textAnchor="middle" fill="currentColor" className="text-slate-400" fontSize="18">N/A</text><text x="200" y="90" textAnchor="middle" fill="currentColor" className="text-slate-500" fontSize="11">AI forecast and interval unavailable</text><text x="200" y="155" textAnchor="middle" fill="currentColor" className="text-slate-500" fontSize="10">Time / forecast dates: N/A</text></svg>
+    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">BLOCKED — {reason}</p>
+  </div>;
+}
+
+/** Native observations and saved forecasts never share a series or inferred model lineage. */
+export function AiDeteriorationTrends({ historicalContext, sourceControls, loading = false, failed = false }: { historicalContext?: ReactNode; sourceControls?: ReactNode; loading?: boolean; failed?: boolean }) {
+  return <div data-ai-img04="deterioration-trends" className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,3fr)_minmax(260px,1fr)]">
+    <div className="min-w-0 space-y-3">
+      <section aria-label="Deterioration trend filters" className="grid min-w-0 gap-3 rounded-lg border border-blue-100 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 dark:border-slate-700 dark:bg-slate-900">{filters.map(([label, value]) => <label key={label} className="min-w-0 text-xs text-blue-950 dark:text-blue-200"><span className="mb-2 block font-medium">{label}</span><select aria-label={label} disabled title="BLOCKED — saved forecast catalog, approved model and filter contract unavailable." className="w-full min-w-0 rounded-md border border-blue-100 bg-white p-2 text-xs text-blue-900 dark:border-slate-700 dark:bg-slate-800 dark:text-blue-200"><option>{value}</option></select></label>)}<div className="flex items-end"><button type="button" disabled title="BLOCKED — no active forecast filters or approved model catalog." className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-blue-100 p-2 text-xs text-blue-600 opacity-60 dark:border-slate-700 dark:text-blue-300"><RotateCcw size={14} />Reset Filters</button></div></section>
+      <p role="status" aria-live="polite" className="rounded-md bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900 dark:bg-slate-800 dark:text-blue-200">{loading ? "Loading source readiness…" : failed ? "Source readiness unavailable. Cached source values are withheld." : "Historical measurements are source-owned actuals. AI forecasts and confidence bounds are N/A until approved saved outputs exist."}</p>
+      <div className="grid min-w-0 gap-3 lg:grid-cols-6">{charts.map((chart, index) => <section key={chart.title} className={`min-w-0 rounded-lg border border-blue-100 bg-white p-3 dark:border-slate-700 dark:bg-slate-900 ${index < 3 ? "lg:col-span-2" : "lg:col-span-3"}`} aria-label={chart.title}>
+        <h3 className="text-sm font-semibold text-blue-950 dark:text-white">{chart.title}</h3><p className="mt-1 text-xs text-blue-700 dark:text-blue-300">{chart.unit}{index === 4 ? " · scale not approved" : ""}</p><TrendLegend />
+        {index === 0 ? <><div className="mb-3 min-w-0 rounded-md border border-blue-100 p-2 dark:border-slate-700"><h4 className="text-xs font-semibold text-blue-900 dark:text-blue-200">Historical actuals · repeated ILI depth</h4>{!loading && !failed && historicalContext ? historicalContext : <p className="mt-2 text-xs leading-5 text-slate-500">N/A — select an authorized historical pipeline; compatible observations are required.</p>}{sourceControls ? <details className="mt-3 min-w-0"><summary className="cursor-pointer text-xs text-blue-700 dark:text-blue-300">Select historical source</summary><div className="mt-3 min-w-0">{sourceControls}</div></details> : null}</div><UnavailableTrend title={chart.title} reason={chart.reason} /></> : <UnavailableTrend title={chart.title} reason={chart.reason} />}
+        <dl className="mt-3 grid grid-cols-2 gap-1 text-[10px] leading-5 text-slate-500"><dt>Prediction Start Date</dt><dd>N/A</dd><dt>Model Version</dt><dd>N/A</dd><dt>Input Snapshot ID</dt><dd>N/A</dd><dt>Confidence / Prediction Interval</dt><dd>N/A</dd></dl>
+        {index === 1 ? <p className="mt-2 text-[10px] text-slate-500">Critical Threshold: N/A — approval needed</p> : index === 3 ? <p className="mt-2 text-[10px] text-slate-500">End of Life Threshold: N/A — approval needed</p> : index === 4 ? <p className="mt-2 text-[10px] text-slate-500">Low Risk / Medium Risk / High Risk: N/A — outlook boundaries not approved</p> : null}
+      </section>)}</div>
+    </div>
+    <aside className="min-w-0 rounded-lg border border-blue-100 bg-blue-50/30 p-3 dark:border-slate-700 dark:bg-slate-900" aria-label="AI deterioration insights"><div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h3 className="flex items-center gap-2 text-lg font-semibold text-blue-700 dark:text-blue-300"><Lightbulb size={22} />AI Insights</h3><span className="text-[10px] text-blue-700 dark:text-blue-300">Generated: N/A</span></div><div className="space-y-3">{insights.map(({ title, icon: Icon, tone, reason }) => <article key={title} className="flex min-w-0 items-start gap-3 rounded-lg bg-white p-3 dark:bg-slate-950"><span className={`shrink-0 rounded-full p-2 ${tone}`}><Icon size={22} /></span><div className="min-w-0"><h4 className="text-xs font-semibold text-blue-950 dark:text-white">{title}</h4><p className="mt-1 text-sm font-semibold text-slate-500">N/A</p><p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">BLOCKED — {reason}</p></div></article>)}<button type="button" disabled title="BLOCKED — no saved recommendation, evidence, authorized action or planning handoff." className="flex w-full cursor-not-allowed items-start gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-left opacity-60 dark:border-slate-700 dark:bg-slate-800"><Leaf size={21} className="shrink-0 text-blue-600" /><span className="min-w-0 flex-1"><span className="block text-xs font-semibold text-blue-700 dark:text-blue-300">Recommendation</span><span className="mt-2 block text-xs leading-5 text-slate-500">N/A — advisory recommendation and human-approved planning handoff unavailable.</span></span><ArrowRight size={15} className="shrink-0 text-blue-600" /></button></div><p className="mt-4 text-[10px] leading-5 text-slate-500">Immutable forecast/run/source-snapshot lineage required. Later actuals never replace saved predictions. AI estimates do not overwrite engineering remaining life or official Risk_ID revisions.</p></aside>
+  </div>;
+}

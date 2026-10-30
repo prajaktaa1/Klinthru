@@ -4,6 +4,7 @@ import {
   SensorSummary,
   validateSensorSummary
 } from "@/lib/sensor-data";
+import { DeviceRecord } from "@/lib/types";
 
 function formatAvailability(value: number) {
   return Number.isInteger(value) ? `${value}%` : `${value.toFixed(1)}%`;
@@ -65,19 +66,23 @@ function SensorMobileCard({ sensor }: { sensor: SensorSummary }) {
   );
 }
 
-export function SensorsTable({ sensors }: { sensors: SensorSummary[] }) {
+export function SensorsTable({ records, sensors }: { records: DeviceRecord[]; sensors: SensorSummary[] }) {
   const isEmpty = sensors.length === 0;
+  const hasDemoRecords = records.some((record) => record.isDemoData);
 
   return (
     <Panel>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-xl font-semibold text-slate-900">Sensor Inventory</h3>
+          <h3 className="text-xl font-semibold text-slate-900">Sensors by Type</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Current status summary for pipeline monitoring instruments.
+            Detailed breakdown of sensors by type with status and key metrics.
           </p>
         </div>
+        {hasDemoRecords ? <span className="self-start rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">Demo Sensor Inventory</span> : null}
       </div>
+
+      {hasDemoRecords ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">Demo Sensor Inventory. These records are for development viewing only and are not live SCADA telemetry, operational devices, or verified field data.</div> : null}
 
       <div className="mt-6 hidden overflow-x-auto rounded-3xl border border-slate-200 md:block">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -93,7 +98,7 @@ export function SensorsTable({ sensors }: { sensors: SensorSummary[] }) {
           <tbody className="divide-y divide-slate-100 bg-white">
             {isEmpty ? (
               <tr>
-                <td className="px-4 py-10 text-center text-slate-500" colSpan={5}>
+                <td className="px-4 py-6 text-center text-slate-500" colSpan={5}>
                   No device records are available yet.
                 </td>
               </tr>
@@ -151,6 +156,18 @@ export function SensorsTable({ sensors }: { sensors: SensorSummary[] }) {
           ))
         )}
       </div>
+
+      {!isEmpty ? (
+        <div className="mt-6 overflow-x-auto rounded-3xl border border-slate-200">
+          <table className="min-w-[700px] w-full divide-y divide-slate-200 text-left text-sm">
+            <caption className="sr-only">Registered device records</caption>
+            <thead className="bg-slate-50 text-slate-500"><tr><th className="px-4 py-3 font-medium">Device ID</th><th className="px-4 py-3 font-medium">Type</th><th className="px-4 py-3 font-medium">Stored Location</th><th className="px-4 py-3 font-medium">Inventory Status</th><th className="px-4 py-3 font-medium">Data Classification</th></tr></thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {records.map((record) => <tr key={record.id}><td className="px-4 py-3 font-medium text-slate-900">{record.deviceId}</td><td className="px-4 py-3 text-slate-700">{record.deviceType}</td><td className="px-4 py-3 text-slate-700">{record.pipelineOrLocation}</td><td className="px-4 py-3 text-slate-700">{record.status}</td><td className="px-4 py-3">{record.isDemoData ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Demo</span> : <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">Stored inventory</span>}</td></tr>)}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </Panel>
   );
 }

@@ -1,5 +1,6 @@
 frontend/node_modules/
 frontend/.next/
+frontend/.next-dev/
 frontend/out/
 frontend/.env*
 node_modules/
@@ -9,6 +10,7 @@ tmp_*
 backend/node_modules/
 backend/dist/
 backend/.env*
+backend/.env.staging.local
 
 !frontend/.env.example
 !backend/.env.example
@@ -19,3 +21,9 @@ Thumbs.db
 *.tsbuildinfo
 backend/data/devices.json
 backend/data/reports.json
+
+.local-backups/
+audit-backups/
+.integration-verification/
+.scada-verification/
+.sensors-verification/

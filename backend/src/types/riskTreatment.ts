@@ -1,0 +1,44 @@
+import type { RiskResult } from "./riskAssessment";
+import type { AuthUser } from "./domain";
+
+export type TreatmentAvailability = "available" | "unavailable" | "schema-unavailable" | "approval-needed";
+export type TreatmentScope = { pipelineId?: string; methodologyVersionId?: string; riskId?: string; q?: string; status?: string; riskLevel?: string; page: number; pageSize: number; basis?: "proposed" | "approved" | "verified" };
+export type TreatmentEvent = { id: string; riskRecordId: string; riskTreatmentRevisionId: string | null; riskAlarpAssessmentId: string | null; eventType: string; actorId: string | null; occurredAt: Date; details: unknown };
+export type AlarpRecord = { id: string; alarpId: string; version: number; riskRecordId: string; treatmentRevisionId: string; criteriaId: string | null; criteriaVersion: string | null; criteriaSnapshot: unknown; alternatives: unknown; justification: string | null; outcome: string | null; evidenceReferences: unknown; state: string; contentHash: string | null };
+export type TreatmentRevisionRecord = {
+  id: string; treatmentId: string; riskRecordId: string; revisionNumber: number; baselineRevisionId: string; state: string;
+  title: string; description: string | null; treatmentType: string | null; controlReferences: unknown; proposedResidualResult: unknown; expectedBenefit: unknown;
+  costAmount: { toString(): string } | string | null; currency: string | null; costBasis: string | null; costCategory: string | null; costEstimateDate: Date | null; costSourceReference: unknown;
+  implementationStart: Date | null; implementationEnd: Date | null; evidenceReferences: unknown; createdById: string; createdAt: Date; submittedAt: Date | null; contentHash: string | null;
+  baselineRevision: { id: string; riskRecordId: string; approvalStatus: string; approvedAt: Date | null; methodologyVersionId: string; matrixVersionId: string; scopeScenarioSnapshot: unknown; inherentResult: unknown; currentResult: unknown; residualResult: unknown;
+    methodologyVersion: { approvalStatus: string; matrixVersion: { id: string; approvalStatus: string; cells: unknown } } };
+  actionLinks: { id: string; riskRecordId: string; treatmentRevisionId: string; actionId: string }[];
+  alarpAssessments: AlarpRecord[]; events: TreatmentEvent[];
+};
+export type TreatmentRecord = { id: string; treatmentId: string; riskRecordId: string; currentApprovedRevisionId: string | null;
+  risk: { id: string; riskId: string; title: string; pipelineId: string; pipeline: { id: string; pipelineName: string; pipelineCode: string; createdById: string | null } };
+  revisions: TreatmentRevisionRecord[];
+};
+export type TreatmentReadClient = { riskTreatment: { findMany(args: unknown): Promise<TreatmentRecord[]>; findFirst(args: unknown): Promise<TreatmentRecord | null> }; readUser(id: string): Promise<{ name: string } | null> };
+export type CentralAction = { actionId: string; title: string; status: string; ownerId: string | null; ownerName: string | null; dueDate: string | null; overdue: boolean | null; costAmount: string | null; currency: string | null; asOf: string };
+export type CentralActionGateway = { read(actionIds: string[], user: AuthUser): Promise<{ status: "available"; actions: CentralAction[] } | { status: "unavailable"; reason: string }> };
+export type TreatmentListRow = { treatmentId: string; revisionId: string; revisionNumber: number; title: string; state: string; riskId: string; riskTitle: string; pipelineId: string; pipelineName: string; pipelineCode: string; currentRiskLevel: string; controlType: string | null; benefit: string | null; actionIds: string[] };
+export type TreatmentActionRow = CentralAction & { treatmentLinks: TreatmentListRow[] };
+export type TreatmentActionPage = { status: TreatmentAvailability; reason: string | null; items: TreatmentActionRow[]; total: number | null; page: number; pageSize: number; statuses: string[] };
+export type TreatmentPage = { status: TreatmentAvailability; reason: string | null; items: TreatmentListRow[]; total: number | null; page: number; pageSize: number; actions: TreatmentActionPage; riskLevels: string[]; pipelines: { id: string; name: string }[] };
+export type TreatmentSummary = { status: TreatmentAvailability; reason: string | null; basis: TreatmentScope["basis"] | null;
+  actions: { status: TreatmentAvailability; reason: string | null; total: number | null; byStatus: { label: string; count: number }[]; overdue: number | null };
+  cost: { status: TreatmentAvailability; reason: string; amount: string | null; currency: string | null };
+  reduction: { status: TreatmentAvailability; reason: string; before: number | null; after: number | null; percent: number | null; unit: string | null };
+  alarp: { status: TreatmentAvailability; reason: string; outcome: string | null };
+  costReductionChart: { category: string; cost: number; reduction: number }[];
+  residualProfile: { level: string; before: number; after: number }[];
+};
+export type TreatmentDetail = { status: TreatmentAvailability; reason: string | null; item: null | {
+  treatmentId: string; revisionId: string; revisionNumber: number; title: string; state: string; description: string | null; controlType: string | null;
+  riskId: string; riskTitle: string; pipelineName: string; baselineRevisionId: string; methodologyVersionId: string; matrixVersionId: string;
+  inherent: RiskResult; current: RiskResult; residual: { proposed: RiskResult | null; approved: RiskResult | null; verified: RiskResult | null; reason: string };
+  estimatedCost: { amount: string | null; currency: string | null; basis: string | null; estimateDate: string | null }; implementationStart: string | null; implementationEnd: string | null; benefit: string | null;
+  alarpAssessments: { alarpId: string; version: number; state: string; outcome: string | null; justification: string | null; criteriaId: string | null; criteriaVersion: string | null; evidenceAvailable: boolean }[];
+  workflow: { stage: string; status: string; actorName: string | null; actorId: string | null; date: string | null }[];
+} };

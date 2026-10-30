@@ -15,7 +15,9 @@ import {
   isBackendUnavailableError,
   isUnauthorizedError,
   login as loginRequest,
-  logout as logoutRequest
+  logout as logoutRequest,
+  verifyLoginOtp,
+  verifySignupOtp
 } from "@/lib/apiClient";
 import { AuthUser } from "@/lib/types";
 
@@ -25,6 +27,8 @@ type AuthContextValue = {
   authError: string | null;
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithOtp: (email: string, otp: string) => Promise<void>;
+  signupWithOtp: (email: string, otp: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -111,6 +115,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async login(email: string, password: string) {
         setAuthError(null);
         const response = await loginRequest(email, password);
+        setStoredAuthToken(response.token);
+        setUser(response.user);
+      },
+      async loginWithOtp(email: string, otp: string) {
+        setAuthError(null);
+        const response = await verifyLoginOtp(email, otp);
+        setStoredAuthToken(response.token);
+        setUser(response.user);
+      },
+      async signupWithOtp(email: string, otp: string) {
+        setAuthError(null);
+        const response = await verifySignupOtp(email, otp);
         setStoredAuthToken(response.token);
         setUser(response.user);
       },

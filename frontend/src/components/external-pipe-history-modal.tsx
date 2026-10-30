@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   downloadAssessmentPipeDataFile,
@@ -13,9 +13,11 @@ import {
   AssessmentKind,
   AssessmentPipeDataRecord,
   AssessmentPipeDataSummary,
+  ExternalCorrosionInput,
   InternalCorrosionInput,
   StoredAssessment
 } from "@/lib/types";
+import { restoreAssessmentDisplayInput } from "@/lib/externalCorrosionCalculations";
 
 type SearchState = {
   assessmentType: AssessmentKind | "All";
@@ -35,16 +37,32 @@ function buildInitialSearch(defaultAssessmentType: AssessmentKind): SearchState 
   };
 }
 
+function formatTemperatureUnit(value: unknown) {
+  return value === "F" ? "°F" : value === "K" ? "K" : "°C";
+}
+function formatTemperaturePreview(assessment: StoredAssessment) {
+  if (assessment.type === "External") {
+    const input = restoreAssessmentDisplayInput(assessment.input as ExternalCorrosionInput);
+    const value = input.soilTemperatureInputValue ?? input.soilTemperature;
+    return Number.isFinite(value) ? `${value} ${formatTemperatureUnit(input.soilTemperatureUnit)}` : "Not Available";
+  }
+
+  const input = assessment.input as InternalCorrosionInput;
+  return `${input.temperatureInputValue ?? input.temperature} ${formatTemperatureUnit(input.temperatureUnit)}`;
+}
+
 export function ExternalPipeHistoryModal({
   isOpen,
   defaultAssessmentType,
   onClose,
-  onEdit
+  onEdit,
+  pipelineId
 }: {
   isOpen: boolean;
   defaultAssessmentType: AssessmentKind;
   onClose: () => void;
   onEdit: (record: AssessmentPipeDataRecord) => void;
+  pipelineId?: string;
 }) {
   const [search, setSearch] = useState<SearchState>(buildInitialSearch(defaultAssessmentType));
   const [records, setRecords] = useState<AssessmentPipeDataSummary[]>([]);
@@ -53,6 +71,12 @@ export function ExternalPipeHistoryModal({
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloadKey, setDownloadKey] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const searchRequest = useRef(0);
+  const detailRequest = useRef(0);
+  const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
 
   useEffect(() => {
     if (!isOpen) {
@@ -62,23 +86,33 @@ export function ExternalPipeHistoryModal({
     const nextSearch = buildInitialSearch(defaultAssessmentType);
     setSearch(nextSearch);
     void runSearch(nextSearch);
-  }, [defaultAssessmentType, isOpen]);
+    return () => { searchRequest.current++; detailRequest.current++; };
+  }, [defaultAssessmentType, isOpen, pipelineId]);
 
   useEffect(() => {
     if (!isOpen) {
       setSelectedRecord(null);
       setError(null);
+      setIsLoadingDetail(false);
     }
   }, [isOpen]);
 
   async function runSearch(nextSearch = search) {
+    const request = ++searchRequest.current;
+    detailRequest.current++;
     setIsLoading(true);
     setError(null);
+    setRecords([]);
+    setSelectedRecord(null);
+    setIsLoadingDetail(false);
+    setPage(1);
 
     try {
-      const history = await fetchAssessmentPipeDataHistory(nextSearch);
+      const history = await fetchAssessmentPipeDataHistory({ ...nextSearch, pipelineId });
+      if (request !== searchRequest.current) return;
       setRecords(history);
     } catch (searchError) {
+      if (request !== searchRequest.current) return;
       if (isUnauthorizedError(searchError)) {
         setError("Your session has expired. Please sign in again.");
         return;
@@ -91,18 +125,22 @@ export function ExternalPipeHistoryModal({
 
       setError("Pipe data history could not be loaded.");
     } finally {
-      setIsLoading(false);
+      if (request === searchRequest.current) setIsLoading(false);
     }
   }
 
   async function handleOpenData(id: string) {
+    const request = ++detailRequest.current;
+    setSelectedRecord(null);
     setIsLoadingDetail(true);
     setError(null);
 
     try {
       const record = await fetchAssessmentPipeDataRecord(id);
+      if (request !== detailRequest.current) return;
       setSelectedRecord(record);
     } catch (detailError) {
+      if (request !== detailRequest.current) return;
       if (isUnauthorizedError(detailError)) {
         setError("Your session has expired. Please sign in again.");
         return;
@@ -110,16 +148,18 @@ export function ExternalPipeHistoryModal({
 
       setError("This record could not be opened.");
     } finally {
-      setIsLoadingDetail(false);
+      if (request === detailRequest.current) setIsLoadingDetail(false);
     }
   }
 
   async function handleEdit(id: string) {
+    const request = ++detailRequest.current;
     setIsLoadingDetail(true);
     setError(null);
 
     try {
       const record = await fetchAssessmentPipeDataRecord(id);
+      if (request !== detailRequest.current) return;
       if (record.assessment.type !== defaultAssessmentType) {
         setError(`Only ${defaultAssessmentType.toLowerCase()} records can be loaded into this form.`);
         return;
@@ -128,6 +168,7 @@ export function ExternalPipeHistoryModal({
       onEdit(record);
       onClose();
     } catch (detailError) {
+      if (request !== detailRequest.current) return;
       if (isUnauthorizedError(detailError)) {
         setError("Your session has expired. Please sign in again.");
         return;
@@ -135,7 +176,7 @@ export function ExternalPipeHistoryModal({
 
       setError("This record could not be loaded for editing.");
     } finally {
-      setIsLoadingDetail(false);
+      if (request === detailRequest.current) setIsLoadingDetail(false);
     }
   }
 
@@ -172,7 +213,7 @@ export function ExternalPipeHistoryModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/55 px-4 py-6 sm:px-6">
-      <div className="flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-[#F8FBFF] shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
+      <div className="flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-slate-50 shadow-[0_30px_90px_rgba(15,23,42,0.35)]">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slateblue-600">
@@ -193,7 +234,7 @@ export function ExternalPipeHistoryModal({
         </div>
 
         <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="min-h-0 overflow-y-auto border-b border-slate-200 bg-[#F8FBFF] p-6 lg:border-b-0 lg:border-r">
+          <div className="min-h-0 overflow-y-auto border-b border-slate-200 bg-slate-50 p-6 lg:border-b-0 lg:border-r">
             <form
               className="grid gap-3 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-2 xl:grid-cols-5"
               onSubmit={(event) => {
@@ -202,7 +243,7 @@ export function ExternalPipeHistoryModal({
               }}
             >
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Assessment Type</span>
+                <span className="mb-2 block text-xs font-medium text-slate-700">Assessment Type</span>
                 <select
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   value={search.assessmentType}
@@ -220,7 +261,7 @@ export function ExternalPipeHistoryModal({
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Pipeline Name</span>
+                <span className="mb-2 block text-xs font-medium text-slate-700">Pipeline Name</span>
                 <input
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   type="text"
@@ -232,7 +273,7 @@ export function ExternalPipeHistoryModal({
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Pipe ID</span>
+                <span className="mb-2 block text-xs font-medium text-slate-700">Pipe ID</span>
                 <input
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   type="text"
@@ -244,7 +285,7 @@ export function ExternalPipeHistoryModal({
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Location ID</span>
+                <span className="mb-2 block text-xs font-medium text-slate-700">Location ID</span>
                 <input
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   type="text"
@@ -256,7 +297,7 @@ export function ExternalPipeHistoryModal({
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-slate-700">Saved Date</span>
+                <span className="mb-2 block text-xs font-medium text-slate-700">Saved Date</span>
                 <input
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
                   type="date"
@@ -311,7 +352,7 @@ export function ExternalPipeHistoryModal({
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {records.length > 0 ? (
-                      records.map((record) => (
+                      records.slice((currentPage - 1) * pageSize, currentPage * pageSize).map((record) => (
                         <tr key={record.id} className="align-top">
                           <td className="px-4 py-4 text-slate-600">{record.assessmentType}</td>
                           <td className="px-4 py-4 font-medium text-slate-900">{record.pipelineName}</td>
@@ -360,12 +401,17 @@ export function ExternalPipeHistoryModal({
                     ) : (
                       <tr>
                         <td className="px-4 py-10 text-center text-slate-500" colSpan={7}>
-                          {isLoading ? "Loading saved pipe data..." : "No saved pipe data matched your search."}
+                          {isLoading ? "Loading saved pipe data..." : error ? "Not Available" : "No saved pipe data matched your search."}
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 p-4 text-xs">
+                <span>{isLoading || error ? "Not Available" : `${records.length} matching records`}</span>
+                <div className="flex items-center gap-3"><button type="button" disabled={currentPage <= 1 || isLoading} onClick={() => setPage(currentPage - 1)}>Previous</button><span>{currentPage} / {pageCount}</span><button type="button" disabled={currentPage >= pageCount || isLoading} onClick={() => setPage(currentPage + 1)}>Next</button></div>
+                <label>Records per page<select aria-label="Pipe data records per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1); }} className="ml-2 rounded border bg-white px-2 py-1">{[10, 25, 50].map(size => <option key={size}>{size}</option>)}</select></label>
               </div>
             </div>
           </div>
@@ -401,7 +447,7 @@ export function ExternalPipeHistoryModal({
                   </div>
 
                   <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-900">Key Inputs</p>
+                    <p className="text-xs font-semibold text-slate-900">Key Inputs</p>
                     <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <PreviewRow label="Pipeline Name" value={selectedRecord.assessment.pipelineName} />
                       <PreviewRow label="Pipe ID" value={selectedRecord.pipeId || "Not available"} />
@@ -415,9 +461,10 @@ export function ExternalPipeHistoryModal({
                             : selectedRecord.assessment.input.pipeGrade
                         }
                       />
+                      <PreviewRow label="Temperature" value={formatTemperaturePreview(selectedRecord.assessment)} />
                       <PreviewRow
-                        label="Risk Score"
-                        value={String(selectedRecord.assessment.riskScore)}
+                        label={selectedRecord.assessmentType === "External" ? "Official Risk" : "Risk Score"}
+                        value={selectedRecord.assessmentType === "External" ? "Not Available" : String(selectedRecord.assessment.riskScore)}
                       />
                     </dl>
                   </div>

@@ -6,9 +6,46 @@ type Section = {
 };
 
 function prettyLabel(value: string) {
+  const overrides: Record<string, string> = {
+    smys: "SMYS",
+    maop: "MAOP",
+    operatingPressure: "Operating Pressure",
+    installationYear: "Installation Year",
+    inspectionYear: "Inspection Year",
+    coatingAge: "Coating Age",
+    holidayFound: "Holiday Found",
+    holidaySize: "Holiday Size",
+    coatingCondition: "Coating Condition",
+    onPotential: "ON Potential",
+    offPotential: "OFF Potential",
+    referenceElectrode: "Reference Electrode",
+    cpStatus: "CP Status",
+    calculatedCpStatus: "Calculated CP Status",
+    manualCpStatusOverride: "Manual CP Status Override",
+    cpStatusOverrideReason: "Override Reason",
+    measuredThickness: "Measured Thickness",
+    corrosionLength: "Corrosion Length",
+    corrosionWidth: "Corrosion Width",
+    previousInspectionDate: "Previous Inspection Date",
+    previousRemainingThickness: "Previous Remaining Thickness",
+    minimumRequiredThickness: "Minimum Required Thickness",
+    corrosionDepth: "Metal Loss",
+    metalLossPercent: "Metal Loss %",
+    failurePressure: "Failure Pressure",
+    failurePressureRatio: "Failure Pressure Ratio",
+    safetyMargin: "Safety Margin",
+    recommendation: "Recommendation"
+  };
+
+  if (overrides[value]) {
+    return overrides[value];
+  }
+
   return value
     .replace(/Id/g, "ID")
     .replace(/Ph/g, "pH")
+    .replace(/SMYS/g, "SMYS")
+    .replace(/MAOP/g, "MAOP")
     .replace(/Scc/g, "SCC")
     .replace(/Mic/g, "MIC")
     .replace(/Ac/g, "AC")
@@ -26,21 +63,61 @@ function formatValue(value: unknown) {
   return String(value);
 }
 
-function formatInputValue(key: string, input: Record<string, unknown>) {
+function formatTemperatureUnit(value: unknown) {
+  if (value === "F") {
+    return "°F";
+  }
+
+  if (value === "K") {
+    return "K";
+  }
+
+  return "°C";
+}
+
+function formatTemperatureInput(
+  value: unknown,
+  input: Record<string, unknown>,
+  inputValueKey: "soilTemperatureInputValue" | "temperatureInputValue",
+  unitKey: "soilTemperatureUnit" | "temperatureUnit"
+) {
+  const displayValue = typeof input[inputValueKey] === "number" ? input[inputValueKey] : value;
+  const unit = typeof input[unitKey] === "string" ? input[unitKey] : "C";
+  return `${formatValue(displayValue)} ${formatTemperatureUnit(unit)}`;
+}
+
+function formatInputValue(key: string, input: Record<string, unknown>, assessmentType: string) {
+  if (key === "cpStatus") {
+    return formatFinalCpStatus(input);
+  }
+
   if (key === "pipeIdDiameter") {
     const displayValue =
       typeof input.pipeIdDiameterDisplayValue === "number" ? input.pipeIdDiameterDisplayValue : input[key];
     const unit = typeof input.pipeIdDiameterUnit === "string" ? input.pipeIdDiameterUnit : "mm";
-    return `${formatValue(displayValue)} ${unit}`;
+    return assessmentType === "External"
+      ? `${formatValue(displayValue)} ${unit}`
+      : `${formatValue(displayValue)} ${unit}`;
   }
 
   const unitMap: Record<string, string> = {
     pipeAge: "years",
     pipeLength: "km",
-    wallThickness: "mm",
+    smys: "MPa",
+    maop: "bar",
+    installationYear: "year",
+    inspectionYear: "year",
+    coatingAge: "years",
+    holidaySize: "mm",
+    onPotential: "mV",
+    offPotential: "mV",
+    measuredThickness: "mm",
+    corrosionLength: "mm",
+    corrosionWidth: "mm",
+    previousRemainingThickness: "mm",
+    minimumRequiredThickness: "mm",
     soilMoisture: "%",
     soilResistivity: "ohm-m",
-    soilTemperature: "deg C",
     chloride: "mg/kg",
     sulphate: "mg/kg",
     sulphideH2S: "mg/kg",
@@ -49,6 +126,35 @@ function formatInputValue(key: string, input: Record<string, unknown>) {
     dcCurrentDensity: "A/m^2",
     strayCurrentDensity: "A/m^2"
   };
+
+  if (key === "soilTemperature") {
+    return formatTemperatureInput(input[key], input, "soilTemperatureInputValue", "soilTemperatureUnit");
+  }
+
+  if (key === "temperature") {
+    return formatTemperatureInput(input[key], input, "temperatureInputValue", "temperatureUnit");
+  }
+
+  if (key === "wallThickness") {
+    const displayValue =
+      typeof input.wallThicknessDisplayValue === "number" ? input.wallThicknessDisplayValue : input[key];
+    const unit = input.wallThicknessUnit === "in" ? "in" : "mm";
+    return `${formatValue(displayValue)} ${unit}`;
+  }
+
+  if (key === "operatingPressure") {
+    const displayValue =
+      typeof input.operatingPressureDisplayValue === "number" ? input.operatingPressureDisplayValue : input[key];
+    const unit = typeof input.operatingPressureUnit === "string" ? input.operatingPressureUnit : "bar";
+    return `${formatValue(displayValue)} ${unit}`;
+  }
+
+  if (key === "pipelinePressure") {
+    const displayValue =
+      typeof input.pipelinePressureDisplayValue === "number" ? input.pipelinePressureDisplayValue : input[key];
+    const unit = typeof input.pipelinePressureUnit === "string" ? input.pipelinePressureUnit : "bar";
+    return `${formatValue(displayValue)} ${unit}`;
+  }
 
   if (key === "cpInputValue") {
     const unit = input.cpInputType === "CP Polarized Potential" ? "V vs CSE" : "mV";
@@ -68,14 +174,55 @@ function formatInputValue(key: string, input: Record<string, unknown>) {
     return `${formatValue(input[key])} ${unitMap[key]}`;
   }
 
+  if (
+    key === "referenceElectrode" ||
+    key === "coatingCondition" ||
+    key === "calculatedCpStatus" ||
+    key === "manualCpStatusOverride" ||
+    key === "cpStatusOverrideReason" ||
+    key === "holidayFound"
+  ) {
+    return formatValue(input[key]);
+  }
+
+  if (key === "previousInspectionDate") {
+    return formatValue(input[key]);
+  }
+
   return formatValue(input[key]);
+}
+
+function getCalculatedCpStatus(input: Record<string, unknown>) {
+  return formatValue(input.calculatedCpStatus ?? input.cpStatus);
+}
+
+function getManualCpStatusOverride(input: Record<string, unknown>) {
+  return typeof input.manualCpStatusOverride === "string" && input.manualCpStatusOverride
+    ? input.manualCpStatusOverride
+    : "No Override";
+}
+
+function formatFinalCpStatus(input: Record<string, unknown>) {
+  const manualOverride = getManualCpStatusOverride(input);
+  const calculated = getCalculatedCpStatus(input);
+
+  if (manualOverride === "No Override") {
+    return calculated;
+  }
+
+  const reason = formatValue(input.cpStatusOverrideReason);
+  return `${manualOverride} (manually overridden; calculated: ${calculated}; reason: ${reason})`;
 }
 
 function formatResultValue(key: string, result: Record<string, unknown>) {
   const unitMap: Record<string, string> = {
     corrosionRate: "mm/y",
     corrosionDepth: "mm",
+    metalLossPercent: "%",
     remainingLife: "years",
+    failurePressure: "bar",
+    failurePressureRatio: "x",
+    safetyMargin: "%",
     strayCurrentCorrosionRate: "mm/y",
     riskScore: ""
   };
@@ -92,10 +239,29 @@ function buildSections(record: AssessmentPipeDataRecord): Section[] {
   const input = record.assessment.input as Record<string, unknown>;
   const result = record.assessment.result as Record<string, unknown>;
   const inputRows = Object.entries(input)
-    .filter(([key]) => key !== "pipeIdDiameterUnit" && key !== "pipeIdDiameterDisplayValue")
+    .filter(
+      ([key]) =>
+        key !== "pipeIdDiameterUnit" &&
+        key !== "pipeIdDiameterDisplayValue" &&
+        key !== "operatingPressureUnit" &&
+        key !== "operatingPressureDisplayValue" &&
+        key !== "pipelinePressureUnit" &&
+        key !== "pipelinePressureDisplayValue" &&
+        key !== "wallThicknessUnit" &&
+        key !== "wallThicknessDisplayValue" &&
+        key !== "soilTemperatureInputValue" &&
+        key !== "soilTemperatureUnit" &&
+        key !== "temperatureInputValue" &&
+        key !== "temperatureUnit"
+    )
     .map(([key]) => ({
-      label: prettyLabel(key),
-      value: formatInputValue(key, input)
+      label:
+        key === "pipeIdDiameter"
+          ? record.assessmentType === "External"
+            ? "Pipeline Outside Diameter (OD)"
+            : "Pipe ID / Diameter"
+          : prettyLabel(key),
+      value: formatInputValue(key, input, record.assessmentType)
     }));
   const resultRows = Object.entries(result).map(([key]) => ({
     label: prettyLabel(key),

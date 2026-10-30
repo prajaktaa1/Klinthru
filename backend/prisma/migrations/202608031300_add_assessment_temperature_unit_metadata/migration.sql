@@ -1,0 +1,10 @@
+-- Temperature unit metadata is stored in existing JSON input columns on
+-- Assessment, Report, and ExternalPipeData records.
+-- Existing normalized fields remain:
+--   input.soilTemperature in degrees Celsius for External assessments
+--   input.temperature in degrees Celsius for Internal assessments
+-- New nullable JSON metadata keys are backfilled lazily by application
+-- compatibility rules when records are read or edited:
+--   soilTemperatureInputValue / soilTemperatureUnit
+--   temperatureInputValue / temperatureUnit
+-- No relational table changes are required.

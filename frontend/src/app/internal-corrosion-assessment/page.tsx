@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AssessmentForm } from "@/components/assessment-form";
 import { ExternalPipeHistoryModal } from "@/components/external-pipe-history-modal";
 import { PageHeader } from "@/components/ui";
+import { InternalCorrosionWorkspace } from "@/components/internal-corrosion-workspace";
 import { calculateInternalCorrosion } from "@/lib/internalCorrosionCalculations";
 import {
   AssessmentPipeDataRecord,
@@ -47,14 +48,17 @@ const initialValues: InternalCorrosionInput = {
   pipeIdDiameter: 0,
   pipeIdDiameterUnit: "mm",
   wallThickness: 0,
+  wallThicknessUnit: "mm",
   designLife: 0,
   internalCoating: "",
   internalCoatingOther: "",
   waterPh: 0,
   temperature: 0,
+  temperatureUnit: "C",
   dissolvedOxygen: 0,
   waterVelocity: 0,
-  pipelinePressure: 0
+  pipelinePressure: 0,
+  pipelinePressureUnit: "bar"
 };
 
 const fields = [
@@ -91,7 +95,15 @@ const fields = [
     unitFieldName: "pipeIdDiameterUnit",
     unitOptions: ["mm", "cm", "m", "inch", "ft"] as const
   },
-  { name: "wallThickness", label: "Wall Thickness", type: "number" as const, section: "Pipe Data", step: "0.1", unit: "mm" },
+  {
+    name: "wallThickness",
+    label: "Wall Thickness",
+    type: "number" as const,
+    section: "Pipe Data",
+    step: "0.001",
+    unitFieldName: "wallThicknessUnit",
+    unitOptions: ["mm", "in"] as const
+  },
   {
     name: "designLife",
     label: "Design Life",
@@ -114,10 +126,19 @@ const fields = [
     type: "number" as const,
     section: "Pressure and Design Life",
     step: "0.1",
-    unit: "bar"
+    unitFieldName: "pipelinePressureUnit",
+    unitOptions: ["bar", "MPa", "kPa", "psi"] as const
   },
   { name: "waterPh", label: "Water pH", type: "number" as const, section: "Water Analysis", step: "0.1", unit: "pH" },
-  { name: "temperature", label: "Temperature", type: "number" as const, section: "Water Analysis", step: "0.1", unit: "deg C" },
+  {
+    name: "temperature",
+    label: "Temperature",
+    type: "number" as const,
+    section: "Water Analysis",
+    step: "0.1",
+    unitFieldName: "temperatureUnit",
+    unitOptions: ["C", "F", "K"] as const
+  },
   {
     name: "dissolvedOxygen",
     label: "Dissolved Oxygen",
@@ -174,10 +195,13 @@ export default function InternalAssessmentPage() {
 
   return (
     <div>
+      <InternalCorrosionWorkspace />
+      <section id="existing-internal-corrosion-screening" tabIndex={-1} aria-label="Existing Screening Form" className="scroll-mt-6">
+      <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Existing Screening Form</h2>
       <PageHeader
         eyebrow="Internal"
         title="Internal Corrosion Assessment"
-        description="Capture process-side conditions and generate a placeholder internal corrosion screening profile suitable for Phase 1 product validation."
+        description=""
       />
 
       <AssessmentForm<InternalCorrosionInput, InternalCorrosionResult>
@@ -192,7 +216,9 @@ export default function InternalAssessmentPage() {
         loadedAssessment={
           loadedRecord?.assessment.type === "Internal"
             ? {
+                assessmentId: loadedRecord.assessment.id,
                 recordId: loadedRecord.id,
+                inspectionDate: loadedRecord.assessment.inspectionDate,
                 input: loadedRecord.assessment.input as InternalCorrosionInput,
                 result: loadedRecord.assessment.result as InternalCorrosionResult
               }
@@ -213,6 +239,7 @@ export default function InternalAssessmentPage() {
           }
         }}
       />
+      </section>
     </div>
   );
 }

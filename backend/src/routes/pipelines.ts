@@ -5,7 +5,7 @@ import { NextFunction, Router } from "express";
 import { store } from "../data/store";
 import { ownerScope, canModifyMasterData } from "../lib/access";
 import { requireAuth } from "../middleware/auth";
-import { validatePipelineInput } from "../validation/pipelineValidation";
+import { routeGeometryMatchesSaved, validatePipelineInput } from "../validation/pipelineValidation";
 import { assertNoDangerousKeys } from "../validation/validationErrors";
 
 export const pipelinesRouter = Router();
@@ -54,7 +54,9 @@ pipelinesRouter.put("/:id", async (request, response, next: NextFunction) => {
       return;
     }
 
-    const input = validatePipelineInput(request.body);
+    const routeWasSubmitted = Object.prototype.hasOwnProperty.call(request.body, "routeGeometry");
+    const routeIsUnchanged = routeWasSubmitted && routeGeometryMatchesSaved(request.body.routeGeometry, existing.routeGeometry);
+    const input = validatePipelineInput(routeIsUnchanged ? { ...request.body, routeGeometry: undefined } : request.body);
     if (input.routeGeometry !== undefined && JSON.stringify(input.routeGeometry?.coordinates ?? null) !== JSON.stringify(existing.routeGeometry?.coordinates ?? null) && !canModifyMasterData(request.user!)) { response.status(403).json({ message: "Route editing requires Admin or Engineer permission." }); return; }
     if (input.pipeLengthKm !== undefined && input.pipeLengthKm !== existing.pipeLengthKm) {
       const scope = ownerScope(request.user!);

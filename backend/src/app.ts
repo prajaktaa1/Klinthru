@@ -18,6 +18,7 @@ import { reportsRouter } from "./routes/reports";
 import { reportContractsRouter } from "./routes/reportContracts";
 import { pipelinesRouter } from "./routes/pipelines";
 import { sensorAssignmentsRouter } from "./routes/sensorAssignments";
+import { sensorLifecycleRouter } from "./routes/sensorLifecycle";
 import { letterHeadsRouter } from "./routes/letterHeads";
 import { integrationsRouter } from "./routes/integrations";
 import { aiPredictionsRouter } from "./routes/aiPredictions";
@@ -75,6 +76,7 @@ export function createApp() {
   app.use("/api/reports/contracts", reportContractsRouter);
   app.use("/api/reports", reportsRouter);
   app.use("/api/sensor-assignments", sensorAssignmentsRouter);
+  app.use("/api/sensor-lifecycle", sensorLifecycleRouter);
   app.use("/api/scada", scadaRouter);
   app.use("/api/settings", settingsRouter);
 

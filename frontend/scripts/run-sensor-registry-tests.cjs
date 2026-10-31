@@ -1,0 +1,13 @@
+const assert=require("node:assert/strict"),fs=require("node:fs"),ts=require("typescript");
+require.extensions[".ts"]=(mod,file)=>mod._compile(ts.transpileModule(fs.readFileSync(file,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2021}}).outputText,file);
+const {filterSensorRecords,sensorRegistryCsv}=require("../src/lib/sensor-data.ts");
+const rows=[{id:"a",deviceId:"A",deviceType:"Pressure Transmitter",pipelineOrLocation:"Stored PL-001 text",status:"Active",latestReadingOrState:"65 bar",lastUpdatedAt:"2026-10-31T00:00:00Z",isDemoData:false},{id:"b",deviceId:"B",deviceType:"Temperature Sensor",pipelineOrLocation:"Other location",status:"Fault",latestReadingOrState:"20 C",lastUpdatedAt:"2026-10-31T00:00:00Z",isDemoData:false},{id:"demo",deviceId:"SNS-DEMO-001",deviceType:"Pressure Transmitter",pipelineOrLocation:"Demo",status:"Active",isDemoData:true}];
+assert.deepEqual(filterSensorRecords(rows,"","","").map(d=>d.id),["a","b"]);
+assert.deepEqual(filterSensorRecords(rows,"pl-001","","").map(d=>d.id),["a"]);
+assert.deepEqual(filterSensorRecords(rows,"","Temperature Sensor","").map(d=>d.id),["b"]);
+assert.deepEqual(filterSensorRecords(rows,"","","Active").map(d=>d.id),["a"]);
+const csv=sensorRegistryCsv([...rows,{...rows[0],deviceId:'=HYPERLINK("x")'}]);
+assert.ok(!csv.includes("SNS-DEMO-001"));assert.ok(!csv.includes("65 bar"));assert.ok(!csv.includes("Online"));
+assert.ok(csv.includes("Not Available"));assert.ok(csv.includes('"\'=HYPERLINK(""x"")"'));
+assert.equal(rows[2].isDemoData,true);
+console.log("PASS sensor registry search/type/status filters, demo preservation/exclusion, no invented connectivity/readings, and safe CSV export.");

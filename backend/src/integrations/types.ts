@@ -42,9 +42,12 @@ export type ConnectorInput = {
   enabled?: boolean;
   configuration?: Record<string, unknown> | null;
   secretReference?: string | null;
+  scope?: ConnectorScopeInput;
 };
 
 export type ConnectorPatch = Partial<ConnectorInput>;
+
+export type ConnectorScopeInput = { pipelineId: string; assetId?: string | null };
 
 export type SanitizedEventInput = Omit<IntegrationEventRecord, "id" | "createdAt">;
 

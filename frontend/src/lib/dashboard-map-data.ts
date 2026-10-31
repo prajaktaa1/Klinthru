@@ -24,7 +24,7 @@ export function savedSegmentMapRoute(segment: AssetMasterSegmentRecord): [number
 }
 
 export function scopeMasterMap(bundles: DashboardMasterMapBundle[], pipelineId: string | null, segmentId: string) {
-  return bundles.filter((bundle) => !pipelineId || bundle.pipeline.id === pipelineId).map((bundle) => ({
+  return bundles.filter((bundle) => pipelineId === null || bundle.pipeline.id === pipelineId).map((bundle) => ({
     ...bundle,
     segments: bundle.segments.filter((item) => item.pipelineId === bundle.pipeline.id && (!segmentId || item.id === segmentId || item.segmentId === segmentId)),
     assets: bundle.assets.filter((item) => item.pipelineId === bundle.pipeline.id && (!segmentId || bundle.segments.some(segment => (segment.id === segmentId || segment.segmentId === segmentId) && (item.segmentId === segment.id || item.segmentId === segment.segmentId))))

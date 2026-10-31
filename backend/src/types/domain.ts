@@ -17,6 +17,7 @@ export type AuthUser = {
   name: string;
   email: string;
   role: UserRole;
+  companyId?: string;
 };
 
 export type UserRecord = AuthUser & {

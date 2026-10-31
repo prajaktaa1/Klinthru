@@ -630,7 +630,7 @@ function OverviewDashboard({ assessments, loading, error }: { assessments: Store
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(6);
   const [selectedId, setSelectedId] = useState("");
   const cards: Array<[string, ExternalCorrosionTab]> = [
     ["Segments Assessed", "Overview"], ["Coating Condition Good", "Coating Condition"],
@@ -646,6 +646,7 @@ function OverviewDashboard({ assessments, loading, error }: { assessments: Store
   const currentPage = Math.min(page, pageCount);
   const selected = filtered.find(record => record.id === selectedId);
   const resetPage = () => { setPage(1); setSelectedId(""); };
+  useEffect(() => { resetPage(); }, [assessments]);
   return <div className="space-y-4">
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">{cards.map(([label, tab]) => <button
       key={label} type="button" disabled={label === "Data Confidence"} title={label === "Data Confidence" ? unsupportedReason : undefined} onClick={() => tab === "Overview" ? document.getElementById("external-assessment-register")?.scrollIntoView({ behavior: "smooth" }) : scope.selectTab(tab)}
@@ -667,7 +668,7 @@ function OverviewDashboard({ assessments, loading, error }: { assessments: Store
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs">
         <span>{error || !scope.pipeline || loading ? "Not Available" : `${filtered.length} matching records`}</span>
         <div className="flex items-center gap-3"><button type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Previous</button><span>{currentPage} / {pageCount}</span><button type="button" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}>Next</button></div>
-        <label>Records per page<select aria-label="Assessment records per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); resetPage(); }} className="ml-2 rounded border bg-white px-2 py-1 dark:bg-slate-900">{[10, 25, 50].map(size => <option key={size} value={size}>{size}</option>)}</select></label>
+        <label>Records per page<select aria-label="Assessment records per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); resetPage(); }} className="ml-2 rounded border bg-white px-2 py-1 dark:bg-slate-900"><option value={6}>6</option></select></label>
       </div>
     </DashboardPanel></div>
     {selected ? <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/50" onClick={() => setSelectedId("")}><section role="dialog" aria-modal="true" aria-label="External Corrosion assessment details" className="h-full w-full max-w-xl overflow-y-auto bg-white p-6 dark:bg-slate-900" onClick={event => event.stopPropagation()} onKeyDown={event => { if (event.key === "Escape") setSelectedId(""); }}>
@@ -890,7 +891,7 @@ function CpEffectivenessDashboard() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(6);
   const [selectedId, setSelectedId] = useState("");
   const cp = scope.cp;
   const connected = Boolean(cp?.availability.testPoints.available);
@@ -901,6 +902,7 @@ function CpEffectivenessDashboard() {
   const pages = Math.max(1, Math.ceil(cases.length / pageSize));
   const currentPage = Math.min(page, pages);
   const selected = cp?.testPoints.find(point => point.id === selectedId);
+  useEffect(() => { setPage(1); setSelectedId(""); }, [cp]);
   const latestReading = (cp?.testPoints ?? []).map(point => point.readingAt).filter((value): value is string => Boolean(value && Number.isFinite(Date.parse(value)))).sort().at(-1);
   const caseRows = cases.slice((currentPage - 1) * pageSize, currentPage * pageSize).map(point => ({ id: point.id, cells: [
     point.readingId, scope.pipeline?.pipelineName ?? "Not Available", point.kp ?? point.location ?? "Not Available",
@@ -975,7 +977,7 @@ function CpEffectivenessDashboard() {
           <button type="button" onClick={() => { setSearch(""); setStatus(""); setPage(1); setSelectedId(""); }}>Reset</button>
         </div>
         <EmptyTable headers={["ID", "Pipeline / Segment", "KP / Location", "CP Potential (V)", "Severity", "Status", "Date", "Action"]} rows={caseRows} emptyLabel={connected ? "No matching recorded CP cases." : undefined} />
-        <div className="mt-3 flex flex-wrap justify-between gap-3 text-xs"><span>{connected ? `${cases.length} matching source cases` : "Not Available"}</span><div className="flex gap-3"><button type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Previous</button><span>{currentPage} / {pages}</span><button type="button" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>Next</button></div><label>Cases per page<select aria-label="CP cases per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1); }} className="ml-2 rounded border bg-white dark:bg-slate-900">{[10, 25, 50].map(size => <option key={size}>{size}</option>)}</select></label></div>
+        <div className="mt-3 flex flex-wrap justify-between gap-3 text-xs"><span>{connected ? `${cases.length} matching source cases` : "Not Available"}</span><div className="flex gap-3"><button type="button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Previous</button><span>{currentPage} / {pages}</span><button type="button" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}>Next</button></div><label>Cases per page<select aria-label="CP cases per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(1); }} className="ml-2 rounded border bg-white dark:bg-slate-900"><option value={6}>6</option></select></label></div>
       </DashboardPanel>
 
       <div className="grid gap-4 xl:grid-cols-[1.15fr_1fr]">

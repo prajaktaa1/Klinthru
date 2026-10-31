@@ -387,6 +387,25 @@ export type DeviceRecord = {
   authorId?: string;
 };
 
+/** Read-only relationship resolved from the device registry and saved Asset Master records. */
+export type SensorMasterLink = {
+  sensorId: string;
+  pipelineId: string;
+  pipelineCode: string;
+  pipelineName: string;
+  segmentRecordId: string;
+  segmentId: string;
+  assetRecordId: string;
+  assetId: string;
+  assetName?: string;
+  kp?: string;
+  unit?: string;
+  status: DeviceStatus;
+  monitoringPoint?: string;
+  channel?: string;
+  provenance: string;
+};
+
 export type DeviceInput = Pick<
   DeviceRecord,
   "deviceId" | "deviceType" | "pipelineOrLocation" | "status" | "latestReadingOrState" | "unit"

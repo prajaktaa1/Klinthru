@@ -17,9 +17,9 @@ export function PageHeader({
       <h2 className={`${eyebrow ? "mt-2" : ""} text-3xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-4xl`}>
         {title}
       </h2>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400 sm:text-base">
+      {description ? <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400 sm:text-base">
         {description}
-      </p>
+      </p> : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { Panel } from "@/components/ui";
+import { SensorLifecycleCrud } from "@/components/sensor-lifecycle-crud";
 
 const unavailable = "Not Available";
 const taskStatuses = ["Completed", "In Progress", "Pending", "Cancelled"];
@@ -19,6 +20,7 @@ function EmptyVisualization({ title, detail }: { title: string; detail: string }
 export function SensorMaintenanceView() {
   return (
     <div className="space-y-6">
+      <SensorLifecycleCrud resource="maintenance" />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{["Maintenance Overview", "Total Tasks", "Preventive Maintenance", "Corrective Maintenance", "Overdue", "Due (Next 30 days)", "Scheduled"].map((label) => <MaintenanceMetric key={label} label={label} />)}</div>
 
       <div className="grid gap-6 xl:grid-cols-3">

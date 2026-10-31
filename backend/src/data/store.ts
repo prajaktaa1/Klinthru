@@ -144,6 +144,7 @@ type CreateUserInput = {
   email: string;
   passwordHash: string;
   role: AuthUser["role"];
+  companyName?: string;
 };
 
 const SEED_PASSWORDS_BY_EMAIL: Record<string, string> = {
@@ -166,8 +167,14 @@ function toAuthUser(user: UserRecord): AuthUser {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role
+    role: user.role,
+    companyId: user.companyId
   };
+}
+
+function readCompanyId(user: unknown): string | undefined {
+  const companyId = (user as { companyId?: unknown } | null)?.companyId;
+  return typeof companyId === "string" && companyId.trim() ? companyId : undefined;
 }
 
 function toRole(role: string): "Admin" | "Engineer" | "Viewer" {
@@ -317,6 +324,33 @@ class MemoryStore {
     for (let index = this.pipelines.length - 1; index >= 0; index -= 1) if (this.pipelines[index].id === id) this.pipelines.splice(index, 1);
     for (let index = this.segments.length - 1; index >= 0; index -= 1) if (this.segments[index].pipelineId === id) this.segments.splice(index, 1);
     for (let index = this.assets.length - 1; index >= 0; index -= 1) if (this.assets[index].pipelineId === id) this.assets.splice(index, 1);
+    return true;
+  }
+
+  async deleteSegment(id: string, search: OwnershipScope = {}): Promise<boolean> {
+    const existing = await this.findSegmentById(id, search);
+    if (!existing) return false;
+    const linked = this.assets.filter((asset) => asset.segmentId === id).length;
+    if (linked > 0) {
+      const error = new Error("Segment cannot be deleted while linked assets exist.") as Error & { code?: string };
+      error.code = "SEGMENT_LINKED_RECORDS";
+      throw error;
+    }
+    const index = this.segments.findIndex((segment) => segment.id === id);
+    if (index >= 0) this.segments.splice(index, 1);
+    return true;
+  }
+
+  async deleteAsset(id: string, search: OwnershipScope = {}): Promise<boolean> {
+    const existing = await this.findAssetById(id, search);
+    if (!existing) return false;
+    if (this.assets.some((asset) => asset.parentAssetId === id)) {
+      const error = new Error("Asset cannot be deleted while child assets exist.") as Error & { code?: string };
+      error.code = "ASSET_LINKED_RECORDS";
+      throw error;
+    }
+    const index = this.assets.findIndex((asset) => asset.id === id);
+    if (index >= 0) this.assets.splice(index, 1);
     return true;
   }
 
@@ -1760,6 +1794,7 @@ class PrismaStore {
       name: user.name,
       email: user.email,
       role: user.role,
+      companyId: readCompanyId(user),
       passwordHash: user.passwordHash,
       createdAt: user.createdAt.toISOString()
     };
@@ -1798,6 +1833,7 @@ class PrismaStore {
       name: user.name,
       email: user.email,
       role: user.role,
+      companyId: readCompanyId(user),
       passwordHash: user.passwordHash,
       createdAt: user.createdAt.toISOString()
     };
@@ -1807,6 +1843,33 @@ class PrismaStore {
     const prisma = getPrismaClient();
     if (!prisma) {
       throw new DatabaseUnavailableError();
+    }
+
+    const companyName = input.companyName?.trim();
+    if (companyName && env.companySignupWritesEnabled) {
+      const user = await prisma.$transaction(async (tx) => {
+        const companyId = createId("company");
+        await tx.$executeRawUnsafe(
+          'INSERT INTO "Company" ("id", "companyId", "name", "updatedAt") VALUES ($1, $2, $3, CURRENT_TIMESTAMP)',
+          companyId, companyId, companyName
+        );
+        const userId = createId("user");
+        await tx.$executeRawUnsafe(
+          'INSERT INTO "User" ("id", "name", "email", "passwordHash", "role", "companyId", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+          userId, input.name, input.email, input.passwordHash, toRole(input.role), companyId
+        );
+        const rows = await tx.$queryRawUnsafe<any[]>('SELECT * FROM "User" WHERE "id" = $1', userId);
+        return rows[0];
+      });
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        companyId: readCompanyId(user),
+        passwordHash: user.passwordHash,
+        createdAt: user.createdAt.toISOString()
+      };
     }
 
     const user = await prisma.user.create({
@@ -1823,6 +1886,7 @@ class PrismaStore {
       name: user.name,
       email: user.email,
       role: user.role,
+      companyId: readCompanyId(user),
       passwordHash: user.passwordHash,
       createdAt: user.createdAt.toISOString()
     };
@@ -1902,6 +1966,42 @@ class PrismaStore {
       throw error;
     }
     await prisma.pipeline.delete({ where: { id } });
+    return true;
+  }
+
+  async deleteSegment(id: string, search: OwnershipScope = {}): Promise<boolean> {
+    const existing = await this.findSegmentById(id, search);
+    if (!existing) return false;
+    const prisma = getPrismaClient();
+    if (!prisma) throw new DatabaseUnavailableError();
+    const [assets, documents] = await Promise.all([
+      prisma.asset.findMany({ where: { segmentId: id }, select: { id: true } }),
+      prisma.documentLink.findMany({ where: { segmentId: id }, select: { documentLinkId: true } })
+    ]);
+    if (assets.length + documents.length > 0) {
+      const error = new Error("Segment cannot be deleted while linked records exist.") as Error & { code?: string };
+      error.code = "SEGMENT_LINKED_RECORDS";
+      throw error;
+    }
+    await prisma.$executeRawUnsafe('DELETE FROM "Segment" WHERE "id" = $1', id);
+    return true;
+  }
+
+  async deleteAsset(id: string, search: OwnershipScope = {}): Promise<boolean> {
+    const existing = await this.findAssetById(id, search);
+    if (!existing) return false;
+    const prisma = getPrismaClient();
+    if (!prisma) throw new DatabaseUnavailableError();
+    const [children, documents] = await Promise.all([
+      prisma.asset.findMany({ where: { parentAssetId: id }, select: { id: true } }),
+      prisma.documentLink.findMany({ where: { assetId: id }, select: { documentLinkId: true } })
+    ]);
+    if (children.length + documents.length > 0) {
+      const error = new Error("Asset cannot be deleted while linked records exist.") as Error & { code?: string };
+      error.code = "ASSET_LINKED_RECORDS";
+      throw error;
+    }
+    await prisma.$executeRawUnsafe('DELETE FROM "Asset" WHERE "id" = $1', id);
     return true;
   }
 
@@ -3238,6 +3338,10 @@ export const store = {
     }
     return getMemoryStore().deletePipeline(id, search);
   },
+  async deleteSegment(id: string, search: OwnershipScope = {}): Promise<boolean> {
+    if (await usePrisma()) return prismaStore!.deleteSegment(id, search);
+    return getMemoryStore().deleteSegment(id, search);
+  },
   async findPipelineById(id: string, search: OwnershipScope = {}): Promise<PipelineRecord | null> {
     if (await usePrisma()) {
       return prismaStore!.findPipelineById(id, search);
@@ -3293,6 +3397,10 @@ export const store = {
     }
 
     return getMemoryStore().saveAsset(input);
+  },
+  async deleteAsset(id: string, search: OwnershipScope = {}): Promise<boolean> {
+    if (await usePrisma()) return prismaStore!.deleteAsset(id, search);
+    return getMemoryStore().deleteAsset(id, search);
   },
   async listCpTestPoints(search: CpAssetSearch = {}): Promise<CpTestPointRecord[]> {
     if (await usePrisma()) {

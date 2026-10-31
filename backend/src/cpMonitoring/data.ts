@@ -221,7 +221,9 @@ export async function getCpMonitoringData(pipelineId: string) {
   const latestReadings = testPoints.filter((point) => point.readingId);
   const protectedCount = latestReadings.filter((point) => point.protectionStatus === "Protected").length;
   const underProtected = latestReadings.filter((point) => point.protectionStatus === "UnderProtected" || point.protectionStatus === "Critical");
-  const activeRectifiers = rectifiers.filter((item) => (item.readingStatus ?? item.assetStatus) === "Active");
+  // Asset/master status is configuration metadata. Operational counts must only
+  // use a status supplied by an actual latest telemetry reading.
+  const activeRectifiers = rectifiers.filter((item) => item.readingStatus === "Active");
   const totalCurrentA = activeRectifiers.reduce((sum, item) => sum + (item.outputCurrentA ?? 0), 0);
 
   return {

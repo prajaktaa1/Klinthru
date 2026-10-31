@@ -6,10 +6,30 @@ import { canModifyMasterData, ownerScope } from "../lib/access";
 import { requireAuth } from "../middleware/auth";
 import { validateAssetInput, validateSegmentInput } from "../validation/assetMasterValidation";
 import { assertNoDangerousKeys, createValidationError } from "../validation/validationErrors";
+import { env } from "../config/env";
+import { getPrismaClient } from "../lib/prisma";
 
 export const assetMasterRouter = Router();
 
 assetMasterRouter.use(requireAuth);
+
+assetMasterRouter.get("/change-log", async (request, response, next) => {
+  try {
+    if (request.user?.role !== "Admin") { response.status(403).json({ message: "Change Log access requires Admin access." }); return; }
+    const pipelineId = queryText(request.query.pipelineId);
+    if (!pipelineId || !await store.findPipelineById(pipelineId, ownerScope(request.user!))) { response.status(404).json({ message: "Pipeline not found." }); return; }
+    const db = getPrismaClient();
+    if (!db) { response.json({ events: [], contractStatus: "missing", missingFields: ["settings_audit_events"] }); return; }
+    const ids = [pipelineId, ...(await store.listSegments({ pipelineId, ...ownerScope(request.user!) })).map((item) => item.id), ...(await store.listAssets({ pipelineId, ...ownerScope(request.user!) })).map((item) => item.id)];
+    const events = await db.$queryRawUnsafe<Array<Record<string, unknown>>>(
+      `SELECT "Audit_Event_ID" AS "id", "User_ID" AS "userId", "Timestamp" AS "occurredAt", "Module" AS "sourceModule", "action", "Object_Type" AS "objectType", "Object_ID" AS "objectId", "result", "severity", "details", "Before_Values" AS "beforeValues", "After_Values" AS "afterValues" FROM "settings_audit_events" WHERE "Object_ID" = ANY($1::text[]) ORDER BY "Timestamp" DESC LIMIT 1000`, ids
+    );
+    response.json({ events, contractStatus: "complete", missingFields: [] });
+  } catch (error) {
+    if (error instanceof Error && /settings_audit_events|relation .* does not exist/i.test(error.message)) { response.json({ events: [], contractStatus: "missing", missingFields: ["settings_audit_events"] }); return; }
+    next(error);
+  }
+});
 
 const assetTypes = new Set(["STATION", "VALVE", "TEST_POST", "RECTIFIER", "COMPRESSOR", "SENSOR", "PUMP", "METER", "PIG_LAUNCHER", "PIG_RECEIVER", "PIPELINE_FITTING", "FLANGE", "INSULATING_JOINT", "PIPELINE_CROSSING", "OTHER"]);
 const physicalStatuses = new Set(["Active", "Inactive", "Maintenance", "Decommissioned", "Unknown"]);
@@ -101,6 +121,15 @@ assetMasterRouter.put("/segments/:id", async (request, response, next: NextFunct
   } catch (error) {
     handleAssetMasterError(error, response, next);
   }
+});
+
+assetMasterRouter.delete("/segments/:id", async (request, response, next: NextFunction) => {
+  try {
+    if (!canModifyMasterData(request.user!)) { response.status(403).json({ message: "Only Admin and Engineer roles may modify Asset Master data." }); return; }
+    if (!env.masterMutationWritesEnabled) { response.status(423).json({ message: "Segment deletion is disabled until isolated security and database tests are approved." }); return; }
+    if (!await store.deleteSegment(request.params.id, ownerScope(request.user!))) { response.status(404).json({ message: "Segment not found." }); return; }
+    response.status(204).send();
+  } catch (error) { handleAssetMasterError(error, response, next); }
 });
 
 assetMasterRouter.get("/assets", async (request, response, next) => {
@@ -196,6 +225,15 @@ assetMasterRouter.put("/assets/:id", async (request, response, next: NextFunctio
   }
 });
 
+assetMasterRouter.delete("/assets/:id", async (request, response, next: NextFunction) => {
+  try {
+    if (!canModifyMasterData(request.user!)) { response.status(403).json({ message: "Only Admin and Engineer roles may modify Asset Master data." }); return; }
+    if (!env.masterMutationWritesEnabled) { response.status(423).json({ message: "Asset deletion is disabled until isolated security and database tests are approved." }); return; }
+    if (!await store.deleteAsset(request.params.id, ownerScope(request.user!))) { response.status(404).json({ message: "Asset not found." }); return; }
+    response.status(204).send();
+  } catch (error) { handleAssetMasterError(error, response, next); }
+});
+
 function queryText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
@@ -204,6 +242,11 @@ function handleAssetMasterError(error: unknown, response: { status: (code: numbe
   if (error instanceof Error) {
     const coded = error as Error & { code?: string };
     if (coded.code === "SEGMENT_DUPLICATE" || coded.code === "ASSET_DUPLICATE" || coded.code === "P2002") {
+      response.status(409).json({ message: error.message });
+      return;
+    }
+
+    if (coded.code === "SEGMENT_LINKED_RECORDS" || coded.code === "ASSET_LINKED_RECORDS") {
       response.status(409).json({ message: error.message });
       return;
     }

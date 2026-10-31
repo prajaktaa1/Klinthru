@@ -58,7 +58,7 @@ export function IliAnalysisWorkspace() {
   const [draft, setDraft] = useState<IliRunFilters>(emptyRunFilters);
   const [applied, setApplied] = useState<IliRunFilters>(emptyRunFilters);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(6);
   const [selectedId, setSelectedId] = useState("");
   const [detailTab, setDetailTab] = useState("Summary");
   const [newestFirst, setNewestFirst] = useState(true);
@@ -101,6 +101,7 @@ export function IliAnalysisWorkspace() {
   const pages = Math.max(1, Math.ceil(filteredRuns.length / pageSize));
   const currentPage = Math.min(page, pages);
   const visibleRuns = filteredRuns.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  useEffect(() => { setPage(1); setSelectedId(""); }, [sources, applied.pipeline, applied.tool, applied.year, applied.status, filteredRuns.length]);
   const selected = filteredRuns.find((run) => run.id === selectedId) ?? visibleRuns[0] ?? null;
   const selectedPipeline = pipelines.find((pipeline) => pipeline.id === selected?.pipelineId) ?? null;
   const history = scopedRuns.slice().sort((a, b) => a.inspectionDate.localeCompare(b.inspectionDate) || a.createdAt.localeCompare(b.createdAt));
@@ -156,7 +157,7 @@ export function IliAnalysisWorkspace() {
                 <tbody>{visibleRuns.map((run) => <tr key={run.id} className={selected?.id === run.id ? "selected" : ""} onClick={() => selectRun(run)}><td><input type="checkbox" aria-label={`Select run ${formatValue(run.runReference)}`} checked={selected?.id === run.id} onChange={() => selectRun(run)} onClick={(event) => event.stopPropagation()} /></td><td><button className="ili-link" onClick={() => selectRun(run)}>{formatValue(run.runReference)}</button></td><td>{pipelineCode(run.pipelineId)}</td><td>{unavailable}</td><td>{formatValue(run.toolType)}</td><td>{formatValue(run.vendor)}</td><td>{iliDate(run.inspectionDate)}</td><td>{unavailable}</td><td><span className="ili-run-status">{formatValue(run.status)}</span></td><td>{unavailable}</td><td><button disabled title={blocked} aria-label={`Actions unavailable for ${run.runReference}`}>⋯</button></td></tr>)}
                   {!visibleRuns.length && <tr><td colSpan={11} className="ili-empty">{loading ? "Loading ILI runs…" : filteredRuns.length === 0 && runsAvailable ? "No ILI runs match the current filters." : unavailable}</td></tr>}
                 </tbody></table></div>
-              <div className="ili-pagination"><span>{runsAvailable ? `Showing ${filteredRuns.length ? (currentPage - 1) * pageSize + 1 : 0} - ${Math.min(currentPage * pageSize, filteredRuns.length)} of ${filteredRuns.length} ILI runs` : `Showing ${filteredRuns.length} accessible ILI runs; total ${unavailable}`}</span><div><button disabled={currentPage <= 1} aria-label="Previous page" onClick={() => setPage(currentPage - 1)}>‹</button><span className="ili-page-number" aria-label={`Page ${currentPage} of ${pages}`}>{currentPage}</span><button disabled={currentPage >= pages} aria-label="Next page" onClick={() => setPage(currentPage + 1)}>›</button><label>Rows per page<select aria-label="Rows per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}>{[10, 25, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}</select></label></div></div>
+              <div className="ili-pagination"><span>{runsAvailable ? `Showing ${filteredRuns.length ? (currentPage - 1) * pageSize + 1 : 0} - ${Math.min(currentPage * pageSize, filteredRuns.length)} of ${filteredRuns.length} ILI runs` : `Showing ${filteredRuns.length} accessible ILI runs; total ${unavailable}`}</span><div><button disabled={currentPage <= 1} aria-label="Previous page" onClick={() => setPage(currentPage - 1)}>‹</button><span className="ili-page-number" aria-label={`Page ${currentPage} of ${pages}`}>{currentPage}</span><button disabled={currentPage >= pages} aria-label="Next page" onClick={() => setPage(currentPage + 1)}>›</button><label>Rows per page<select aria-label="Rows per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}><option value={6}>6</option></select></label></div></div>
             </Panel>
             <div className="ili-bottom-panels">
               <Panel className="ili-panel"><h3>Run Statistics</h3><div className="ili-statistics">{[{ label: "Completed Runs", icon: ClipboardList, color: "green" }, { label: "Pending Validation", icon: Hourglass, color: "orange" }, { label: "Uploaded Files", icon: ClipboardList, color: "blue" }, { label: "Imported Logs", icon: Database, color: "purple" }].map((item) => <div className={item.color} key={item.label}><span className="ili-stat-icon" aria-hidden="true"><item.icon size={27} /></span><strong>{unavailable}</strong><span>{item.label}</span><small>{unavailable}</small></div>)}</div></Panel>
@@ -508,7 +509,7 @@ function IliAnomaliesView({ sources, pipelines, pipelineId, loading, loadError, 
   const [sort, setSort] = useState<IliAnomalySort>("kpKm");
   const [ascending, setAscending] = useState(true);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(6);
   const [selectedId, setSelectedId] = useState("");
   const [closed, setClosed] = useState(false);
   const [shownColumns, setShownColumns] = useState(anomalyColumns);
@@ -593,7 +594,7 @@ function IliAnomaliesView({ sources, pipelines, pipelineId, loading, loadError, 
           <div className="ili-table-scroll"><table className="ili-anomaly-table"><thead><tr><th><input type="checkbox" disabled aria-label="Bulk anomaly selection unavailable" title={blocked} /></th>{shownColumns.map((column) => <th key={column} aria-sort={sortFields[column] === sort ? ascending ? "ascending" : "descending" : undefined}>{sortFields[column] ? <button className="ili-sort" onClick={() => sortBy(sortFields[column]!)} aria-label={`Sort anomalies by ${column}`}>{column}{sortFields[column] === sort ? ascending ? " ↑" : " ↓" : ""}</button> : column}</th>)}<th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>{visible.map((record) => <tr key={record.id} className={selected?.id === record.id ? "selected" : ""} onClick={() => select(record)}><td><input type="checkbox" aria-label={`Select anomaly ${record.id}`} checked={selected?.id === record.id} onChange={() => select(record)} onClick={(event) => event.stopPropagation()} /></td>{shownColumns.map((column) => <td key={column}>{cell(record, column)}</td>)}<td><button disabled title={blocked} aria-label={`Actions unavailable for anomaly ${record.id}`}><MoreVertical size={14} /></button></td></tr>)}{!visible.length && <tr><td colSpan={shownColumns.length + 2} className="ili-empty">{loading ? "Loading ILI anomalies…" : available ? "No anomalies match the current filters." : unavailable}</td></tr>}</tbody>
           </table></div>
-          <div className="ili-anomaly-footer"><span>Page {currentPage} of {pages}</span><label>Rows per page<select aria-label="Anomaly rows per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); resetSelection(); }}>{[10, 25, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}</select></label></div>
+          <div className="ili-anomaly-footer"><span>Page {currentPage} of {pages}</span><label>Rows per page<select aria-label="Anomaly rows per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); resetSelection(); }}><option value={6}>6</option></select></label></div>
         </Panel>
       </div>
       {!closed && <aside className="ili-panel ili-anomaly-details" aria-label="Anomaly Details">

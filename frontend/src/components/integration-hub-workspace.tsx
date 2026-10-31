@@ -18,6 +18,8 @@ import {
   fetchIntegrationHubRealData,
   fetchIntegrationConnector,
   createIntegrationConnector,
+  fetchPipelines,
+  fetchMasterAssets,
   updateIntegrationConnector,
   testIntegrationConnector,
   type IntegrationConnectorRecord,
@@ -25,6 +27,7 @@ import {
   type IntegrationHubRealData,
   type IntegrationSummary
 } from "@/lib/apiClient";
+import type { PipelineRecord as MasterPipelineRecord, AssetMasterAssetRecord as MasterAssetMasterAssetRecord } from "@/lib/types";
 
 export type IntegrationHubMode = "real" | "demo";
 type LoadState = "idle" | "loading" | "ready" | "error";
@@ -1300,7 +1303,7 @@ function IntegrationDataSources({ data, loadState, error, onData }: {
   const drawer = useRef<HTMLElement>(null);
   const [search, setSearch] = useState(""), [type, setType] = useState("all"), [system, setSystem] = useState("all"), [status, setStatus] = useState("all");
   const [sort, setSort] = useState<"recent" | "name" | "type" | "status">("recent"), [ascending, setAscending] = useState(false);
-  const [page, setPage] = useState(1), [pageSize, setPageSize] = useState(25);
+  const [page, setPage] = useState(1), [pageSize, setPageSize] = useState(6);
   const [selected, setSelected] = useState<string | null>(null), [tab, setTab] = useState("Overview");
   const [registryDetails, setRegistryDetails] = useState(false);
   const hubTabs = ["Data Sources", "Data Flow", "Data Mapping", "Validation Rules", "Processing Logs", "Data Quality", "Scheduler", "Notifications", "Configuration"] as const;
@@ -1324,13 +1327,28 @@ function IntegrationDataSources({ data, loadState, error, onData }: {
     "Integration Service Health": { source: "Integration services", calculation: "Hub services/queues/connectors availability", destination: "Data Flow" }
   };
   const [menu, setMenu] = useState<string | null>(null), [editing, setEditing] = useState(false);
-  const [creating, setCreating] = useState(false), [newName, setNewName] = useState(""), [newEndpoint, setNewEndpoint] = useState("");
+  const [creating, setCreating] = useState(false), [newName, setNewName] = useState(""), [newEndpoint, setNewEndpoint] = useState(""), [newPipelineId, setNewPipelineId] = useState(""), [newAssetId, setNewAssetId] = useState("");
+  const [scopePipelines, setScopePipelines] = useState<MasterPipelineRecord[]>([]), [scopeAssets, setScopeAssets] = useState<MasterAssetMasterAssetRecord[]>([]), [scopeError, setScopeError] = useState("");
   const [wizardStep, setWizardStep] = useState(1);
   const [newMetadata, setNewMetadata] = useState<MetadataDraft>({}), [editMetadata, setEditMetadata] = useState<MetadataDraft>({});
   const [metadataChanges, setMetadataChanges] = useState<MetadataDraft>({});
   const [name, setName] = useState(""), [endpoint, setEndpoint] = useState("");
   const [busy, setBusy] = useState(false), [actionError, setActionError] = useState(""), [result, setResult] = useState("");
   const canEdit = user?.role === "Admin", canTest = canEdit || user?.role === "Engineer";
+  useEffect(() => {
+    if (!creating) return;
+    let active = true;
+    setScopeError("");
+    void fetchPipelines().then(items => { if (!active) return; setScopePipelines(items); setNewPipelineId(current => current || items.find(item => item.pipelineCode.toUpperCase() === "PL-001")?.id || ""); }).catch(error => { if (active) setScopeError(error instanceof Error ? error.message : "Pipelines could not be loaded."); });
+    return () => { active = false; };
+  }, [creating]);
+  useEffect(() => {
+    if (!newPipelineId) { setScopeAssets([]); setNewAssetId(""); return; }
+    let active = true;
+    setScopeError("");
+    void fetchMasterAssets(newPipelineId).then(items => { if (active) { setScopeAssets(items); setNewAssetId(current => items.some(item => item.id === current) ? current : ""); } }).catch(error => { if (active) setScopeError(error instanceof Error ? error.message : "Assets could not be loaded."); });
+    return () => { active = false; };
+  }, [newPipelineId]);
   const connectors = data?.connectors ?? [];
   const active = (c: IntegrationConnectorRecord) => c.enabled && c.status !== "Disabled";
   const manualLogs = (data?.manualRecords ?? []).filter(record => record.module === "Processing Logs");
@@ -1455,15 +1473,15 @@ function IntegrationDataSources({ data, loadState, error, onData }: {
       if (!canEdit) { setActionError("Only an Admin account can create a connector."); return; }
       if (wizardStep === 1) { setWizardStep(2); setActionError(""); return; }
       void action(async () => {
-        const created = await createIntegrationConnector({ name: newName.trim(), endpoint: newEndpoint.trim(), ...(Object.keys(newMetadata).length ? { configuration: { integrationMetadata: newMetadata } } : {}) });
+        const created = await createIntegrationConnector({ name: newName.trim(), endpoint: newEndpoint.trim(), scope: { pipelineId: newPipelineId, assetId: newAssetId || null }, ...(Object.keys(newMetadata).length ? { configuration: { integrationMetadata: newMetadata } } : {}) });
         if (data) onData({ ...data, connectors: [...data.connectors.filter(c => c.id !== created.id), created] });
         await refresh();
         setSearch(""); setType("all"); setSystem("all"); setStatus("all"); setSort("recent"); setAscending(false); setPage(1);
         navigate("Data Sources", created.id); choose(created); setCreating(false); resetNewConnector(); setResult(`Connector \"${created.name}\" was saved and is shown first in the refreshed registry.`);
       });
     }}>
-      {wizardStep === 1 ? <div className="space-y-5"><section className="grid gap-4 sm:grid-cols-2"><div className="sm:col-span-2"><h3 className="text-base font-semibold">Connection details</h3><p className="mt-1 text-sm text-slate-500">Fields marked <span aria-hidden="true">*</span> are required.</p></div><label className="block text-sm font-medium">Connector name <span className="text-rose-600">*</span><input required autoFocus maxLength={120} placeholder="e.g. Asset Management API" className={`${control} mt-1 w-full`} value={newName} onChange={e => setNewName(e.target.value)} /></label><label className="block text-sm font-medium">Connector type<input readOnly aria-readonly="true" className={`${control} mt-1 w-full cursor-not-allowed bg-slate-50 dark:bg-slate-900`} value="REST" /></label><label className="block text-sm font-medium sm:col-span-2">REST endpoint <span className="text-rose-600">*</span><input required type="url" inputMode="url" maxLength={2048} placeholder="https://api.example.com/v1" className={`${control} mt-1 w-full`} value={newEndpoint} onChange={e => setNewEndpoint(e.target.value)} /><span className="mt-1 block text-xs font-normal text-slate-500">Use a complete HTTP or HTTPS URL. Credentials are never entered on this screen.</span></label></section><div className="border-t border-slate-200 pt-5 dark:border-slate-800"><ConnectorMetadataInputs values={newMetadata} onChange={(key, value) => setNewMetadata(previous => ({ ...previous, [key]: value }))} control={control} registries={metadataRegistries} /></div></div> : <section><h3 className="text-base font-semibold">Review connector</h3><p className="mt-1 text-sm text-slate-500">Confirm the details before saving. You can return to edit them.</p><dl className="mt-5 space-y-3 text-sm">{[["Connector Name", newName.trim()], ["Connector Type", "REST"], ["REST Endpoint", newEndpoint.trim()], ...metadataFields.map(field => [field.label, metadataValue(newMetadata, field.key)])].map(([label, value]) => <div key={label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3 border-b border-slate-200 pb-3 dark:border-slate-800"><dt className="font-medium text-slate-600 dark:text-slate-300">{label}</dt><dd className="break-all">{value}</dd></div>)}</dl></section>}
-      <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-800"><button type="button" className={control} disabled={busy} onClick={() => { setCreating(false); resetNewConnector(); }}>Cancel</button>{wizardStep === 2 && <button type="button" className={control} disabled={busy} onClick={() => { setWizardStep(1); setActionError(""); }}>Back</button>}<button type="submit" className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={busy || !newName.trim() || !newEndpoint.trim()}>{busy ? "Saving..." : wizardStep === 1 ? "Next: Review" : "Save Connector"}</button></div>
+      {wizardStep === 1 ? <div className="space-y-5"><section className="grid gap-4 sm:grid-cols-2"><div className="sm:col-span-2"><h3 className="text-base font-semibold">Connection details</h3><p className="mt-1 text-sm text-slate-500">Fields marked <span aria-hidden="true">*</span> are required.</p></div><label className="block text-sm font-medium">Connector name <span className="text-rose-600">*</span><input required autoFocus maxLength={120} placeholder="e.g. Asset Management API" className={`${control} mt-1 w-full`} value={newName} onChange={e => setNewName(e.target.value)} /></label><label className="block text-sm font-medium">Connector type<input readOnly aria-readonly="true" className={`${control} mt-1 w-full cursor-not-allowed bg-slate-50 dark:bg-slate-900`} value="REST" /></label><label className="block text-sm font-medium sm:col-span-2">REST endpoint <span className="text-rose-600">*</span><input required type="url" inputMode="url" maxLength={2048} placeholder="https://api.example.com/v1" className={`${control} mt-1 w-full`} value={newEndpoint} onChange={e => setNewEndpoint(e.target.value)} /><span className="mt-1 block text-xs font-normal text-slate-500">Use a complete HTTP or HTTPS URL. Credentials are never entered on this screen.</span></label><label className="block text-sm font-medium">Pipeline <span className="text-rose-600">*</span><select required aria-label="Connector pipeline" className={`${control} mt-1 w-full`} value={newPipelineId} onChange={e => setNewPipelineId(e.target.value)}><option value="">Select authorized pipeline</option>{scopePipelines.map(item => <option key={item.id} value={item.id}>{item.pipelineCode} — {item.pipelineName}</option>)}</select></label><label className="block text-sm font-medium">Asset (optional)<select aria-label="Connector asset" className={`${control} mt-1 w-full`} value={newAssetId} onChange={e => setNewAssetId(e.target.value)} disabled={!newPipelineId}><option value="">Whole pipeline</option>{scopeAssets.map(item => <option key={item.id} value={item.id}>{item.assetId} — {item.name}</option>)}</select></label></section>{scopeError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{scopeError}</p>}<div className="border-t border-slate-200 pt-5 dark:border-slate-800"><ConnectorMetadataInputs values={newMetadata} onChange={(key, value) => setNewMetadata(previous => ({ ...previous, [key]: value }))} control={control} registries={metadataRegistries} /></div></div> : <section><h3 className="text-base font-semibold">Review connector</h3><p className="mt-1 text-sm text-slate-500">Confirm the details before saving. You can return to edit them.</p><dl className="mt-5 space-y-3 text-sm">{[["Connector Name", newName.trim()], ["Connector Type", "REST"], ["REST Endpoint", newEndpoint.trim()], ["Pipeline", scopePipelines.find(item => item.id === newPipelineId)?.pipelineCode ?? "No Data"], ["Asset", scopeAssets.find(item => item.id === newAssetId)?.assetId ?? "Whole pipeline"], ...metadataFields.map(field => [field.label, metadataValue(newMetadata, field.key)])].map(([label, value]) => <div key={label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-3 border-b border-slate-200 pb-3 dark:border-slate-800"><dt className="font-medium text-slate-600 dark:text-slate-300">{label}</dt><dd className="break-all">{value}</dd></div>)}</dl></section>}
+      <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-5 dark:border-slate-800"><button type="button" className={control} disabled={busy} onClick={() => { setCreating(false); resetNewConnector(); }}>Cancel</button>{wizardStep === 2 && <button type="button" className={control} disabled={busy} onClick={() => { setWizardStep(1); setActionError(""); }}>Back</button>}<button type="submit" className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={busy || !newName.trim() || !newEndpoint.trim() || !newPipelineId}>{busy ? "Saving..." : wizardStep === 1 ? "Next: Review" : "Save Connector"}</button></div>
     </form>
   </section>;
   return <section aria-label="Integration Hub Data Sources" className="min-w-0 space-y-3 pb-4">
@@ -1508,7 +1526,7 @@ function IntegrationDataSources({ data, loadState, error, onData }: {
             </tr>)}{!visible.length && <tr><td colSpan={8} className="p-5 text-slate-500">{loadState === "loading" && !data ? "Loading" : error && !data ? "No Data" : "No data sources match"}</td></tr>}</tbody>
           </table>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500"><span>Showing {rows.length ? (currentPage - 1) * displayPageSize + 1 : 0} - {Math.min(currentPage * displayPageSize, rows.length)} of {rows.length} data sources</span><div className="flex flex-wrap items-center gap-2"><button type="button" aria-label="Previous page" className={control} disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>&lt;</button><span>{currentPage} / {pages}</span><button type="button" aria-label="Next page" className={control} disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}>&gt;</button><label>Show <select aria-label="Rows per page" className={control} value={pageSize} onChange={event => setPageSize(Number(event.target.value))}>{[10, 25, 50].map(size => <option key={size} value={size}>{size}</option>)}</select> per page</label></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500"><span>Showing {rows.length ? (currentPage - 1) * displayPageSize + 1 : 0} - {Math.min(currentPage * displayPageSize, rows.length)} of {rows.length} data sources</span><div className="flex flex-wrap items-center gap-2"><button type="button" aria-label="Previous page" className={control} disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>&lt;</button><span>{currentPage} / {pages}</span><button type="button" aria-label="Next page" className={control} disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}>&gt;</button><label>Show <select aria-label="Rows per page" className={control} value={pageSize} onChange={event => setPageSize(Number(event.target.value))}>{[6, 10, 25, 50].map(size => <option key={size} value={size}>{size}</option>)}</select> per page</label></div></div>
       </div>
     </Card>}
     {hubTab === "Processing Logs" && referencePreview && <IntegrationProcessingLogsPreview />}

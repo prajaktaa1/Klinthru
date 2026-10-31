@@ -17,9 +17,11 @@ const emptyForm: DeviceInput = {
 };
 const fieldClass = "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slateblue-400 focus:ring-4 focus:ring-slateblue-100";
 
-export function SensorRegistrationForm({ onRegistered, onUnauthorized }: {
+export function SensorRegistrationForm({ onRegistered, onUnauthorized, onCancel, onBusyChange }: {
   onRegistered: (device: DeviceRecord) => void;
   onUnauthorized: () => void;
+  onCancel?: () => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const pending = useRef(false);
   const [form, setForm] = useState<DeviceInput>(emptyForm);
@@ -40,6 +42,7 @@ export function SensorRegistrationForm({ onRegistered, onUnauthorized }: {
     }
     pending.current = true;
     setIsSaving(true);
+    onBusyChange?.(true);
     setMessage(null);
     try {
       const created = await createDeviceRecord({
@@ -70,6 +73,7 @@ export function SensorRegistrationForm({ onRegistered, onUnauthorized }: {
     } finally {
       pending.current = false;
       setIsSaving(false);
+      onBusyChange?.(false);
     }
   }
 
@@ -90,7 +94,7 @@ export function SensorRegistrationForm({ onRegistered, onUnauthorized }: {
           <label className="text-xs font-medium text-slate-700">Unit (optional)<input className={`${fieldClass} mt-2`} maxLength={50} value={form.unit ?? ""} onChange={(event) => update("unit", event.target.value)} /></label>
           <div className="flex gap-3 md:col-span-2 xl:col-span-3">
             <button type="submit" disabled={isSaving} className="rounded-2xl bg-slateblue-600 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400">{isSaving ? "Registering..." : "Register Sensor"}</button>
-            <button type="button" disabled={isSaving} onClick={() => { setForm(emptyForm); setMessage(null); }} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700">Cancel</button>
+            <button type="button" disabled={isSaving} onClick={() => { setForm(emptyForm); setMessage(null); onCancel?.(); }} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700">Cancel</button>
           </div>
         </fieldset>
       </form>

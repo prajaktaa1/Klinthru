@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { Panel } from "@/components/ui";
-import { CpLinkedRectifierRecord, CpLinkedTestPointRecord, CpMonitoringRealData, fetchCpCalculations, fetchCpMonitoringData, fetchCpRectifiers, fetchCpTestPoints, fetchPipelines } from "@/lib/apiClient";
+import { CpLinkedRectifierRecord, CpLinkedTestPointRecord, CpMonitoringRealData, fetchCpCalculations, fetchCpMonitoringData, fetchCpRectifiers, fetchCpTestPoints, fetchMasterSegments, fetchPipelines } from "@/lib/apiClient";
 import { CpCalculationRecord, PipelineRecord } from "@/lib/types";
+import { getRectifierOperationalStatus, RectifierOperationalStatus } from "@/lib/cp-rectifier-status";
+import { segmentDisplayName } from "@/lib/cp-segment-display";
 
 const tabs = [
   "Overview",
@@ -25,7 +27,7 @@ type Rectifier = CpMonitoringRealData["rectifiers"][number];
 type LinkedPotentialReading = NonNullable<CpLinkedTestPointRecord["readings"]>["onPotential"];
 type TestPostStatusFilter = "All Status" | "Within Criteria" | "Out of Criteria" | "Unavailable";
 type TestPostSideFilter = "All Sides" | "LHS" | "RHS" | "Unavailable";
-type RectifierStatusFilter = "All Status" | "Online" | "Offline" | "Warning" | "Unavailable";
+type RectifierStatusFilter = "All Status" | RectifierOperationalStatus;
 type RectifierAlarmFilter = "All Alarm Status" | "Normal" | "No Output" | "High Voltage" | "High Current" | "Unavailable";
 type CpAlertSeverity = "Critical" | "Major" | "Minor";
 type CpAlertStatus = "Open" | "Acknowledged" | "Resolved";
@@ -60,6 +62,7 @@ export function CpMonitoringRealWorkspace() {
   const [showCriteria, setShowCriteria] = useState("Yes");
   const [activeTab, setActiveTab] = useState("Overview");
   const [linkedTestPosts, setLinkedTestPosts] = useState<CpLinkedTestPointRecord[]>([]);
+  const [masterSegments, setMasterSegments] = useState<Array<{ id: string; segmentId: string }>>([]);
   const [selectedTestPostId, setSelectedTestPostId] = useState("");
   const [loadingTestPosts, setLoadingTestPosts] = useState(false);
   const [testPostsError, setTestPostsError] = useState("");
@@ -135,7 +138,24 @@ export function CpMonitoringRealWorkspace() {
   }, [pipelineId]);
 
   useEffect(() => {
-    if (!pipelineId || activeTab !== "Test Posts") {
+    if (!pipelineId) {
+      setMasterSegments([]);
+      return;
+    }
+
+    let live = true;
+    fetchMasterSegments(pipelineId)
+      .then((segments) => {
+        if (live) setMasterSegments(segments.map((segment) => ({ id: segment.id, segmentId: segment.segmentId })));
+      })
+      .catch(() => live && setMasterSegments([]));
+    return () => {
+      live = false;
+    };
+  }, [pipelineId]);
+
+  useEffect(() => {
+    if (!pipelineId) {
       return;
     }
 
@@ -177,7 +197,7 @@ export function CpMonitoringRealWorkspace() {
   }, [activeTab, pipelineId]);
 
   useEffect(() => {
-    if (!pipelineId || activeTab !== "Rectifiers") {
+    if (!pipelineId) {
       return;
     }
 
@@ -222,7 +242,7 @@ export function CpMonitoringRealWorkspace() {
       ["Metric", "Value", "Detail"],
       ["CP Compliance", percentOrNoData(overview.compliancePercent), overview.complianceDetail],
       ["Test Posts", String(overview.testPostCount), `${overview.testPostsOk} OK | ${overview.testPostsAttention} Attention`],
-      ["Rectifiers", String(overview.rectifierCount), `${overview.rectifiersOnline} Online | ${overview.rectifiersOffline} Offline`],
+      ["Rectifiers", String(overview.rectifierCount), `${overview.rectifiersOnline} Online | ${overview.rectifiersOffline} Offline | ${overview.rectifiersUnavailable} Not Available`],
       ["Average Potential", potentialFromMv(overview.averagePotentialMv), data.criterion ? "vs. Criteria" : "Criteria not connected"],
       ["Out of Criteria", String(overview.outOfCriteria), overview.outOfCriteriaPercent === null ? "No assessed readings" : `${overview.outOfCriteriaPercent}%`],
       ["Interference Issues", String(overview.interferenceIssues), overview.interferenceIssues ? "Needs Attention" : "No active issues"]
@@ -255,7 +275,7 @@ export function CpMonitoringRealWorkspace() {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <MetricCard icon="SH" tone="green" label="CP Compliance" value={percentOrNoData(overview.compliancePercent)} detail={overview.complianceDetail} />
             <MetricCard icon="TP" tone="green" label="Test Posts" value={formatNumber(overview.testPostCount)} detail={`${formatNumber(overview.testPostsOk)} OK | ${formatNumber(overview.testPostsAttention)} Attention`} />
-            <MetricCard icon="RC" tone="green" label="Rectifiers" value={formatNumber(overview.rectifierCount)} detail={`${formatNumber(overview.rectifiersOnline)} Online | ${formatNumber(overview.rectifiersOffline)} Offline`} />
+            <MetricCard icon="RC" tone="green" label="Rectifiers" value={formatNumber(overview.rectifierCount)} detail={`${formatNumber(overview.rectifiersOnline)} Online | ${formatNumber(overview.rectifiersOffline)} Offline | ${formatNumber(overview.rectifiersUnavailable)} Not Available`} />
             <MetricCard icon="V" tone="green" label="Average Potential" value={potentialFromMv(overview.averagePotentialMv)} detail={data.criterion ? "vs. Criteria" : "Criteria not connected"} />
             <MetricCard icon="!" tone="amber" label="Out of Criteria" value={formatNumber(overview.outOfCriteria)} detail={overview.outOfCriteriaPercent === null ? "No assessed readings" : `(${overview.outOfCriteriaPercent}%)`} />
             <MetricCard icon="AC" tone="teal" label="Interference Issues" value={formatNumber(overview.interferenceIssues)} detail={overview.interferenceIssues ? "Needs Attention" : "No active issues"} />
@@ -292,7 +312,7 @@ export function CpMonitoringRealWorkspace() {
               )}
             </Panel>
 
-            <SelectedTestPointPanel selected={selected} data={data} />
+            <SelectedTestPointPanel selected={selected} data={data} linkedRecord={linkedTestPosts.find((record) => record.cp.code === selected?.code) ?? null} masterSegments={masterSegments} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -321,7 +341,8 @@ export function CpMonitoringRealWorkspace() {
                   centerLabel="Rectifiers"
                   items={[
                     { label: "Online", count: overview.rectifiersOnline, percent: overview.rectifierOnlinePercent, tone: "green" },
-                    { label: "Offline", count: overview.rectifiersOffline, percent: overview.rectifierOfflinePercent, tone: "red" }
+                    { label: "Offline", count: overview.rectifiersOffline, percent: overview.rectifierOfflinePercent, tone: "red" },
+                    { label: "Not Available", count: overview.rectifiersUnavailable, percent: overview.rectifierUnavailablePercent, tone: "amber" }
                   ]}
                 />
               ) : (
@@ -382,6 +403,7 @@ export function CpMonitoringRealWorkspace() {
           page={testPostPage}
           pipelineId={pipelineId}
           pipelines={pipelines}
+          masterSegments={masterSegments}
           records={linkedTestPosts}
           selectedId={selectedTestPostId}
           selectPipeline={selectPipeline}
@@ -403,6 +425,7 @@ export function CpMonitoringRealWorkspace() {
           page={rectifierPage}
           pipelineId={pipelineId}
           pipelines={pipelines}
+          masterSegments={masterSegments}
           records={linkedRectifiers}
           rectifiersError={rectifiersError}
           selectedId={selectedRectifierId}
@@ -490,6 +513,7 @@ function TestPostsTab({
   page,
   pipelineId,
   pipelines,
+  masterSegments,
   records,
   selectedId,
   selectPipeline,
@@ -503,14 +527,15 @@ function TestPostsTab({
   page: number;
   pipelineId: string;
   pipelines: PipelineRecord[];
+  masterSegments: Array<{ id: string; segmentId: string }>;
   records: CpLinkedTestPointRecord[];
   selectedId: string;
   selectPipeline: (value: string) => void;
   testPostsError: string;
 }) {
-  const pageSize = 10;
+const pageSize = 6;
   const selected = records.find((record) => record.cp.id === selectedId) ?? records[0] ?? null;
-  const segments = Array.from(new Set(records.map((record) => record.asset?.segmentId).filter((value): value is string => Boolean(value)))).sort();
+  const segments = masterSegments.filter((segment) => records.some((record) => record.asset?.segmentId === segment.id));
   const filtered = records.filter((record) => matchesTestPostFilters(record, filters));
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, pageCount);
@@ -547,7 +572,7 @@ function TestPostsTab({
           </SelectField>
           <SelectField label="Segment" value={filters.segment} onChange={(value) => updateFilter("segment", value)}>
             <option>All Segments</option>
-            {segments.map((segment) => <option key={segment}>{segment}</option>)}
+            {segments.map((segment) => <option key={segment.id} value={segment.id}>{segment.segmentId}</option>)}
           </SelectField>
           <SelectField label="Status" value={filters.status} onChange={(value) => updateFilter("status", value as TestPostStatusFilter)}>
             <option>All Status</option>
@@ -610,7 +635,7 @@ function TestPostsTab({
                           <td className="px-4 py-3"><input aria-label={`Select ${record.asset?.assetId ?? record.cp.code}`} checked={selectedRow} readOnly type="checkbox" /></td>
                           <td className="px-3 py-3 font-semibold text-slateblue-700">{record.asset?.assetId ?? record.cp.code}</td>
                           <td className="px-3 py-3">{record.asset?.kp ?? record.cp.kp ?? "No data"}</td>
-                          <td className="px-3 py-3">{record.asset?.segmentId ?? "Unavailable"}</td>
+                          <td className="px-3 py-3">{segmentDisplayName(record.asset?.segmentId, masterSegments)}</td>
                           <td className="px-3 py-3">{record.asset?.side ?? "Unavailable"}</td>
                           <td className="px-3 py-3 font-mono">{potentialFromReading(record.readings?.onPotential)}</td>
                           <td className="px-3 py-3 font-mono">{potentialFromReading(record.readings?.offPotential)}</td>
@@ -639,13 +664,13 @@ function TestPostsTab({
           )}
         </Panel>
 
-        <LinkedTestPostDetails record={selected} pipeline={pipelines.find((pipeline) => pipeline.id === pipelineId) ?? null} />
+        <LinkedTestPostDetails record={selected} masterSegments={masterSegments} pipeline={pipelines.find((pipeline) => pipeline.id === pipelineId) ?? null} />
       </div>
     </div>
   );
 }
 
-function LinkedTestPostDetails({ record, pipeline }: { record: CpLinkedTestPointRecord | null; pipeline: PipelineRecord | null }) {
+function LinkedTestPostDetails({ record, masterSegments, pipeline }: { record: CpLinkedTestPointRecord | null; masterSegments: Array<{ id: string; segmentId: string }>; pipeline: PipelineRecord | null }) {
   if (!record) {
     return <Panel className="rounded-lg p-4"><EmptyState title="No Test Post selected" detail="Select a Test Post row to view details." /></Panel>;
   }
@@ -666,7 +691,7 @@ function LinkedTestPostDetails({ record, pipeline }: { record: CpLinkedTestPoint
         <h3 className="text-sm font-bold text-slateblue-950 dark:text-white">Location & Pipeline</h3>
         <div className="mt-3 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
           <DetailRow label="Pipeline" value={pipeline ? `${pipeline.pipelineName} (${pipeline.pipelineCode})` : record.cp.pipelineId} />
-          <DetailRow label="Segment" value={record.asset?.segmentId ?? "Unavailable"} />
+          <DetailRow label="Segment" value={segmentDisplayName(record.asset?.segmentId, masterSegments)} />
           <DetailRow label="KP (km)" value={record.asset?.kp ?? record.cp.kp ?? "Unavailable"} />
           <DetailRow label="Side" value={record.asset?.side ?? "Unavailable"} />
           <DetailRow label="Coordinates" value={coordinates} />
@@ -702,6 +727,7 @@ function RectifiersTab({
   page,
   pipelineId,
   pipelines,
+  masterSegments,
   records,
   rectifiersError,
   selectedId,
@@ -716,12 +742,13 @@ function RectifiersTab({
   page: number;
   pipelineId: string;
   pipelines: PipelineRecord[];
+  masterSegments: Array<{ id: string; segmentId: string }>;
   records: CpLinkedRectifierRecord[];
   rectifiersError: string;
   selectedId: string;
   selectPipeline: (value: string) => void;
 }) {
-  const pageSize = 10;
+const pageSize = 6;
   const merged = records.map((record) => ({ record, reading: findRectifierReading(record, aggregateRectifiers) }));
   const selected = merged.find((item) => item.record.cp.id === selectedId) ?? merged[0] ?? null;
   const filtered = merged.filter((item) => matchesRectifierFilters(item.record, item.reading, filters));
@@ -771,7 +798,8 @@ function RectifiersTab({
               items={[
                 { label: "Online", count: summary.online, percent: roundPercent(summary.online, summary.total), tone: "green" },
                 { label: "Warning", count: summary.warning, percent: roundPercent(summary.warning, summary.total), tone: "amber" },
-                { label: "Offline", count: summary.offline, percent: roundPercent(summary.offline, summary.total), tone: "red" }
+                { label: "Offline", count: summary.offline, percent: roundPercent(summary.offline, summary.total), tone: "red" },
+                { label: "Not Available", count: summary.unavailable, percent: roundPercent(summary.unavailable, summary.total), tone: "amber" }
               ]}
             />
           ) : (
@@ -791,7 +819,7 @@ function RectifiersTab({
                 <option>Online</option>
                 <option>Offline</option>
                 <option>Warning</option>
-                <option>Unavailable</option>
+                <option>Not Available</option>
               </SelectBare>
               <SelectBare value={pipelineId} onChange={selectPipeline}>
                 {pipelines.map((pipeline) => <option key={pipeline.id} value={pipeline.id}>{pipeline.pipelineCode}</option>)}
@@ -815,11 +843,12 @@ function RectifiersTab({
                     <tr>
                       <th className="w-10 px-4 py-3"><span className="sr-only">Selected</span></th>
                       <th className="px-3 py-3">Rectifier ID</th>
-                      <th className="px-3 py-3">Location</th>
+                      <th className="px-3 py-3">Location (KP)</th>
+                      <th className="px-3 py-3">Segment</th>
                       <th className="px-3 py-3">Pipeline</th>
                       <th className="px-3 py-3">Output Voltage (V)</th>
                       <th className="px-3 py-3">Output Current (A)</th>
-                      <th className="px-3 py-3">T/R Status</th>
+                      <th className="px-3 py-3">Operational Status</th>
                       <th className="px-3 py-3">Last Maintenance</th>
                       <th className="px-3 py-3">Alarm Status</th>
                     </tr>
@@ -832,6 +861,7 @@ function RectifiersTab({
                           <td className="px-4 py-3"><input aria-label={`Select ${record.asset?.assetId ?? record.cp.rectifierCode}`} checked={selectedRow} readOnly type="checkbox" /></td>
                           <td className="px-3 py-3 font-semibold text-slateblue-700">{record.asset?.assetId ?? record.cp.rectifierCode}</td>
                           <td className="px-3 py-3">{record.asset?.kp ?? record.cp.kp ?? record.asset?.coordinates ?? record.cp.location ?? "Unavailable"}</td>
+                          <td className="px-3 py-3">{segmentDisplayName(record.asset?.segmentId, masterSegments)}</td>
                           <td className="px-3 py-3">{pipelineLabel(pipelines, record.cp.pipelineId)}</td>
                           <td className="px-3 py-3 font-mono">{numberUnit(reading?.outputVoltageV, "V")}</td>
                           <td className="px-3 py-3 font-mono">{numberUnit(reading?.outputCurrentA, "A")}</td>
@@ -860,13 +890,13 @@ function RectifiersTab({
           )}
         </Panel>
 
-        <LinkedRectifierDetails item={selected} pipeline={selected ? pipelines.find((pipeline) => pipeline.id === selected.record.cp.pipelineId) ?? null : null} />
+        <LinkedRectifierDetails item={selected} pipeline={selected ? pipelines.find((pipeline) => pipeline.id === selected.record.cp.pipelineId) ?? null : null} masterSegments={masterSegments} />
       </div>
     </div>
   );
 }
 
-function LinkedRectifierDetails({ item, pipeline }: { item: { record: CpLinkedRectifierRecord; reading?: Rectifier } | null; pipeline: PipelineRecord | null }) {
+function LinkedRectifierDetails({ item, pipeline, masterSegments }: { item: { record: CpLinkedRectifierRecord; reading?: Rectifier } | null; pipeline: PipelineRecord | null; masterSegments: Array<{ id: string; segmentId: string }> }) {
   if (!item) {
     return <Panel className="rounded-lg p-4"><EmptyState title="No Rectifier selected" detail="Select a rectifier row to view details." /></Panel>;
   }
@@ -891,10 +921,11 @@ function LinkedRectifierDetails({ item, pipeline }: { item: { record: CpLinkedRe
       <div className="mt-4 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
         <DetailRow label="Rectifier ID" value={record.asset?.assetId ?? record.cp.rectifierCode} />
         <DetailRow label="Location" value={record.asset?.kp ?? record.cp.kp ?? record.asset?.coordinates ?? record.cp.location ?? "Unavailable"} />
+        <DetailRow label="Segment" value={segmentDisplayName(record.asset?.segmentId, masterSegments)} />
         <DetailRow label="Pipeline" value={pipeline ? pipeline.pipelineName : record.cp.pipelineId} />
         <DetailRow label="Output Voltage" value={numberUnit(reading?.outputVoltageV, "V")} />
         <DetailRow label="Output Current" value={numberUnit(reading?.outputCurrentA, "A")} />
-        <DetailRow label="Transformer Status" value={getRectifierStatus(record, reading)} />
+        <DetailRow label="Operational Status" value={getRectifierStatus(record, reading)} />
         <DetailRow label="Rectifier Status" value={displayEnum(record.cp.status)} />
         <DetailRow label="Last Maintenance" value="Unavailable" />
         <DetailRow label="Next Maintenance" value="Unavailable" />
@@ -914,7 +945,7 @@ function OnOffSurveysTab({ data, pipelineId, pipelines, selectPipeline }: { data
   const [filters, setFilters] = useState({ surveyType: "All Types", status: "All Statuses", from: "", to: "", contractor: "All Contractors" });
   const [page, setPage] = useState(1);
   const [selectedSurveyId, setSelectedSurveyId] = useState(data.surveys[0]?.id ?? "");
-  const pageSize = 8;
+const pageSize = 6;
   const filteredSurveys = data.surveys.filter((survey) => matchesSurveyFilters(survey, filters));
   const pageCount = Math.max(1, Math.ceil(filteredSurveys.length / pageSize));
   const safePage = Math.min(page, pageCount);
@@ -1556,7 +1587,7 @@ function AlertsEventsTab({ data, pipelineId, pipelines, selectPipeline }: { data
   const [filters, setFilters] = useState({ severity: "All Severities", status: "All Statuses", alertType: "All Alert Types", dateRange: "Last 30 Days" });
   const [selectedId, setSelectedId] = useState("");
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+const pageSize = 6;
   const alerts = buildCpAlerts(data);
   const filtered = alerts.filter((alert) => matchesAlertFilters(alert, filters));
   const selected = filtered.find((alert) => alert.id === selectedId) ?? filtered[0] ?? null;
@@ -2172,7 +2203,7 @@ function MetricCard({ icon, tone, label, value, detail }: { icon: string; tone: 
   );
 }
 
-function SelectedTestPointPanel({ selected, data }: { selected: TestPoint | null; data: CpMonitoringRealData }) {
+function SelectedTestPointPanel({ selected, data, linkedRecord, masterSegments }: { selected: TestPoint | null; data: CpMonitoringRealData; linkedRecord: CpLinkedTestPointRecord | null; masterSegments: Array<{ id: string; segmentId: string }> }) {
   function scrollToTrend() {
     document.getElementById("cp-selected-trend")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -2200,17 +2231,17 @@ function SelectedTestPointPanel({ selected, data }: { selected: TestPoint | null
           <div className="mt-4 overflow-hidden rounded-md border border-slate-200 dark:border-slate-700">
             <DetailRow label="Test Post ID" value={selected.code} />
             <DetailRow label="Pipeline" value={`${data.pipeline.pipelineCode} - ${data.pipeline.pipelineName}`} />
-            <DetailRow label="Segment" value="Blocked - Segment not connected" />
-            <DetailRow label="KP Location" value={selected.kp || "No data"} />
-            <DetailRow label="Side" value="Blocked - Asset Master side not in aggregate API" />
+            <DetailRow label="Segment" value={segmentDisplayName(linkedRecord?.asset?.segmentId, masterSegments)} />
+            <DetailRow label="KP Location" value={linkedRecord?.asset?.kp ?? selected.kp ?? "Not Available"} />
+            <DetailRow label="Side" value={linkedRecord?.asset?.side ?? "Not Available"} />
             <DetailRow label="Structure Type" value="Test Post" />
             <DetailRow label="ON Potential" value={potentialFromMv(selected.eOnMv)} />
             <DetailRow label="OFF Potential" value={potentialFromMv(selected.eOffMv)} />
             <DetailRow label="Criteria" value={data.criterion ? `${data.criterion.valueMv} mV` : "Not connected"} />
             <DetailRow label="Status" value={displayEnum(selected.protectionStatus)} />
-            <DetailRow label="Last Reading" value={selected.readingAt ? new Date(selected.readingAt).toLocaleString() : "No data"} />
+            <DetailRow label="Last Reading" value={selected.readingAt ? new Date(selected.readingAt).toLocaleString() : "Not Available"} />
             <DetailRow label="Interference" value={displayEnum(selected.interferenceStatus)} />
-            <DetailRow label="Linked Asset" value="Blocked - Asset Master link not in aggregate API" />
+            <DetailRow label="Linked Asset" value={linkedRecord?.asset?.assetId ?? "Not Available"} />
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">
             <ActionButton disabled label="View on Map" />
@@ -2540,8 +2571,8 @@ function RectifierAttentionTable({ rectifiers }: { rectifiers: Rectifier[] }) {
                 <tr key={rectifier.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="px-4 py-2 font-semibold text-slateblue-700">{rectifier.rectifierCode}</td>
                   <td className="px-4 py-2">{rectifier.kp || rectifier.location || "No data"}</td>
-                  <td className="px-4 py-2">{displayEnum(rectifier.readingStatus || rectifier.assetStatus)}</td>
-                  <td className="px-4 py-2"><StatusPill value={rectifier.readingStatus || rectifier.assetStatus} /></td>
+                  <td className="px-4 py-2">{displayEnum(getRectifierStatusFromTelemetry(rectifier))}</td>
+                  <td className="px-4 py-2"><StatusPill value={getRectifierStatusFromTelemetry(rectifier)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -2628,8 +2659,11 @@ function buildOverview(data: CpMonitoringRealData) {
   const within = data.testPoints.filter((point) => point.protectionStatus === "Protected").length;
   const out = data.testPoints.filter((point) => point.protectionStatus && point.protectionStatus !== "Protected" && point.protectionStatus !== "Unknown").length;
   const marginal = Math.max(0, assessed.length - within - out);
-  const rectifiersOnline = data.rectifiers.filter((rectifier) => isRectifierOnline(rectifier)).length;
-  const rectifiersOffline = data.rectifiers.length - rectifiersOnline;
+  const rectifierStatuses = data.rectifiers.map(getRectifierStatusFromTelemetry);
+  const rectifiersOnline = rectifierStatuses.filter((status) => status === "Online").length;
+  const rectifiersOffline = rectifierStatuses.filter((status) => status === "Offline").length;
+  const rectifiersWarning = rectifierStatuses.filter((status) => status === "Warning").length;
+  const rectifiersUnavailable = rectifierStatuses.filter((status) => status === "Not Available").length;
   const validPotential = data.testPoints.map((point) => point.valueMv).filter((value): value is number => value !== null);
   const interferenceIssues = data.strayCurrent.filter((item) => item.interferenceStatus && item.interferenceStatus !== "Normal").length;
 
@@ -2647,8 +2681,11 @@ function buildOverview(data: CpMonitoringRealData) {
     rectifierCount: data.rectifiers.length,
     rectifiersOnline,
     rectifiersOffline,
+    rectifiersWarning,
+    rectifiersUnavailable,
     rectifierOnlinePercent: data.rectifiers.length ? roundPercent(rectifiersOnline, data.rectifiers.length) : null,
     rectifierOfflinePercent: data.rectifiers.length ? roundPercent(rectifiersOffline, data.rectifiers.length) : null,
+    rectifierUnavailablePercent: data.rectifiers.length ? roundPercent(rectifiersUnavailable, data.rectifiers.length) : null,
     averagePotentialMv: validPotential.length ? Math.round(validPotential.reduce((sum, value) => sum + value, 0) / validPotential.length) : null,
     interferenceIssues,
     profilePoints: data.testPoints
@@ -2659,7 +2696,7 @@ function buildOverview(data: CpMonitoringRealData) {
         value: point.valueMv as number,
         band: point.protectionStatus === "Protected" ? ("within" as const) : point.protectionStatus ? ("out" as const) : ("marginal" as const)
       })),
-    rectifiersRequiringAttention: data.rectifiers.filter((rectifier) => !isRectifierOnline(rectifier)),
+    rectifiersRequiringAttention: data.rectifiers.filter((rectifier) => getRectifierStatusFromTelemetry(rectifier) !== "Online"),
     currentSeries: [] as Array<{ label: string; value: number }>
   };
 }
@@ -2724,6 +2761,7 @@ function buildRectifierSummary(items: Array<{ record: CpLinkedRectifierRecord; r
   const online = items.filter((item) => getRectifierStatus(item.record, item.reading) === "Online").length;
   const offline = items.filter((item) => getRectifierStatus(item.record, item.reading) === "Offline").length;
   const warning = items.filter((item) => getRectifierStatus(item.record, item.reading) === "Warning").length;
+  const unavailable = items.filter((item) => getRectifierStatus(item.record, item.reading) === "Not Available").length;
   const currentValues = items.map((item) => item.reading?.outputCurrentA).filter((value): value is number => typeof value === "number");
   const averageCurrentA = currentValues.length ? currentValues.reduce((sum, value) => sum + value, 0) / currentValues.length : null;
 
@@ -2732,6 +2770,7 @@ function buildRectifierSummary(items: Array<{ record: CpLinkedRectifierRecord; r
     online,
     offline,
     warning,
+    unavailable,
     averageCurrentA,
     currentPoints: items
       .filter((item) => typeof item.reading?.outputCurrentA === "number")
@@ -2866,7 +2905,7 @@ function buildTrendSummary(data: CpMonitoringRealData, readings: CpMonitoringRea
       outByPoint.set(reading.testPointId, (outByPoint.get(reading.testPointId) ?? 0) + 1);
     }
   });
-  const online = data.rectifiers.filter((rectifier) => isRectifierOnline(rectifier)).length;
+  const online = data.rectifiers.filter((rectifier) => getRectifierStatusFromTelemetry(rectifier) === "Online").length;
 
   return {
     compliancePercent: assessed.length ? roundPercent(compliant, assessed.length) : null,
@@ -2951,7 +2990,7 @@ function matchesEngineeringFilters(record: CpCalculationRecord, filters: { asset
 function buildEngineeringSummary(data: CpMonitoringRealData, calculations: CpCalculationRecord[]) {
   const iccp = calculations.filter((record) => record.calculationType === "ICCP").length;
   const sacp = calculations.filter((record) => record.calculationType === "SACP").length;
-  const rectifierBackedSystems = data.rectifiers.filter((rectifier) => isRectifierOnline(rectifier)).length;
+  const rectifierBackedSystems = data.rectifiers.filter((rectifier) => getRectifierStatusFromTelemetry(rectifier) === "Online").length;
 
   return {
     activeSystems: calculations.length || rectifierBackedSystems,
@@ -3051,7 +3090,8 @@ function buildCpAlerts(data: CpMonitoringRealData): CpAlertRecord[] {
   });
 
   data.rectifiers.forEach((rectifier) => {
-    const online = isRectifierOnline(rectifier);
+    const operationalStatus = getRectifierStatusFromTelemetry(rectifier);
+    const online = operationalStatus === "Online";
     if (!online) {
       const outputLow = typeof rectifier.outputCurrentA === "number" && rectifier.outputCurrentA <= 0;
       alerts.push({
@@ -3060,14 +3100,14 @@ function buildCpAlerts(data: CpMonitoringRealData): CpAlertRecord[] {
         source: "Rectifier",
         assetId: rectifier.rectifierCode,
         assetKind: "Rectifier",
-        eventType: outputLow ? "Output Current Low" : "Rectifier Offline",
+        eventType: outputLow ? "Output Current Low" : operationalStatus === "Offline" ? "Rectifier Offline" : "Rectifier Operational Status Unavailable",
         severity: outputLow ? "Critical" : "Major",
         status: "Open",
         assignee: "Unassigned",
         location: rectifier.kp || rectifier.location || "Unavailable",
         measuredValue: numberUnit(rectifier.outputCurrentA, "A"),
-        criterion: "Operational state normal/online",
-        details: `${rectifier.rectifierCode} is not reporting an online/normal operational state from the current CP Monitoring data.`,
+        criterion: "Valid operational telemetry required",
+        details: `${rectifier.rectifierCode} has master status ${rectifier.assetStatus}, but no valid operational telemetry is available.`,
         relatedRectifierId: rectifier.id
       });
     }
@@ -3273,12 +3313,8 @@ function findRectifierReading(record: CpLinkedRectifierRecord, readings: Rectifi
   return readings.find((reading) => reading.id === record.cp.id || reading.rectifierCode === record.cp.rectifierCode || reading.rectifierCode === record.asset?.assetId);
 }
 
-function getRectifierStatus(record: CpLinkedRectifierRecord, reading?: Rectifier): "Online" | "Offline" | "Warning" | "Unavailable" {
-  const status = `${reading?.readingStatus ?? ""} ${record.cp.status ?? ""}`.toLowerCase();
-  if (status.includes("offline") || status.includes("fault")) return "Offline";
-  if (status.includes("standby") || status.includes("maintenance") || status.includes("warning")) return "Warning";
-  if (status.includes("active") || status.includes("online") || status.includes("normal")) return "Online";
-  return "Unavailable";
+function getRectifierStatus(record: CpLinkedRectifierRecord, reading?: Rectifier): RectifierOperationalStatus {
+  return getRectifierOperationalStatus(reading?.readingStatus, reading?.readingAt);
 }
 
 function getRectifierAlarmStatus(record: CpLinkedRectifierRecord, reading?: Rectifier): RectifierAlarmFilter {
@@ -3287,7 +3323,7 @@ function getRectifierAlarmStatus(record: CpLinkedRectifierRecord, reading?: Rect
   if (status.includes("high current")) return "High Current";
   if (status.includes("high voltage")) return "High Voltage";
   if (status.includes("offline") || status.includes("fault")) return "No Output";
-  if (status.includes("active") || status.includes("online") || status.includes("normal")) return "Normal";
+  if (reading?.readingAt && (status.includes("active") || status.includes("online") || status.includes("normal"))) return "Normal";
   return "Unavailable";
 }
 
@@ -3332,9 +3368,8 @@ function formatDateTime(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Unavailable";
 }
 
-function isRectifierOnline(rectifier: Rectifier) {
-  const status = `${rectifier.readingStatus ?? ""} ${rectifier.assetStatus ?? ""}`.toLowerCase();
-  return status.includes("active") || status.includes("online") || status.includes("normal");
+function getRectifierStatusFromTelemetry(rectifier: Rectifier): RectifierOperationalStatus {
+  return getRectifierOperationalStatus(rectifier.readingStatus, rectifier.readingAt);
 }
 
 function roundPercent(count: number, total: number) {

@@ -1,4 +1,5 @@
 import { Panel } from "@/components/ui";
+import { SensorLifecycleCrud } from "@/components/sensor-lifecycle-crud";
 import { measurementUnits } from "@/lib/sensor-assignment-options";
 import type { ReactNode } from "react";
 
@@ -33,6 +34,7 @@ export function SensorConfigurationView() {
     : units.join(", ");
 
   return <div className="space-y-6">
+    <SensorLifecycleCrud resource="configuration" />
     <div className="grid gap-6 xl:grid-cols-2">
       <Section title="Sensor Type Templates" description="Manage sensor type definitions, default settings and metadata." action="Add Type"><ConfigRows rows={["Type Name", ...sensorTypes]} secondHeader="Measurement / Default Unit / Status / Actions" /></Section>
       <Section title="Channel Templates" description="Define channel configurations for multi-channel sensors." action="Add Channel"><ConfigRows rows={["Channel Name", ...channels]} secondHeader="Data Type / Default Unit / Status / Actions" /></Section>

@@ -59,6 +59,8 @@ export function SegmentMapCard({ pipeline, segment, segments, assets, onSelectSe
   const [retry, setRetry] = useState(0);
   const sourceSegments = segments;
   segments = useMemo(() => sourceSegments.filter(segment => segment.pipelineId === pipeline?.id).map(segment => ({ ...segment, routeGeometry: savedSegmentMapRoute(segment) ? segment.routeGeometry : undefined })), [sourceSegments, pipeline?.id]);
+  // Use the same scoped, distance-checked record for the selected preview.
+  segment = segments.find(item => item.id === segment?.id) ?? null;
   const located = assets.filter((asset) => asset.pipelineId === pipeline?.id && savedMapCoordinate(asset.latitude, asset.longitude));
   const hasLocation = (savedMapRoute(pipeline?.routeGeometry, pipeline?.pipeLengthKm ?? NaN) ?? []).length >= 2 || segments.some((item) => points(item.routeGeometry).length >= 2) || located.length > 0;
   const range = segment && segmentKp(segment.startKp) !== null && segmentKp(segment.endKp) !== null ? `KP ${segment.startKp} – ${segment.endKp}` : "KP range not recorded";

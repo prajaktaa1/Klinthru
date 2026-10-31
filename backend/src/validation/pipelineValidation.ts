@@ -207,6 +207,10 @@ export function validatePipelineInput(value: unknown) {
   return parseWithSchema(pipelineInputSchema, value);
 }
 
+export function routeGeometryMatchesSaved(candidate: unknown, existing: unknown) {
+  return JSON.stringify(candidate) === JSON.stringify(existing);
+}
+
 export function validateCpCalculationInput(value: unknown) {
   return parseWithSchema(cpCalculationSchema, value) as {
     pipelineId: string;

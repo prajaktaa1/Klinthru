@@ -10,12 +10,17 @@
     "test:save-diagnostics": "node scripts/run-save-diagnostics-tests.cjs",
     "test:api-connection": "node scripts/run-api-connection-tests.cjs",
     "test:pipeline-master": "node scripts/run-pipeline-master-tests.cjs",
+    "test:pipeline-save-safety": "node scripts/run-pipeline-save-safety-tests.cjs",
     "test:pipeline-history-actions": "node scripts/run-pipeline-history-actions-tests.cjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test:segments": "node scripts/run-segment-data-tests.cjs",
-    "test:gis-map": "node scripts/run-gis-map-tests.cjs"
+    "test:gis-map": "node scripts/run-gis-map-tests.cjs",
+    "test:map-provider": "node scripts/run-map-provider-tests.cjs",
+    "test:auth-session": "node scripts/run-auth-session-tests.cjs",
+    "test:cp-rectifier-status": "node scripts/run-cp-rectifier-status-tests.cjs",
+    "test:cp-segment-display": "node scripts/run-cp-segment-display-tests.cjs"
   },
   "dependencies": {
     "klinthru": "file:..",

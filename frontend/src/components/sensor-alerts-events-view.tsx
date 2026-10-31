@@ -1,4 +1,5 @@
 import { Panel } from "@/components/ui";
+import { SensorLifecycleCrud } from "@/components/sensor-lifecycle-crud";
 
 const unavailable = "Not Available";
 const hardwareEventTypes = ["Offline", "Weak Signal", "Low Battery", "Calibration", "Stale", "Hardware Fault"];
@@ -15,6 +16,7 @@ function DisabledAction({ children }: { children: string }) {
 export function SensorAlertsEventsView() {
   return (
     <div className="space-y-6">
+      <SensorLifecycleCrud resource="events" />
       <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-slate-900 dark:text-white">Alerts &amp; Events Center</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Monitor and manage sensor device alerts, events and hardware-related issues.</p></div><DisabledAction>Export</DisabledAction></div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">{["Critical", "Warning", "Info", "Open", "Acknowledged", "Resolved"].map((label) => <AlertMetric key={label} label={label} />)}</div>

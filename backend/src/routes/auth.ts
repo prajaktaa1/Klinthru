@@ -186,7 +186,8 @@ authRouter.post("/signup/verify-otp", async (request, response) => {
       name: verified.signup.adminName,
       email,
       passwordHash,
-      role: "Admin"
+      role: "Admin",
+      companyName: verified.signup.companyName
     });
     respondWithToken(response, user);
   } catch (error) {

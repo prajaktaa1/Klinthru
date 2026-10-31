@@ -92,3 +92,14 @@ export function getSensorTotals(sensors: SensorSummary[]) {
     { total: 0, active: 0, inactive: 0, fault: 0 }
   );
 }
+
+/** Inventory status never establishes live connectivity or reading quality. */
+export function filterSensorRecords(records: DeviceRecord[], query: string, type: string, status: string) {
+  const search = query.trim().toLowerCase();
+  return records.filter(record => !record.isDemoData && (!type || record.deviceType === type) && (!status || record.status === status) && (!search || [record.deviceId, record.deviceType, record.pipelineOrLocation].some(value => value.toLowerCase().includes(search))));
+}
+export function sensorRegistryCsv(records: DeviceRecord[]) {
+  const cell = (input: unknown) => { let value = String(input ?? "Not Available"); if (/^[\s]*[=+@-]/.test(value)) value = "'" + value; return '"' + value.replaceAll('"', '""') + '"'; };
+  const columns = ["Sensor ID", "Device Type", "Stored Location", "Inventory Status", "Connectivity", "Live Reading", "Battery", "Calibration", "Maintenance", "Registry Updated"];
+  return [columns, ...records.filter(record => !record.isDemoData).map(record => [record.deviceId, record.deviceType, record.pipelineOrLocation, record.status, "Not Available", "Not Available", "Not Available", "Not Available", "Not Available", record.lastUpdatedAt])].map(row => row.map(cell).join(",")).join("\r\n");
+}

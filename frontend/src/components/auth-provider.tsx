@@ -95,6 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAuthState(setUser);
       setAuthError(null);
       setIsReady(true);
+      if (window.location.pathname !== "/login") {
+        window.location.replace("/login");
+      }
     }
 
     void restoreSession();

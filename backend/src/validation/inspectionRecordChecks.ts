@@ -53,6 +53,9 @@ async function run() {
     assert.equal(created.reference, input.reference);
     assert.equal(created.createdBy, "Inspector");
     assert.equal(created.authorId, "engineer");
+    assert.equal((await call("PUT", { ...input, reference: "Updated inspection" }, "engineer", `/${created.id}`)).status, 423, "Edit must remain blocked when master mutation writes are disabled");
+    assert.equal((await call("DELETE", undefined, "engineer", `/${created.id}`)).status, 423, "Delete must remain blocked when master mutation writes are disabled");
+    assert.equal(saved.length, 1, "Blocked edit/delete requests must not mutate the isolated record");
     const reloaded = await call("GET", undefined, "engineer", "?pipelineId=owned-pipeline");
     assert.equal(reloaded.status, 200);
     assert.deepEqual(await reloaded.json(), [created], "Saved records must survive reloading the list");

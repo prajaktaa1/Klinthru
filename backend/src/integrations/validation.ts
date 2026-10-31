@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ConnectorInput, ConnectorPatch } from "./types";
+import { ConnectorInput, ConnectorPatch, ConnectorScopeInput } from "./types";
 import { validateRestUrl } from "./security";
 import { assertNoDangerousKeys, createValidationError, createValidationErrorFromZod } from "../validation/validationErrors";
 
@@ -29,13 +29,15 @@ export const connectorMetadataSchema = z.object({
   criticality: metadataText
 }).strict();
 const secretReference = z.string().trim().min(1).max(255).nullable().optional();
+const connectorScope = z.object({ pipelineId: z.string().trim().min(1).max(100), assetId: z.string().trim().min(1).max(100).nullable().optional() }).strict();
 
 const createSchema = z.object({
   name,
   endpoint,
   enabled: z.boolean().optional(),
   configuration,
-  secretReference
+  secretReference,
+  scope: connectorScope.optional()
 }).strict();
 
 const patchSchema = createSchema.partial().refine((value) => Object.keys(value).length > 0, "At least one field is required.");
@@ -70,6 +72,27 @@ export function validateConnectorInput(body: unknown): ConnectorInput {
 
 export function validateConnectorPatch(body: unknown): ConnectorPatch {
   return parse(patchSchema, body);
+}
+
+export type ConnectorScopeContext = {
+  userId: string;
+  role: "Admin" | "Engineer" | "Viewer";
+  companyId?: string;
+  pipeline: { id: string; createdById: string | null; companyId: string | null };
+  asset?: { id: string; pipelineId: string };
+};
+
+export function validateConnectorScope(scope: ConnectorScopeInput, context: ConnectorScopeContext): { companyId: string; pipelineId: string; assetId: string | null } {
+  if (!context.companyId || context.pipeline.companyId !== context.companyId) {
+    throw createValidationError({ scope: "Pipeline is not available in the authenticated company." });
+  }
+  if (context.pipeline.id !== scope.pipelineId || (context.role !== "Admin" && context.pipeline.createdById !== context.userId)) {
+    throw createValidationError({ scope: "Pipeline is not authorized for this account." });
+  }
+  if (scope.assetId && (!context.asset || context.asset.id !== scope.assetId || context.asset.pipelineId !== scope.pipelineId)) {
+    throw createValidationError({ scope: "Asset must belong to the selected pipeline." });
+  }
+  return { companyId: context.companyId, pipelineId: scope.pipelineId, assetId: scope.assetId ?? null };
 }
 
 export function mergeConnectorConfiguration(existing: unknown, input: Record<string, unknown> | null | undefined): Record<string, unknown> | null | undefined {

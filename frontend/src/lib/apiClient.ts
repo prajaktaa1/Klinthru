@@ -27,6 +27,12 @@ import {
 } from "@/lib/types";
 import type { SettingsAuditLogResponse, SettingsDictionariesResponse, SettingsNotificationsResponse, SettingsRolesResponse, SettingsSystemConfigurationResponse, SettingsThresholdsResponse, SettingsUnitsResponse, SettingsUsersResponse, SettingsWorkflowsResponse } from "@/lib/settings-types";
 
+export type SensorCalibrationRecord = { id: string; calibrationId: string; sensorId: string; channelId: string | null; calibratedAt: string | null; dueAt: string | null; status: string; provider: string | null; result: string | null; certificateDocumentId: string | null; notes: string | null; ownerId: string; createdById: string; createdAt: string; updatedAt: string };
+export type SensorMaintenanceTask = { id: string; taskId: string; sensorId: string | null; maintenanceType: string; priority: string; plannedAt: string | null; dueAt: string | null; completedAt: string | null; status: string; workOrder: string | null; assignedTo: string | null; notes: string | null; ownerId: string; createdById: string; createdAt: string; updatedAt: string };
+export type SensorHardwareEvent = { id: string; eventId: string; sensorId: string | null; gatewayId: string | null; eventType: string; severity: string; status: string; occurredAt: string; acknowledgedAt: string | null; resolvedAt: string | null; message: string; source: string; ownerId: string; createdAt: string; updatedAt: string };
+export type SensorConfigurationVersion = { id: string; versionId: string; version: number; status: string; payload: Record<string, unknown>; ownerId: string; createdById: string; publishedAt: string | null; createdAt: string; updatedAt: string };
+export type SensorLifecycleWriteBlocked = { error: "Sensor lifecycle writes are disabled"; message: string };
+
 export type CorrosionGrowthResultPayload = {
   status: string;
   methodology: string;
@@ -162,6 +168,9 @@ export function fetchMasterAsset(id: string): Promise<AssetMasterAssetRecord> {
 export function fetchMasterSegments(pipelineId: string): Promise<AssetMasterSegmentRecord[]> {
   return request(`/api/asset-master/segments?pipelineId=${encodeURIComponent(pipelineId)}`);
 }
+export function fetchMasterChangeLog(pipelineId: string): Promise<SettingsAuditLogResponse> {
+  return request<SettingsAuditLogResponse>(`/api/asset-master/change-log?pipelineId=${encodeURIComponent(pipelineId)}`);
+}
 
 export function createMasterSegment(segment: Omit<AssetMasterSegmentRecord, "id" | "createdAt" | "updatedAt">): Promise<AssetMasterSegmentRecord> {
   return request<AssetMasterSegmentRecord>("/api/asset-master/segments", { method: "POST", body: JSON.stringify(segment) });
@@ -169,6 +178,9 @@ export function createMasterSegment(segment: Omit<AssetMasterSegmentRecord, "id"
 
 export function updateMasterSegment(id: string, segment: Omit<AssetMasterSegmentRecord, "id" | "createdAt" | "updatedAt">): Promise<AssetMasterSegmentRecord> {
   return request<AssetMasterSegmentRecord>(`/api/asset-master/segments/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(segment) });
+}
+export function deleteMasterSegment(id: string): Promise<void> {
+  return request<void>(`/api/asset-master/segments/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 export function fetchMasterAssets(pipelineId: string, segmentId?: string): Promise<AssetMasterAssetRecord[]> {
@@ -183,6 +195,9 @@ export function createMasterAsset(asset: Omit<AssetMasterAssetRecord, "id" | "cr
 
 export function updateMasterAsset(id: string, asset: Omit<AssetMasterAssetRecord, "id" | "createdAt" | "updatedAt">): Promise<AssetMasterAssetRecord> {
   return request<AssetMasterAssetRecord>(`/api/asset-master/assets/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(asset) });
+}
+export function deleteMasterAsset(id: string): Promise<void> {
+  return request<void>(`/api/asset-master/assets/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 export function fetchScadaHistory(tagId: string, hours = 24, start?: string, end?: string, resolutionMinutes?: number, aggregation = "Average"): Promise<ScadaHistory> {
@@ -563,6 +578,15 @@ export type ReportWorkspaceData = {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4002";
 const API_REQUEST_TIMEOUT_MS = 30000;
+const API_TRANSFER_TIMEOUT_MS = 180000;
+// Large document bodies are base64 JSON (about 4/3 the PDF size). Keep the
+// server's 25 MiB file limit unchanged, but give the upload transaction time
+// to finish so a slow response cannot cause an unsafe blind retry.
+const API_UPLOAD_TIMEOUT_MS = 180000;
+
+function requestBodyBytes(init?: RequestInit) {
+  return typeof init?.body === "string" ? new TextEncoder().encode(init.body).byteLength : 0;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -619,6 +643,7 @@ export type SignupOtpInput = {
 export type LetterHeadRecord = {
   fileName: string;
   fileSize: number;
+  fileHash?: string | null;
   fileType: string;
   fileData: string;
   uploadedAt: string;
@@ -632,6 +657,7 @@ export type DocumentVersionRecord = {
   fileName: string;
   mimeType: string;
   fileSize: number;
+  fileHash?: string | null;
   approvalStatus: string;
   validityStatus: string | null;
   processingStatus: string | null;
@@ -677,16 +703,20 @@ export type DocumentRepositoryOverview = {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getStoredAuthToken();
   const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
   let response: Response;
   const method = init?.method ?? "GET";
   const diagnosticPath = getSanitizedRequestPath(path);
+  const bodyBytes = requestBodyBytes(init);
+  const requestTimeoutMs = bodyBytes > 1024 * 1024 ? API_UPLOAD_TIMEOUT_MS : API_REQUEST_TIMEOUT_MS;
+  const timeout = globalThis.setTimeout(() => controller.abort(), requestTimeoutMs);
 
   logSaveDiagnostic({
     event: "api_request_start",
     apiBaseUrl: API_BASE_URL,
     requestMethod: method,
     requestPath: diagnosticPath,
+    requestBodyBytes: bodyBytes,
+    requestTimeoutMs,
     authTokenExists: Boolean(token),
     fetchStarted: true
   });
@@ -708,6 +738,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       apiBaseUrl: API_BASE_URL,
       requestMethod: method,
       requestPath: diagnosticPath,
+      requestBodyBytes: bodyBytes,
+      requestTimeoutMs,
       authTokenExists: Boolean(token),
       fetchStarted: true,
       responseStatus: response.status
@@ -752,6 +784,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       apiBaseUrl: API_BASE_URL,
       requestMethod: method,
       requestPath: diagnosticPath,
+      requestBodyBytes: bodyBytes,
+      requestTimeoutMs,
       authTokenExists: Boolean(token),
       fetchStarted: true,
       errorName: getSanitizedErrorName(error)
@@ -763,16 +797,50 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 }
 
+async function requestUpload<T>(path: string, input: Record<string, unknown>, onProgress?: (percent: number) => void): Promise<T> {
+  const token = getStoredAuthToken();
+  const body = JSON.stringify(input);
+  const bodyBytes = requestBodyBytes({ body });
+  const diagnosticPath = getSanitizedRequestPath(path);
+  logSaveDiagnostic({ event: "api_request_start", apiBaseUrl: API_BASE_URL, requestMethod: "POST", requestPath: diagnosticPath, requestBodyBytes: bodyBytes, requestTimeoutMs: API_UPLOAD_TIMEOUT_MS, authTokenExists: Boolean(token), fetchStarted: true });
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE_URL}${path}`);
+    xhr.timeout = API_UPLOAD_TIMEOUT_MS;
+    xhr.setRequestHeader("Content-Type", "application/json");
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.onprogress = (event) => { if (event.lengthComputable) onProgress?.(Math.min(99, Math.round((event.loaded / event.total) * 100))); };
+    xhr.onload = () => {
+      logSaveDiagnostic({ event: "api_response", apiBaseUrl: API_BASE_URL, requestMethod: "POST", requestPath: diagnosticPath, requestBodyBytes: bodyBytes, requestTimeoutMs: API_UPLOAD_TIMEOUT_MS, authTokenExists: Boolean(token), fetchStarted: true, responseStatus: xhr.status });
+      let parsed: unknown = undefined;
+      try { parsed = xhr.responseText ? JSON.parse(xhr.responseText) : undefined; } catch { /* status fallback below */ }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const bodyData = parsed as { message?: string; error?: string; fields?: Record<string, string> } | undefined;
+        let message = bodyData?.message || bodyData?.error || `API request failed: ${xhr.status}`;
+        if (bodyData?.fields && Object.keys(bodyData.fields).length) message = `${message} (${Object.entries(bodyData.fields).map(([field, detail]) => `${field}: ${detail}`).join("; ")})`;
+        reject(new ApiError(message, xhr.status, bodyData?.fields));
+        return;
+      }
+      onProgress?.(100);
+      resolve(parsed as T);
+    };
+    xhr.onerror = () => reject(new BackendUnavailableError());
+    xhr.ontimeout = () => reject(new ApiTimeoutError());
+    xhr.onabort = () => reject(new ApiTimeoutError());
+    try { xhr.send(body); } catch (error) { reject(error); }
+  });
+}
+
 async function requestBlob(path: string, init?: RequestInit): Promise<Blob> {
   const token = getStoredAuthToken();
   const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
+  const timeout = globalThis.setTimeout(() => controller.abort(), API_TRANSFER_TIMEOUT_MS);
 
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       headers: {
-        "Content-Type": "application/json",
+        Accept: "application/octet-stream",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(init?.headers || {})
       },
@@ -934,8 +1002,12 @@ export function fetchDocuments(filters: { q?: string; documentType?: string; cat
   return request(`/api/documents?${params.toString()}`);
 }
 
-export function createRepositoryDocument(input: Record<string, unknown>): Promise<{ item: DocumentRepositoryItem }> {
-  return request("/api/documents", { method: "POST", body: JSON.stringify(input) });
+export function createRepositoryDocument(input: Record<string, unknown>, onProgress?: (percent: number) => void): Promise<{ item: DocumentRepositoryItem }> {
+  return requestUpload(input.category === "Asset Photo" ? "/api/documents/asset-photos" : "/api/documents", input, onProgress);
+}
+
+export function createAssetPhoto(input: { assetId: string; fileName: string; mimeType: string; fileData: string }): Promise<{ item: DocumentRepositoryItem }> {
+  return request("/api/documents/asset-photos", { method: "POST", body: JSON.stringify(input) });
 }
 
 export function fetchRepositoryDocument(documentId: string): Promise<{ item: DocumentRepositoryItem }> {
@@ -952,6 +1024,10 @@ export function createDocumentVersion(documentId: string, input: Record<string, 
 
 export function linkExistingDocument(documentId: string, input: { pipelineId?: string; segmentId?: string; assetId?: string }): Promise<{ items: unknown[] }> {
   return request(`/api/documents/${encodeURIComponent(documentId)}/links`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function deleteRepositoryDocument(documentId: string): Promise<void> {
+  return request<void>(`/api/documents/${encodeURIComponent(documentId)}`, { method: "DELETE" });
 }
 
 export function downloadDocumentVersion(documentId: string, versionId: string): Promise<Blob> {
@@ -1000,6 +1076,10 @@ export function fetchDeviceRecords(search?: {
 
   const query = params.toString();
   return request<DeviceRecord[]>(`/api/devices${query ? `?${query}` : ""}`);
+}
+
+export function fetchSensorMasterLinks(): Promise<import("@/lib/types").SensorMasterLink[]> {
+  return request("/api/devices/relationships");
 }
 
 export function fetchCpMonitoringData(pipelineId: string): Promise<CpMonitoringRealData> {
@@ -1199,6 +1279,12 @@ export function fetchInspectionRecords(pipelineId: string): Promise<InspectionRe
 export function createInspectionRecord(input: InspectionRecordInput): Promise<InspectionRecord> {
   return request("/api/inspection-records", { method: "POST", body: JSON.stringify(input) });
 }
+export function updateInspectionRecord(id: string, input: InspectionRecordInput): Promise<InspectionRecord> {
+  return request<InspectionRecord>(`/api/inspection-records/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(input) });
+}
+export function deleteInspectionRecord(id: string): Promise<void> {
+  return request<void>(`/api/inspection-records/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
 
 export function fetchPipelineHistory(id: string): Promise<PipelineHistory> {
   return request<PipelineHistory>(`/api/pipelines/${id}/history`);
@@ -1377,7 +1463,7 @@ export function fetchIntegrationConnector(id: string): Promise<IntegrationConnec
   return request(`/api/integrations/connectors/${encodeURIComponent(id)}`);
 }
 
-export function createIntegrationConnector(input: { name: string; endpoint: string; configuration?: Record<string, unknown>; secretReference?: string | null }): Promise<IntegrationConnectorRecord> {
+export function createIntegrationConnector(input: { name: string; endpoint: string; configuration?: Record<string, unknown>; secretReference?: string | null; scope?: { pipelineId: string; assetId?: string | null } }): Promise<IntegrationConnectorRecord> {
   return request("/api/integrations/connectors", { method: "POST", body: JSON.stringify(input) });
 }
 
@@ -1489,4 +1575,19 @@ export function fetchDesignBasisHistory(basisId: string, page = 1): Promise<{ it
 export function exportDesignBases(filters: Partial<BasisFilters>): Promise<Blob> { return requestBlob(`${designBasisPath}/export?${designBasisQuery(filters)}`); }
 export function mutateDesignBasis(path: string, body: Record<string, unknown>, method: "POST" | "PATCH" = "POST"): Promise<{ basisId: string; revisionId: string; replayed: boolean }> {
   return request(`${designBasisPath}${path}`, { method, body: JSON.stringify(body) });
+}
+
+const sensorLifecyclePath = "/api/sensor-lifecycle";
+export function fetchSensorCalibrations(): Promise<SensorCalibrationRecord[]> { return request(`${sensorLifecyclePath}/calibrations`); }
+export function fetchSensorMaintenanceTasks(): Promise<SensorMaintenanceTask[]> { return request(`${sensorLifecyclePath}/maintenance`); }
+export function fetchSensorHardwareEvents(): Promise<SensorHardwareEvent[]> { return request(`${sensorLifecyclePath}/events`); }
+export function fetchSensorConfigurationVersions(): Promise<SensorConfigurationVersion[]> { return request(`${sensorLifecyclePath}/configuration`); }
+export function createSensorLifecycleRecord(resource: "calibrations" | "maintenance" | "events" | "configuration", body: Record<string, unknown>): Promise<unknown> {
+  return request(`${sensorLifecyclePath}/${resource}`, { method: "POST", body: JSON.stringify(body) });
+}
+export function updateSensorLifecycleRecord(resource: "calibrations" | "maintenance" | "events" | "configuration", id: string, body: Record<string, unknown>): Promise<unknown> {
+  return request(`${sensorLifecyclePath}/${resource}/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) });
+}
+export function deleteSensorLifecycleRecord(resource: "calibrations" | "maintenance" | "events" | "configuration", id: string): Promise<void> {
+  return request(`${sensorLifecyclePath}/${resource}/${encodeURIComponent(id)}`, { method: "DELETE" });
 }

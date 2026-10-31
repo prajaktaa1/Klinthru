@@ -60,7 +60,7 @@ export function filterMasterChanges(rows: MasterChangeRow[], filters: ChangeFilt
     && (!filters.to || Boolean(changeDay(row.occurredAt) && changeDay(row.occurredAt) <= filters.to))
     && (filters.group === "ALL" || row.entity === filters.group)
     && (filters.user === "ALL" || (row.userId ?? "MISSING") === filters.user)
-    && (filters.status === "ALL" || filters.status === "MISSING")
+    && (filters.status === "ALL" || (filters.status === "MISSING" ? !row.result : row.result === filters.status))
     && (!query || [row.eventId, row.recordId, row.recordLabel, row.changedField, row.userId, row.userName, row.details, changeValue(row.before), changeValue(row.after)].some((value) => value?.toLowerCase().includes(query))));
 }
 export function monthlyChanges(rows: MasterChangeRow[], now = new Date()) {

@@ -15,6 +15,7 @@
     "validation:cors": "tsx src/validation/corsChecks.ts",
     "validation:save-diagnostics": "tsx src/validation/saveDiagnosticsChecks.ts",
     "validation:pipeline-master": "tsx src/validation/pipelineMasterChecks.ts",
+    "validation:pipeline-metadata-save": "tsx src/validation/pipelineMetadataSaveChecks.ts",
     "validation:asset-master": "tsx src/validation/assetMasterChecks.ts",
     "validation:inspection-records": "tsx src/validation/inspectionRecordChecks.ts",
     "validation:pipeline-history-actions": "tsx src/validation/pipelineHistoryActionsChecks.ts",
@@ -32,6 +33,7 @@
     "validation:chainage": "tsx src/validation/chainageChecks.ts",
     "validation:chainage-database": "tsx src/validation/chainageDatabaseChecks.ts",
     "validation:gis-map": "tsx src/validation/gisMapChecks.ts",
+    "validation:sensor-lifecycle": "tsx src/validation/sensorLifecycleContractChecks.ts",
     "audit:gis-map": "node src/validation/gisMapAudit.cjs"
   },
   "dependencies": {

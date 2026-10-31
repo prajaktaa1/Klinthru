@@ -6,6 +6,7 @@ import { requireAuth } from "../middleware/auth";
 import { createId } from "../lib/ids";
 import { validateInspectionRecord } from "../validation/inspectionRecordValidation";
 import { createValidationError } from "../validation/validationErrors";
+import { env } from "../config/env";
 
 export const inspectionRecordsRouter = Router();
 inspectionRecordsRouter.use(requireAuth);
@@ -52,5 +53,34 @@ inspectionRecordsRouter.post("/", async (request, response, next) => {
       input.vendor, input.findings, input.status, input.nextDue, input.risk, request.user!.id, request.user!.name
     );
     response.status(201).json(records[0]);
+  } catch (error) { next(error); }
+});
+
+inspectionRecordsRouter.put("/:id", async (request, response, next) => {
+  try {
+    if (!canModifyMasterData(request.user!)) { response.status(403).json({ message: "Only Admin and Engineer roles may edit inspection records." }); return; }
+    if (!env.masterMutationWritesEnabled) { response.status(423).json({ message: "Inspection editing is disabled until isolated security and database tests are approved." }); return; }
+    const input = validateInspectionRecord(request.body);
+    const db = database();
+    const existing = await db.$queryRawUnsafe<Array<{ pipelineId: string }>>('SELECT "pipelineId" FROM "InspectionRecord" WHERE "id" = $1', request.params.id);
+    if (!existing[0] || !await store.findPipelineById(existing[0].pipelineId, ownerScope(request.user!))) { response.status(404).json({ message: "Inspection record not found." }); return; }
+    if (input.pipelineId !== existing[0].pipelineId || (input.segmentId && !(await store.findSegmentById(input.segmentId, ownerScope(request.user!))))) { response.status(400).json({ message: "The inspection record must remain within its owned pipeline and segment." }); return; }
+    const records = await db.$queryRawUnsafe<unknown[]>(
+      `UPDATE "InspectionRecord" SET "reference"=$1, "type"=$2, "date"=$3, "segmentId"=$4, "vendor"=$5, "findings"=$6, "status"=$7, "nextDue"=$8, "risk"=$9 WHERE "id"=$10 RETURNING *`,
+      input.reference, input.type, input.date, input.segmentId, input.vendor, input.findings, input.status, input.nextDue, input.risk, request.params.id
+    );
+    response.json(records[0]);
+  } catch (error) { next(error); }
+});
+
+inspectionRecordsRouter.delete("/:id", async (request, response, next) => {
+  try {
+    if (!canModifyMasterData(request.user!)) { response.status(403).json({ message: "Only Admin and Engineer roles may delete inspection records." }); return; }
+    if (!env.masterMutationWritesEnabled) { response.status(423).json({ message: "Inspection deletion is disabled until isolated security and database tests are approved." }); return; }
+    const db = database();
+    const existing = await db.$queryRawUnsafe<Array<{ pipelineId: string }>>('SELECT "pipelineId" FROM "InspectionRecord" WHERE "id" = $1', request.params.id);
+    if (!existing[0] || !await store.findPipelineById(existing[0].pipelineId, ownerScope(request.user!))) { response.status(404).json({ message: "Inspection record not found." }); return; }
+    await db.$executeRawUnsafe('DELETE FROM "InspectionRecord" WHERE "id" = $1', request.params.id);
+    response.status(204).send();
   } catch (error) { next(error); }
 });

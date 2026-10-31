@@ -35,7 +35,14 @@ export const env = {
   resendApiKey: readTrimmed(process.env.RESEND_API_KEY),
   // Reports contract writes remain disabled until the separately approved
   // migration, backup, permission and deployment gates are complete.
-  reportsBackendWritesEnabled: readTrimmed(process.env.REPORTS_BACKEND_WRITES_ENABLED) === "true"
+  reportsBackendWritesEnabled: readTrimmed(process.env.REPORTS_BACKEND_WRITES_ENABLED) === "true",
+  // These remain off until the additive migration has been validated in the
+  // disposable Neon project and explicitly approved for activation.
+  sensorLifecycleWritesEnabled: readTrimmed(process.env.SENSOR_LIFECYCLE_WRITES_ENABLED) === "true",
+  companySignupWritesEnabled: readTrimmed(process.env.COMPANY_SIGNUP_WRITES_ENABLED) === "true",
+  // Destructive master-data and inspection mutations stay disabled until the
+  // isolated security/database test gate is approved.
+  masterMutationWritesEnabled: readTrimmed(process.env.MASTER_MUTATION_WRITES_ENABLED) === "true"
 };
 
 export const isProduction = env.nodeEnv === "production";

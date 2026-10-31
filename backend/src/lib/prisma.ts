@@ -25,8 +25,9 @@ type PrismaClientLike = {
   riskMethodologyVersion?: import("../types/riskAssessment").RiskReadClient["riskMethodologyVersion"];
   $connect(): Promise<void>;
   $disconnect(): Promise<void>;
-  $transaction<T>(callback: (client: Omit<PrismaClientLike, "$transaction" | "$connect" | "$disconnect">) => Promise<T>, options?: { timeout?: number }): Promise<T>;
+  $transaction<T>(callback: (client: Omit<PrismaClientLike, "$transaction" | "$connect" | "$disconnect">) => Promise<T>, options?: { maxWait?: number; timeout?: number }): Promise<T>;
   $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
+  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
   user: {
     count(args?: unknown): Promise<number>;
     findMany(args: unknown): Promise<any[]>;

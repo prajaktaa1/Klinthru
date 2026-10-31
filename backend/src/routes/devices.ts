@@ -10,6 +10,34 @@ export const devicesRouter = Router();
 
 devicesRouter.use(requireAuth);
 
+devicesRouter.get("/relationships", async (request, response, next) => {
+  try {
+    const scope = ownerScope(request.user!);
+    const [devices, pipelines] = await Promise.all([store.listDevices(scope), store.listPipelines(scope)]);
+    const realDevices = devices.filter((device) => !device.isDemoData);
+    const result: Array<Record<string, unknown>> = [];
+    for (const pipeline of pipelines) {
+      const candidates = realDevices.filter((device) => device.pipelineOrLocation.split("/")[0]?.trim().toLowerCase() === pipeline.pipelineCode.toLowerCase());
+      if (!candidates.length) continue;
+      const [segments, assets] = await Promise.all([
+        store.listSegments({ pipelineId: pipeline.id, ...scope }),
+        store.listAssets({ pipelineId: pipeline.id, ...scope })
+      ]);
+      for (const device of candidates) {
+        const parts = device.pipelineOrLocation.split("/").map((part) => part.trim());
+        const segment = segments.find((item) => item.segmentId.toLowerCase() === (parts[1] ?? "").toLowerCase());
+        const kp = parts[2]?.replace(/^KP\s*/i, "");
+        const asset = assets.find((item) => item.assetId === device.deviceId && item.segmentId === segment?.id && String(item.kp ?? "") === String(kp ?? ""));
+        if (!segment || !asset) continue;
+        result.push({ sensorId: device.deviceId, pipelineId: pipeline.id, pipelineCode: pipeline.pipelineCode, pipelineName: pipeline.pipelineName, segmentRecordId: segment.id, segmentId: segment.segmentId, assetRecordId: asset.id, assetId: asset.assetId, assetName: asset.name, kp: asset.kp, unit: device.unit, status: device.status, monitoringPoint: null, channel: null, provenance: "Device registry + Asset Master" });
+      }
+    }
+    response.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 devicesRouter.get("/", async (request, response, next) => {
   try {
     const records = await store.listDevices({

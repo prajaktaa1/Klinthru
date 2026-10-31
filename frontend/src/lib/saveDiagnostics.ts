@@ -11,6 +11,8 @@ type SaveDiagnosticEvent = {
   apiBaseUrl?: string;
   requestMethod?: string;
   requestPath?: string;
+  requestBodyBytes?: number;
+  requestTimeoutMs?: number;
   authTokenExists?: boolean;
   fetchStarted?: boolean;
   responseStatus?: number;

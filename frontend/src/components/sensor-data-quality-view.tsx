@@ -1,134 +1,62 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle2, Clock3, Download, Filter, Gauge, Search, ShieldAlert } from "lucide-react";
 import { Panel } from "@/components/ui";
+import type { DeviceRecord, DeviceType } from "@/lib/types";
 
 const unavailable = "Not Available";
+const action = "inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slateblue-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800";
+const deviceTypes: DeviceType[] = ["Flow Meter", "Level Switch", "Pressure Transmitter", "Temperature Sensor", "Discharge Sensor", "Flow Control Valve", "CP Monitoring Module", "Pressure Relief Valve (PRV)"];
 
-const issueCategories = [
-  "Missing Values",
-  "Stale Records",
-  "Range Violations",
-  "Flatline Detected",
-  "Bad Quality"
-];
+function pipelineOf(record: DeviceRecord) { return record.pipelineOrLocation.split("/")[0]?.trim() || unavailable; }
+function displayDate(value: string) { const timestamp = Date.parse(value); return Number.isFinite(timestamp) ? new Date(timestamp).toLocaleString() : unavailable; }
 
-const issueStatuses = ["Open", "In Progress", "Resolved"];
-
-function QualityMetric({ label }: { label: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-panel dark:border-slate-700 dark:bg-slate-900">
-      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</p>
-      <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">{unavailable}</p>
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Verified sensor data unavailable</p>
-      <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">Change: {unavailable}</p>
-    </div>
-  );
+function Kpi({ label, metric, detail, Icon, tone }: { label: string; metric: string | number; detail?: string; Icon: typeof Gauge; tone: string }) {
+  return <div className="flex min-w-0 min-h-[68px] items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 shadow-panel dark:border-slate-700 dark:bg-slate-900"><span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${tone}`}><Icon size={16} /></span><div className="min-w-0"><p className="text-base font-bold leading-none text-slate-900 dark:text-white">{metric}</p><p className="mt-1 truncate text-[11px] font-semibold text-slate-600 dark:text-slate-300">{label}</p>{detail ? <p className="mt-0.5 truncate text-[10px] text-slate-500">{detail}</p> : null}</div></div>;
 }
 
-function EmptyChart({ title, legend }: { title: string; legend: string[] }) {
-  return (
-    <Panel>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h3>
-        <span className="text-xs text-slate-500 dark:text-slate-400">{unavailable}</span>
-      </div>
-      <div className="mt-5 flex min-h-40 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
-        No verified sensor quality series are available.
-      </div>
-      <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-400">
-        {legend.map((item) => <span key={item}>* {item}</span>)}
-      </div>
-    </Panel>
-  );
+function EmptyChart({ title, subtitle, Icon }: { title: string; subtitle: string; Icon: typeof Gauge }) {
+  return <Panel className="sensor-quality-chart min-w-0 !rounded-xl !p-3"><div className="flex items-start gap-2"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-slate-100 text-slateblue-600 dark:bg-slate-800"><Icon size={15} /></span><div className="min-w-0"><h3 className="truncate text-sm font-semibold text-slate-900 dark:text-white">{title}</h3><p className="truncate text-[10px] text-slate-500">{subtitle}</p></div></div><div className="relative mt-2.5 h-28 rounded-md border border-dashed border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-950"><div className="absolute inset-x-3 top-1/4 border-t border-slate-200 dark:border-slate-800" /><div className="absolute inset-x-3 top-1/2 border-t border-slate-200 dark:border-slate-800" /><div className="absolute inset-x-3 top-3/4 border-t border-slate-200 dark:border-slate-800" /><span className="absolute inset-0 grid place-items-center text-xs font-semibold text-slate-500">{unavailable}</span></div><p className="mt-2 truncate text-[10px] text-slate-500">Verified historical quality series are unavailable.</p></Panel>;
 }
 
-export function SensorDataQualityView() {
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {[
-          "Data Validity",
-          "Data Completeness",
-          "Data Freshness",
-          "Missing Values",
-          "Stale Records",
-          "Bad Quality Readings"
-        ].map((label) => <QualityMetric key={label} label={label} />)}
-      </div>
+export function SensorDataQualityView({ records, isLoading, errorMessage, onViewSensor }: { records: DeviceRecord[]; isLoading: boolean; errorMessage: string | null; onViewSensor: (record: DeviceRecord) => void }) {
+  const [query, setQuery] = useState("");
+  const [pipeline, setPipeline] = useState("");
+  const [type, setType] = useState("");
+  const [status, setStatus] = useState("");
+  const [period, setPeriod] = useState("");
+  const realRecords = useMemo(() => records.filter(record => !record.isDemoData), [records]);
+  const pipelines = useMemo(() => Array.from(new Set(realRecords.map(pipelineOf).filter(item => item !== unavailable))), [realRecords]);
+  const filtered = useMemo(() => {
+    const now = Date.now();
+    const age = period === "24h" ? 86400000 : period === "7d" ? 604800000 : period === "30d" ? 2592000000 : 0;
+    return realRecords.filter(record => {
+      const text = `${record.deviceId} ${record.deviceType} ${record.pipelineOrLocation}`.toLowerCase();
+      const timestamp = Date.parse(record.lastUpdatedAt);
+      return (!query.trim() || text.includes(query.trim().toLowerCase())) && (!pipeline || pipelineOf(record) === pipeline) && (!type || record.deviceType === type) && (!status || record.status === status) && (!age || (Number.isFinite(timestamp) && now - timestamp <= age));
+    });
+  }, [realRecords, query, pipeline, type, status, period]);
 
-      <Panel>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Pipeline
-            <select disabled className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal text-slate-500 dark:border-slate-700 dark:bg-slate-950">
-              <option>All Pipelines</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Sensor Type
-            <select disabled className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal text-slate-500 dark:border-slate-700 dark:bg-slate-950">
-              <option>All Types</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Status
-            <select disabled className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal text-slate-500 dark:border-slate-700 dark:bg-slate-950">
-              <option>All Statuses</option>
-            </select>
-          </label>
-          <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Time Period
-            <select disabled className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-normal text-slate-500 dark:border-slate-700 dark:bg-slate-950">
-              <option>Last 30 days</option>
-            </select>
-          </label>
-          <button type="button" disabled className="self-end rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 dark:border-slate-700">
-            Reset Filters
-          </button>
-        </div>
-      </Panel>
+  function reset() { setQuery(""); setPipeline(""); setType(""); setStatus(""); setPeriod(""); }
+  function exportQuality() {
+    const rows = [["Sensor Name", "Sensor ID", "Pipeline", "Type", "Validity", "Completeness", "Freshness", "Issues", "Status", "Registry Updated"], ...filtered.map(record => [record.deviceId, record.deviceId, pipelineOf(record), record.deviceType, unavailable, unavailable, unavailable, unavailable, record.status, record.lastUpdatedAt])];
+    const cell = (input: unknown) => `"${String(input ?? unavailable).replaceAll('"', '""')}"`;
+    const url = URL.createObjectURL(new Blob([rows.map(row => row.map(cell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = "sensor-data-quality.csv"; link.style.display = "none"; document.body.appendChild(link); link.click(); window.setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 500);
+  }
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <EmptyChart title="Data Quality Trend" legend={["Validity", "Completeness", "Freshness"]} />
-        <EmptyChart title="Quality Issues by Category" legend={issueCategories} />
-        <div className="xl:col-span-2"><EmptyChart title="Quality Issue Trend" legend={issueCategories} /></div>
-      </div>
+  if (isLoading) return <Panel><p role="status" className="text-sm text-slate-500">Loading sensor data quality records...</p></Panel>;
+  if (errorMessage) return <Panel><p role="alert" className="text-sm text-rose-700">{errorMessage}</p></Panel>;
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Panel>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Sensor Data Quality</h3>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Showing {unavailable} verified sensor quality records</p>
-            </div>
-            <button type="button" disabled className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-400 dark:border-slate-700">Export</button>
-          </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700">
-                <tr>{["Sensor Name", "Pipeline", "Type", "Validity", "Completeness", "Freshness", "Issues", "Status", "Trend"].map((cell) => <th key={cell} className="px-3 py-3 font-semibold">{cell}</th>)}</tr>
-              </thead>
-              <tbody><tr><td colSpan={9} className="px-3 py-8 text-center text-slate-500 dark:text-slate-400">{unavailable} - sensor quality records are unavailable.</td></tr></tbody>
-            </table>
-          </div>
-        </Panel>
-
-        <Panel>
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Recent Data Quality Issues</h3>
-            <button type="button" disabled className="text-sm font-semibold text-slate-400">View All Issues</button>
-          </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700">
-                <tr>{["Time", "Sensor Name", "Issue Type", "Message", "Status", "Actions"].map((cell) => <th key={cell} className="px-3 py-3 font-semibold">{cell}</th>)}</tr>
-              </thead>
-              <tbody><tr><td colSpan={6} className="px-3 py-8 text-center text-slate-500 dark:text-slate-400">{unavailable} - no sensor quality issues are available.</td></tr></tbody>
-            </table>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
-            {issueStatuses.map((status) => <span key={status}>{status}</span>)}
-          </div>
-        </Panel>
-      </div>
+  return <div className="sensors-quality-view space-y-3" aria-label="Sensor data quality view">
+    <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Data Quality</h2><p className="mt-0.5 text-xs text-slate-500">Validate sensor measurements, freshness and quality exceptions.</p></div><button type="button" className={action} onClick={exportQuality} disabled={!filtered.length}><Download size={14} />Export</button></div>
+    <div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"><Kpi label="Data Validity" metric={unavailable} detail="Quality field unavailable" Icon={CheckCircle2} tone="bg-slate-100 text-slate-500 dark:bg-slate-800" /><Kpi label="Data Completeness" metric={unavailable} detail="Measurement source unavailable" Icon={Gauge} tone="bg-slate-100 text-slate-500 dark:bg-slate-800" /><Kpi label="Data Freshness" metric={unavailable} detail="Freshness source unavailable" Icon={Clock3} tone="bg-slate-100 text-slate-500 dark:bg-slate-800" /><Kpi label="Missing Values" metric={unavailable} detail="Quality exceptions unavailable" Icon={AlertTriangle} tone="bg-slate-100 text-slate-500 dark:bg-slate-800" /><Kpi label="Stale Records" metric={unavailable} detail="Freshness exceptions unavailable" Icon={Clock3} tone="bg-slate-100 text-slate-500 dark:bg-slate-800" /><Kpi label="Bad Quality Readings" metric={unavailable} detail="Quality exceptions unavailable" Icon={ShieldAlert} tone="bg-slate-100 text-slate-500 dark:bg-slate-800" /></div>
+    <Panel className="sensor-quality-filters !rounded-xl !p-3"><div className="grid items-end gap-2 lg:grid-cols-[minmax(130px,0.8fr)_repeat(4,minmax(125px,1fr))_auto]"><div className="flex items-center gap-2 pb-1"><Filter size={15} className="shrink-0 text-slateblue-600" /><h3 className="text-sm font-semibold">Quality Filters</h3></div><label className="text-[11px] font-semibold text-slate-600">Pipeline<select aria-label="Quality pipeline filter" value={pipeline} onChange={event => setPipeline(event.target.value)} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-900"><option value="">All Pipelines</option>{pipelines.map(item => <option key={item}>{item}</option>)}</select></label><label className="text-[11px] font-semibold text-slate-600">Sensor Type<select aria-label="Quality sensor type filter" value={type} onChange={event => setType(event.target.value)} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-900"><option value="">All Types</option>{deviceTypes.map(item => <option key={item}>{item}</option>)}</select></label><label className="text-[11px] font-semibold text-slate-600">Status<select aria-label="Quality status filter" value={status} onChange={event => setStatus(event.target.value)} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-900"><option value="">All Statuses</option><option>Active</option><option>Inactive</option><option>Fault</option></select></label><label className="text-[11px] font-semibold text-slate-600">Date Range<select aria-label="Quality date filter" value={period} onChange={event => setPeriod(event.target.value)} className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-900"><option value="">All Dates</option><option value="24h">Last 24 hours</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select></label><button type="button" className={`${action} w-full lg:w-auto`} onClick={reset}>Reset Filters</button></div></Panel>
+    <div className="grid min-w-0 gap-3 lg:grid-cols-3"><EmptyChart title="Data Quality Trend" subtitle="Validity, completeness and freshness" Icon={Gauge} /><EmptyChart title="Quality Issues by Category" subtitle="Verified quality exceptions" Icon={AlertTriangle} /><EmptyChart title="Quality Issue Trend" subtitle="Historical quality issues" Icon={Clock3} /></div>
+    <div className="grid min-w-0 items-stretch gap-3 lg:grid-cols-2">
+      <Panel className="min-w-0 !rounded-xl !p-3"><div className="mb-2 flex flex-wrap items-end justify-between gap-2"><div className="min-w-0"><h3 className="text-base font-bold">Sensor Data Quality</h3><p className="text-xs text-slate-500">Showing {filtered.length} of {realRecords.length} registry sensors; measurement quality fields remain {unavailable}.</p></div><label className="relative shrink-0"><Search size={14} className="pointer-events-none absolute left-2.5 top-2.5 text-slate-400" /><input aria-label="Search sensor quality" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search sensors..." className="w-48 rounded-md border border-slate-300 py-1.5 pl-8 pr-2 text-xs dark:border-slate-700 dark:bg-slate-900" /></label></div><div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700"><table className="min-w-[1100px] w-full text-left text-[11px]"><caption className="sr-only">Sensor data quality table</caption><thead className="bg-slate-50 dark:bg-slate-800"><tr>{["Sensor Name", "Pipeline", "Type", "Validity", "Completeness", "Freshness", "Issues", "Status", "Last Updated", "Actions"].map(label => <th key={label} className="whitespace-nowrap px-2.5 py-2 font-semibold">{label}</th>)}</tr></thead><tbody>{filtered.map(record => <tr key={record.id} className="border-t border-slate-100 dark:border-slate-800"><td className="px-2.5 py-2 font-semibold">{record.deviceId}</td><td className="px-2.5 py-2">{pipelineOf(record)}</td><td className="px-2.5 py-2">{record.deviceType}</td><td className="px-2.5 py-2 text-slate-500">{unavailable}</td><td className="px-2.5 py-2 text-slate-500">{unavailable}</td><td className="px-2.5 py-2 text-slate-500">{unavailable}</td><td className="px-2.5 py-2 text-slate-500">{unavailable}</td><td className="px-2.5 py-2">{record.status}</td><td className="px-2.5 py-2">{displayDate(record.lastUpdatedAt)}</td><td className="px-2.5 py-2"><button type="button" className={action} onClick={() => onViewSensor(record)}>View</button></td></tr>)}{!filtered.length ? <tr><td colSpan={10} className="px-3 py-8 text-center text-slate-500">{realRecords.length ? "No sensors match the current filters." : `${unavailable} - sensor quality records are unavailable.`}</td></tr> : null}</tbody></table></div></Panel>
+      <Panel className="min-w-0 !rounded-xl !p-3"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div className="min-w-0"><h3 className="text-base font-bold">Recent Data Quality Issues</h3><p className="text-xs text-slate-500">Issue records require a verified quality exception source.</p></div><button type="button" disabled className={action} title="Not Available: issue records are not provided by the sensor API.">View All Issues</button></div><div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700"><table className="min-w-[900px] w-full text-left text-[11px]"><caption className="sr-only">Recent data quality issues</caption><thead className="bg-slate-50 dark:bg-slate-800"><tr>{["Time", "Sensor Name", "Issue Type", "Message", "Status", "Actions"].map(label => <th key={label} className="whitespace-nowrap px-2.5 py-2 font-semibold">{label}</th>)}</tr></thead><tbody><tr><td colSpan={6} className="px-3 py-8 text-center text-slate-500">{unavailable} - no sensor quality issues are available.</td></tr></tbody></table></div><div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-slate-500"><span>Missing Values</span><span>Stale Records</span><span>Range Violations</span><span>Flatline Detected</span><span>Bad Quality</span><button type="button" disabled className="font-semibold text-slate-400" title="Not Available: no issue records to investigate.">Investigate</button></div></Panel>
     </div>
-  );
+  </div>;
 }

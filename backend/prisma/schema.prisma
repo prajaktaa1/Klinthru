@@ -183,6 +183,22 @@ enum DocumentProcessingStatus {
   ProcessingError @map("Processing Error")
 }
 
+model Company {
+  id                   String                        @id @default(cuid())
+  companyId            String                        @unique
+  name                 String
+  users                User[]
+  sensorCalibrations   SensorCalibrationRecord[]     @relation("SensorCalibrationCompany")
+  sensorMaintenance    SensorMaintenanceTask[]      @relation("SensorMaintenanceCompany")
+  sensorHardwareEvents SensorHardwareEvent[]        @relation("SensorHardwareEventCompany")
+  sensorConfigurations SensorConfigurationVersion[] @relation("SensorConfigurationCompany")
+  sensorAuditEvents    SensorAuditEvent[]            @relation("SensorAuditCompany")
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
+
+  @@index([name])
+}
+
 model User {
   aiBack_AiModel_ownerId AiModel[] @relation("AiModel_ownerId")
   aiBack_AiModel_createdById AiModel[] @relation("AiModel_createdById")
@@ -232,6 +248,8 @@ model User {
   email                 String                      @unique
   passwordHash          String
   role                  Role
+  companyId             String?
+  company               Company?                    @relation(fields: [companyId], references: [id], onDelete: Restrict)
   createdAt             DateTime                    @default(now())
   updatedAt             DateTime                    @default(now()) @updatedAt
   assessments           Assessment[]
@@ -249,6 +267,16 @@ model User {
   cpZones               CpMonitoringZone[]
   deviceRecords         DeviceRecord[]
   sensorAssignments     SensorAssignment[]
+  sensorCalibrationOwned SensorCalibrationRecord[] @relation("SensorCalibrationOwner")
+  sensorCalibrationCreated SensorCalibrationRecord[] @relation("SensorCalibrationCreatedBy")
+  sensorMaintenanceOwned SensorMaintenanceTask[] @relation("SensorMaintenanceOwner")
+  sensorMaintenanceCreated SensorMaintenanceTask[] @relation("SensorMaintenanceCreatedBy")
+  sensorHardwareEventsOwned SensorHardwareEvent[] @relation("SensorHardwareEventOwner")
+  sensorHardwareEventsCreated SensorHardwareEvent[] @relation("SensorHardwareEventCreatedBy")
+  sensorConfigurationOwned SensorConfigurationVersion[] @relation("SensorConfigurationOwner")
+  sensorConfigurationCreated SensorConfigurationVersion[] @relation("SensorConfigurationCreatedBy")
+  sensorAuditActors      SensorAuditEvent[] @relation("SensorAuditActor")
+  sensorAuditOwners      SensorAuditEvent[] @relation("SensorAuditOwner")
   letterHead            LetterHead?
   iliInspectionRuns     IliInspectionRun[]
   iliAnomalies          IliAnomaly[]
@@ -1145,6 +1173,9 @@ model Sensor {
   monitoringPoint   MonitoringPoint? @relation(fields: [monitoringPointId], references: [id], onDelete: Restrict)
   channels          Channel[]
   gatewayLinks      GatewayLink[]
+  calibrationRecords SensorCalibrationRecord[]
+  maintenanceTasks  SensorMaintenanceTask[]
+  hardwareEvents    SensorHardwareEvent[]
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -1156,6 +1187,7 @@ model Channel {
   channelId String   @unique
   sensorId  String
   sensor    Sensor   @relation(fields: [sensorId], references: [id], onDelete: Restrict)
+  calibrationRecords SensorCalibrationRecord[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1166,6 +1198,7 @@ model Gateway {
   id           String        @id @default(cuid())
   gatewayId    String        @unique
   gatewayLinks GatewayLink[]
+  hardwareEvents SensorHardwareEvent[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -1341,6 +1374,136 @@ model DataQualityRecord {
 
   @@index([pipelineId, recordedAt])
   @@index([tagId, recordedAt])
+}
+
+model SensorCalibrationRecord {
+  id                  String   @id @default(cuid())
+  calibrationId       String   @unique
+  sensorId            String
+  sensor              Sensor   @relation(fields: [sensorId], references: [id], onDelete: Restrict)
+  channelId           String?
+  channel             Channel? @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  calibratedAt        DateTime?
+  dueAt               DateTime?
+  status              String
+  provider            String?
+  result              String?
+  certificateDocumentId String?
+  notes               String?
+  ownerId             String
+  owner               User     @relation("SensorCalibrationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdById         String
+  createdBy            User     @relation("SensorCalibrationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  companyId           String?
+  company             Company? @relation("SensorCalibrationCompany", fields: [companyId], references: [id], onDelete: Restrict)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([ownerId, status])
+  @@index([companyId, status])
+  @@index([sensorId, dueAt])
+}
+
+model SensorMaintenanceTask {
+  id              String   @id @default(cuid())
+  taskId          String   @unique
+  sensorId        String?
+  sensor          Sensor?  @relation(fields: [sensorId], references: [id], onDelete: Restrict)
+  maintenanceType String
+  priority        String
+  plannedAt       DateTime?
+  dueAt           DateTime?
+  completedAt     DateTime?
+  status          String
+  workOrder       String?
+  assignedTo      String?
+  notes           String?
+  ownerId         String
+  owner            User     @relation("SensorMaintenanceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdById     String
+  createdBy        User     @relation("SensorMaintenanceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  companyId       String?
+  company         Company? @relation("SensorMaintenanceCompany", fields: [companyId], references: [id], onDelete: Restrict)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([ownerId, status])
+  @@index([companyId, status])
+  @@index([sensorId, dueAt])
+}
+
+model SensorHardwareEvent {
+  id            String   @id @default(cuid())
+  eventId       String   @unique
+  sensorId      String?
+  sensor        Sensor?  @relation(fields: [sensorId], references: [id], onDelete: Restrict)
+  gatewayId     String?
+  gateway       Gateway? @relation(fields: [gatewayId], references: [id], onDelete: Restrict)
+  eventType     String
+  severity      String
+  status        String
+  occurredAt    DateTime
+  acknowledgedAt DateTime?
+  acknowledgedBy String?
+  resolvedAt    DateTime?
+  resolvedBy    String?
+  message       String
+  source        String
+  ownerId       String
+  owner         User     @relation("SensorHardwareEventOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdById   String
+  createdBy     User     @relation("SensorHardwareEventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  companyId     String?
+  company       Company? @relation("SensorHardwareEventCompany", fields: [companyId], references: [id], onDelete: Restrict)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([ownerId, status, occurredAt])
+  @@index([companyId, status, occurredAt])
+  @@index([sensorId, occurredAt])
+}
+
+model SensorConfigurationVersion {
+  id          String   @id @default(cuid())
+  versionId   String   @unique
+  version     Int
+  status      String
+  payload     Json
+  ownerId     String
+  owner       User     @relation("SensorConfigurationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdById String
+  createdBy   User     @relation("SensorConfigurationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  companyId   String?
+  company     Company? @relation("SensorConfigurationCompany", fields: [companyId], references: [id], onDelete: Restrict)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([ownerId, version])
+  @@index([ownerId, status])
+  @@index([companyId, status])
+}
+
+model SensorAuditEvent {
+  id         String   @id @default(cuid())
+  auditEventId String @unique
+  ownerId    String
+  owner      User   @relation("SensorAuditOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  actorId    String
+  actor      User   @relation("SensorAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  companyId  String?
+  company    Company? @relation("SensorAuditCompany", fields: [companyId], references: [id], onDelete: Restrict)
+  module     String
+  entityType String
+  entityId   String
+  action     String
+  before    Json?
+  after     Json?
+  occurredAt DateTime @default(now())
+
+  @@index([ownerId, occurredAt])
+  @@index([companyId, occurredAt])
+  @@index([entityType, entityId])
 }
 
 model ScadaPollingConfig {

@@ -6,10 +6,11 @@ import { requireAuth } from "../middleware/auth";
 import { calculateIntegrationSummary, canManageIntegrations, canTestIntegrations, sanitizeEvent, serializeConnector } from "../integrations/service";
 import { RestConnectorAdapter } from "../integrations/connectorAdapter";
 import { redactText } from "../integrations/security";
-import { mergeConnectorConfiguration, validateConnectorInput, validateConnectorPatch } from "../integrations/validation";
+import { mergeConnectorConfiguration, validateConnectorInput, validateConnectorPatch, validateConnectorScope } from "../integrations/validation";
 import { AuthUser } from "../types/domain";
 import { ingestScadaBatch } from "../utils/scadaData";
 import { manualModules, validateManualRecord } from "../integrations/manualRecords";
+import { createValidationError } from "../validation/validationErrors";
 
 export const integrationsRouter = Router();
 const restConnectorAdapter = new RestConnectorAdapter();
@@ -58,6 +59,17 @@ function respondToError(error: unknown, response: Response, next: NextFunction) 
   next(error);
 }
 
+async function scopedConfiguration(input: { configuration?: Record<string, unknown> | null; scope?: { pipelineId: string; assetId?: string | null } }, user: AuthUser, existing: unknown = null) {
+  if (!input.scope) return mergeConnectorConfiguration(existing, input.configuration);
+  if (!user.companyId) throw createValidationError({ scope: "A company-scoped account is required to link a connector." });
+  const db = getDatabase();
+  const pipeline = await db.pipeline.findFirst({ where: { id: input.scope.pipelineId }, select: { id: true, createdById: true, createdBy: { select: { companyId: true } } } });
+  if (!pipeline) throw createValidationError({ scope: "Pipeline not found." });
+  const asset = input.scope.assetId ? await db.asset.findFirst({ where: { id: input.scope.assetId, pipelineId: input.scope.pipelineId }, select: { id: true, pipelineId: true } }) : undefined;
+  const scope = validateConnectorScope(input.scope, { userId: user.id, role: user.role, companyId: user.companyId, pipeline: { id: pipeline.id, createdById: pipeline.createdById, companyId: pipeline.createdBy?.companyId ?? null }, asset });
+  return mergeConnectorConfiguration(existing, { ...(input.configuration ?? {}), integrationScope: scope });
+}
+
 integrationsRouter.get("/connectors", async (request, response, next) => {
   try {
     const connectors = await getDatabase().integrationConnector.findMany({ where: ownerWhere(request.user!), orderBy: { createdAt: "desc" } });
@@ -71,8 +83,9 @@ integrationsRouter.post("/connectors", async (request, response, next) => {
   try {
     if (!requireManager(request, response)) return;
     const input = validateConnectorInput(request.body);
+    const { scope, ...connectorInput } = input;
     const created = await getDatabase().integrationConnector.create({
-      data: { ...input, configuration: mergeConnectorConfiguration(null, input.configuration) ?? undefined, secretConfigured: Boolean(input.secretReference), authorId: request.user!.id }
+      data: { ...connectorInput, configuration: await scopedConfiguration({ configuration: connectorInput.configuration, scope }, request.user!) ?? undefined, secretConfigured: Boolean(input.secretReference), authorId: request.user!.id }
     });
     response.status(201).json(serializeConnector(created));
   } catch (error) {
@@ -96,9 +109,10 @@ integrationsRouter.patch("/connectors/:id", async (request, response, next) => {
     const existing = await findConnector(request.params.id, request.user!);
     if (!existing) return response.status(404).json({ message: "Connector not found." });
     const input = validateConnectorPatch(request.body);
+    const { scope, ...connectorInput } = input;
     const updated = await getDatabase().integrationConnector.update({
       where: { id: existing.id, ...(input.configuration !== undefined ? { updatedAt: existing.updatedAt } : {}) },
-      data: { ...input, configuration: mergeConnectorConfiguration(existing.configuration, input.configuration), ...(input.configuration !== undefined ? { updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)) } : {}), secretConfigured: input.secretReference === undefined ? undefined : Boolean(input.secretReference) }
+      data: { ...connectorInput, configuration: scope ? await scopedConfiguration({ configuration: connectorInput.configuration, scope }, request.user!, existing.configuration) : mergeConnectorConfiguration(existing.configuration, connectorInput.configuration), ...(input.configuration !== undefined || scope ? { updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)) } : {}), secretConfigured: input.secretReference === undefined ? undefined : Boolean(input.secretReference) }
     });
     response.json(serializeConnector(updated));
   } catch (error) {

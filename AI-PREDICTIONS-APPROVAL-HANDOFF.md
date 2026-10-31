@@ -1,0 +1,15 @@
+# Klinthru AI Predictions — approval handoff
+
+Status: READY FOR APPROVAL. This document proposes contracts only; it does not approve artifacts, roles, criteria, execution, mutations, migrations, Neon access, or deployment.
+
+Existing verified work reused: `backend/src/aiPredictions/permissions.ts`, `snapshotService.ts`, `runService.ts`, `runRepository.ts`, `modelGovernance.ts`, `developmentRoutes.ts`, `aiDevelopmentChecks.ts`, and the unapplied 18-table migration. All nine tabs and existing architecture remain unchanged.
+
+| Owner | Exact missing evidence | Proposed safe contract | Status | Acceptance tests |
+|---|---|---|---|---|
+| Engineering | Approved failure criteria, thresholds/units, methodology/version/source, horizons, outlook/priority rules, confidence and metric definitions | Criteria are versioned server-side inputs; missing/expired criteria return N/A/blocked; no screenshot values become defaults | APPROVAL NEEDED | Reject missing/wrong-version criteria; verify no forecast, RUL, priority, or metric is produced without evidence |
+| Source Owners | Read adapters for ILI, CP, SCADA, ECDA, Defect, Risk, GIS with ACL, record ID/revision, quality, units, observed/available time, cutoff, geometry, hash | Read-only adapter returns exact authorized revision; snapshot freezes copied inputs; no source writer | APPROVAL NEEDED | Reject cross-owner/pipeline, duplicate, future, unavailable, or hash-mismatched sources; verify source masters unchanged |
+| ML/Platform | Artifact/document version + SHA-256, model/input/output schemas, feature version, datasets/cohorts, engine/provider, worker identity, scenario bounds, outcome and retry contracts | Only Approved/Production verified artifacts may pass preflight; worker and publisher remain disabled until approved | APPROVAL NEEDED | Reject lineage/artifact/schema/approval mismatch; verify hypothetical-only scenarios, idempotent retries, and no execution/output publication |
+| Security/DBA | Named role classes, grants, policy version/effective dates, independent approvers, separation of duties, retention/erasure rules | Explicit scoped grants only; forced default-deny RLS; PUBLIC revoked; no application role implies AI access | APPROVAL NEEDED | Negative cross-scope reads/writes/deletes/truncates; independent approval/self-approval rejection; immutable-history and retention tests in approved isolated DB |
+| Reporting | Final template catalogue/version, Document_ID/version linkage, formats, preview/download, schedule/timezone/recipients/consent/notification provider, regulatory provenance | Seven DOCX identities map to six existing cards; Audit remains independently traceable; Document Management owns final document | APPROVAL NEEDED | Verify one approved Document_ID/version per final report, exact template identity, owner scope, format/lineage, and no dispatch without consent |
+
+Until each owner approves its row and supplies the evidence, the existing fail-closed gates remain active: no migration application, RLS activation, model execution, mutation API, Neon access, or deployment.

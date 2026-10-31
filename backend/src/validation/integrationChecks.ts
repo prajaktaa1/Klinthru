@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { calculateIntegrationSummary, canManageIntegrations, canTestIntegrations, sanitizeEvent, serializeConnector } from "../integrations/service";
 import { RestConnectorAdapter } from "../integrations/connectorAdapter";
 import { redactSensitive, testRestConnector, validateRestUrl } from "../integrations/security";
-import { mergeConnectorConfiguration, validateConnectorInput, validateConnectorPatch } from "../integrations/validation";
+import { mergeConnectorConfiguration, validateConnectorInput, validateConnectorPatch, validateConnectorScope } from "../integrations/validation";
 import { ConnectorRecord, IntegrationEventRecord } from "../integrations/types";
 import { validateManualRecord } from "../integrations/manualRecords";
 
@@ -42,6 +42,13 @@ async function run() {
   assert.equal(canTestIntegrations("Admin"), true);
   assert.equal(canTestIntegrations("Engineer"), true);
   assert.equal(canTestIntegrations("Viewer"), false);
+
+  const scopeContext = { userId: "user-1", role: "Engineer" as const, companyId: "company-1", pipeline: { id: "pipeline-1", createdById: "user-1", companyId: "company-1" }, asset: { id: "asset-1", pipelineId: "pipeline-1" } };
+  assert.deepEqual(validateConnectorScope({ pipelineId: "pipeline-1", assetId: "asset-1" }, scopeContext), { companyId: "company-1", pipelineId: "pipeline-1", assetId: "asset-1" });
+  assert.throws(() => validateConnectorScope({ pipelineId: "pipeline-1", assetId: "asset-other" }, scopeContext));
+  assert.throws(() => validateConnectorScope({ pipelineId: "pipeline-other" }, scopeContext));
+  assert.throws(() => validateConnectorScope({ pipelineId: "pipeline-1" }, { ...scopeContext, companyId: "company-other" }));
+  assert.throws(() => validateConnectorScope({ pipelineId: "pipeline-1" }, { ...scopeContext, companyId: undefined }));
 
   assert.equal(validateConnectorInput({ name: " REST ", endpoint: "https://api.example.com/status" }).name, "REST");
   assert.throws(() => validateRestUrl("file:///etc/passwd"));

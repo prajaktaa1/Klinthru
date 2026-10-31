@@ -6,17 +6,22 @@ import { getPrismaClient } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+// JSON/base64 adds roughly 4/3 overhead. 36 MB is the smallest bounded
+// request envelope that safely carries one 25 MiB file plus metadata; the
+// decoded file limit above remains authoritative.
+const MAX_UPLOAD_REQUEST_BYTES = 36_000_000;
+const UPLOAD_TRANSACTION_TIMEOUT_MS = 60_000;
 const MAX_PAGE_SIZE = 100;
-const allowedExtensions = new Set(["pdf", "doc", "docx", "xls", "xlsx", "csv", "jpg", "jpeg", "png", "tif", "tiff", "eml", "msg"]);
+const allowedExtensions = new Set(["pdf", "doc", "docx", "xls", "xlsx", "csv", "jpg", "jpeg", "png", "webp", "tif", "tiff", "eml", "msg"]);
 const approvalStatuses = new Set(["Draft", "Submitted", "Under Review", "Approved", "Approved with Comments", "Rejected", "Superseded", "Archived"]);
 const validityStatuses = new Set(["Current", "Review Due", "Expiring Soon", "Expired", "No Expiry"]);
 const approvalEnum: Record<string, string> = { "Under Review": "UnderReview", "Approved with Comments": "ApprovedWithComments" };
 const validityEnum: Record<string, string> = { "Review Due": "ReviewDue", "Expiring Soon": "ExpiringSoon", "No Expiry": "NoExpiry" };
-const mimeByExtension: Record<string, string> = { pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "text/csv", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", tif: "image/tiff", tiff: "image/tiff", eml: "message/rfc822", msg: "application/vnd.ms-outlook" };
+const mimeByExtension: Record<string, string> = { pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "text/csv", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", tif: "image/tiff", tiff: "image/tiff", eml: "message/rfc822", msg: "application/vnd.ms-outlook" };
 
 export const documentsRouter = Router();
 documentsRouter.use(requireAuth);
-documentsRouter.use(express.json({ limit: "35mb" }));
+documentsRouter.use(express.json({ limit: MAX_UPLOAD_REQUEST_BYTES }));
 
 function database() {
   const prisma = getPrismaClient();
@@ -52,6 +57,23 @@ function parseUpload(dataUri: unknown, fileName: unknown, mimeType: unknown) {
   if (!content.length || content.length > MAX_FILE_SIZE_BYTES) throw new Error("File must be between 1 byte and 25 MiB.");
   if (content.toString("base64").replace(/=+$/, "") !== match[2].replace(/=+$/, "")) throw new Error("File data is not valid base64.");
   return { fileName: fileName.trim(), mimeType: mimeByExtension[extension], content, fileHash: createHash("sha256").update(content).digest("hex") };
+}
+
+function parseAssetPhotoUpload(dataUri: unknown, fileName: unknown, mimeType: unknown) {
+  if (typeof fileName !== "string" || !fileName.trim() || fileName.length > 255) throw new Error("A valid photo file name is required.");
+  if (typeof dataUri !== "string") throw new Error("Photo data is required.");
+  const match = /^data:([^;]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUri);
+  if (!match || (typeof mimeType === "string" && match[1] !== mimeType)) throw new Error("Photo data or MIME type is invalid.");
+  const content = Buffer.from(match[2], "base64");
+  if (!content.length || content.length > 8 * 1024 * 1024) throw new Error("Photo must be between 1 byte and 8 MiB.");
+  const isJpeg = content.length >= 3 && content[0] === 0xff && content[1] === 0xd8 && content[2] === 0xff;
+  const isPng = content.length >= 8 && content.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const isWebp = content.length >= 12 && content.subarray(0, 4).toString("ascii") === "RIFF" && content.subarray(8, 12).toString("ascii") === "WEBP";
+  const detectedMime = isJpeg ? "image/jpeg" : isPng ? "image/png" : isWebp ? "image/webp" : null;
+  if (!detectedMime || (typeof mimeType === "string" && mimeType !== detectedMime)) throw new Error("Photo bytes do not match a supported JPG, PNG, or WebP image.");
+  const ext = detectedMime === "image/jpeg" ? "jpg" : detectedMime === "image/png" ? "png" : "webp";
+  const stem = fileName.trim().replace(/[^w.-]+/g, "_").replace(/.[^.]*$/, "") || "asset-photo";
+  return { fileName: `${stem}.${ext}`, mimeType: detectedMime, content, fileHash: createHash("sha256").update(content).digest("hex") };
 }
 
 function safeDocument(document: any) {
@@ -231,7 +253,7 @@ documentsRouter.get("/", async (request, response, next) => {
     if (approvalStatus || validityStatus) whereParts.push({ versions: { some: { ...(approvalStatus ? { approvalStatus: approvalEnum[approvalStatus] ?? approvalStatus } : {}), ...(validityStatus ? { validityStatus: validityEnum[validityStatus] ?? validityStatus } : {}) } } });
     const where = whereParts.length ? { AND: whereParts } : {};
     const [rows, total] = await Promise.all([
-      database().managedDocument.findMany({ where, include: { owner: { select: { id: true, name: true } }, versions: { orderBy: { uploadedAt: "desc" }, select: { documentVersionId: true, revision: true, fileName: true, mimeType: true, fileSize: true, approvalStatus: true, validityStatus: true, processingStatus: true, uploadedById: true, uploadedAt: true, issueDate: true, reviewDueDate: true, expiryDate: true } }, links: { include: { pipeline: true, segment: true, asset: true } } }, orderBy: { updatedAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize }),
+      database().managedDocument.findMany({ where, include: { owner: { select: { id: true, name: true } }, versions: { orderBy: { uploadedAt: "desc" }, select: { documentVersionId: true, revision: true, fileName: true, mimeType: true, fileSize: true, fileHash: true, approvalStatus: true, validityStatus: true, processingStatus: true, uploadedById: true, uploadedAt: true, issueDate: true, reviewDueDate: true, expiryDate: true } }, links: { include: { pipeline: true, segment: true, asset: true } } }, orderBy: { updatedAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize }),
       database().managedDocument.count({ where })
     ]);
     response.json({ items: rows.map(safeDocument), page, pageSize, total });
@@ -261,9 +283,30 @@ documentsRouter.post("/", async (request, response, next) => {
       const version = await tx.documentVersion.create({ data: { documentId: document.documentId, revision: normalizedRevision || null, fileName: file.fileName, mimeType: file.mimeType, fileSize: file.content.length, fileHash: file.fileHash, fileContent: file.content, approvalStatus: "Draft", validityStatus: null, processingStatus: null, uploadedById: request.user!.id, issueDate: parseOptionalDate(issueDate), reviewDueDate: parseOptionalDate(reviewDueDate), expiryDate: parseOptionalDate(expiryDate) } });
       for (const link of links) await tx.documentLink.create({ data: { documentId: document.documentId, documentVersionId: version.documentVersionId, ...link, createdById: request.user!.id } });
       return { ...document, updatedAt: now, versions: [{ ...version, fileContent: undefined }], links: [] };
-    });
+    }, { maxWait: 10_000, timeout: UPLOAD_TRANSACTION_TIMEOUT_MS });
     response.status(201).json({ item: safeDocument(result) });
   } catch (error) { if (statusCode(error) === "P2002") response.status(409).json({ code: "DUPLICATE_DOCUMENT", message: "A document with this file content or revision identity already exists." }); else replyError(response, error); }
+});
+
+documentsRouter.post("/asset-photos", async (request, response, next) => {
+  try {
+    if (!canWrite(request.user)) { response.status(403).json({ message: "Only Admin and Engineer roles may upload asset photos." }); return; }
+    const assetId = typeof request.body?.assetId === "string" ? request.body.assetId.trim() : "";
+    if (!assetId) throw new Error("Asset ID is required for an asset photo.");
+    const asset = await database().asset.findUnique({ where: { id: assetId }, select: { id: true, assetId: true, pipeline: { select: { createdById: true } } } });
+    if (!asset || (request.user!.role !== "Admin" && asset.pipeline.createdById !== request.user!.id)) throw new Error("Asset is unavailable or not authorized.");
+    const file = parseAssetPhotoUpload(request.body?.fileData, request.body?.fileName, request.body?.mimeType);
+    const duplicate = await duplicateMatch(file.fileHash, request.user!);
+    if (duplicate) { response.status(409).json({ code: "DUPLICATE_DOCUMENT", message: "This photo matches an existing file." }); return; }
+    const result = await database().$transaction(async (tx: any) => {
+      const family = await tx.documentFamily.create({ data: { ownerId: request.user!.id } });
+      const document = await tx.managedDocument.create({ data: { documentFamilyId: family.documentFamilyId, title: `Asset Photo - ${asset.assetId}`, documentType: "Asset Photo", category: "Asset Photo", description: `Photo for asset ${asset.assetId}`, isGlobal: false, ownerId: request.user!.id } });
+      const version = await tx.documentVersion.create({ data: { documentId: document.documentId, revision: null, fileName: file.fileName, mimeType: file.mimeType, fileSize: file.content.length, fileHash: file.fileHash, fileContent: file.content, approvalStatus: "Draft", validityStatus: null, processingStatus: null, uploadedById: request.user!.id } });
+      await tx.documentLink.create({ data: { documentId: document.documentId, documentVersionId: version.documentVersionId, assetId: asset.id, createdById: request.user!.id } });
+      return { ...document, versions: [{ ...version, fileContent: undefined }], links: [] };
+    }, { maxWait: 10_000, timeout: UPLOAD_TRANSACTION_TIMEOUT_MS });
+    response.status(201).json({ item: safeDocument(result) });
+  } catch (error) { replyError(response, error); }
 });
 
 documentsRouter.get("/:documentId/versions", async (request, response, next) => {
@@ -290,7 +333,7 @@ documentsRouter.post("/:documentId/versions", async (request, response, next) =>
       const created = await tx.documentVersion.create({ data: { documentId: document.documentId, revision, fileName: file.fileName, mimeType: file.mimeType, fileSize: file.content.length, fileHash: file.fileHash, fileContent: file.content, approvalStatus: "Draft", validityStatus: null, processingStatus: null, uploadedById: request.user!.id } });
       await tx.managedDocument.update({ where: { documentId: document.documentId }, data: { updatedAt: new Date() } });
       return created;
-    });
+    }, { maxWait: 10_000, timeout: UPLOAD_TRANSACTION_TIMEOUT_MS });
     const { fileContent: _fileContent, ...metadata } = version;
     response.status(201).json({ item: metadata });
   } catch (error) { if (statusCode(error) === "P2002") response.status(409).json({ code: "DUPLICATE_DOCUMENT", message: "A document with this file content or revision identity already exists." }); else replyError(response, error); }
@@ -311,6 +354,28 @@ documentsRouter.post("/:documentId/links", async (request, response, next) => {
     await database().managedDocument.update({ where: { documentId: document.documentId }, data: { isGlobal: false, updatedAt: new Date() } });
     response.status(201).json({ items: created });
   } catch (error) { replyError(response, error); }
+});
+
+documentsRouter.delete("/:documentId", async (request, response, next) => {
+  try {
+    if (!canWrite(request.user)) { response.status(403).json({ message: "Only Admin and Engineer roles may delete documents." }); return; }
+    const document = await getReadableDocument(request.params.documentId, request.user!);
+    if (!document || (request.user!.role !== "Admin" && document.ownerId !== request.user!.id)) { response.status(404).json({ message: "Document not found." }); return; }
+    const linkedTargets = document.links.map((link: any) => link.pipeline?.pipelineCode ?? link.segment?.segmentId ?? link.asset?.assetId).filter(Boolean);
+    await database().$transaction(async (tx: any) => {
+      // Delete only the selected repository document and its relationship rows.
+      // Linked Pipeline, Segment, Asset Master records, and other documents are untouched.
+      await tx.documentLink.deleteMany({ where: { documentId: document.documentId } });
+      await tx.documentVersion.deleteMany({ where: { documentId: document.documentId } });
+      await tx.managedDocument.delete({ where: { documentId: document.documentId } });
+      await tx.documentFamily.delete({ where: { documentFamilyId: document.documentFamilyId } });
+    });
+    response.status(200).json({ deletedDocumentId: document.documentId, removedLinks: linkedTargets.length, linkedTargets });
+  } catch (error) {
+    const code = statusCode(error);
+    if (code === "P2003" || code === "P2014") { response.status(409).json({ message: "Document is referenced by a protected record and cannot be deleted." }); return; }
+    next(error);
+  }
 });
 
 documentsRouter.get("/:documentId/versions/:documentVersionId/download", async (request, response, next) => {

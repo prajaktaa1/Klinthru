@@ -14,7 +14,7 @@ const navigationItems = [
 ];
 
 const navigationLinkClasses =
-  "rounded-full px-1 py-1 text-sm font-medium text-slate-600 outline-none transition hover:text-cyan-600 focus-visible:text-cyan-600 focus-visible:ring-4 focus-visible:ring-cyan-500/20 dark:text-slate-300 dark:hover:text-cyan-300 dark:focus-visible:text-cyan-300";
+  "rounded-full px-1 py-1 text-base font-medium text-slate-600 outline-none transition hover:text-cyan-600 focus-visible:text-cyan-600 focus-visible:ring-4 focus-visible:ring-cyan-500/20 dark:text-slate-300 dark:hover:text-cyan-300 dark:focus-visible:text-cyan-300 lg:text-lg";
 
 export function PublicNavbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -44,7 +44,7 @@ export function PublicNavbar() {
               Login
             </Link>
             <Link
-              className="rounded-full bg-slateblue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm outline-none transition hover:bg-slateblue-600 focus-visible:ring-4 focus-visible:ring-slateblue-100"
+              className="rounded-full bg-slateblue-600 px-4 py-2 text-base font-semibold text-white shadow-sm outline-none transition hover:bg-slateblue-600 focus-visible:ring-4 focus-visible:ring-slateblue-100 lg:text-lg"
               href="/signup"
             >
               Sign Up

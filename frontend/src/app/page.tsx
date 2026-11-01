@@ -40,6 +40,11 @@ const features = [
     title: "Pipeline Risk Dashboard",
     description:
       "View pipeline health, anomalies, corrosion indicators, CP status, risk levels, alerts, and integrity information from one dashboard."
+  },
+  {
+    title: "Analyze Through AI Prediction",
+    description:
+      "Analyze corrosion trends, identify potential risks, and forecast remaining pipeline life using AI-powered insights to support informed engineering decisions."
   }
 ];
 
@@ -63,7 +68,9 @@ const featureIcons: Record<string, { Icon: LucideIcon; color: string; bg: string
   "Sensor Monitoring": { Icon: RadioTower, color: "text-[#00A8B5]", bg: "bg-cyan-50 dark:bg-cyan-950/40" },
   "Cathodic Protection Review": { Icon: Zap, color: "text-[#0879C8]", bg: "bg-blue-50 dark:bg-blue-950/40" },
   "Remaining Life Prediction": { Icon: TrendingDown, color: "text-[#0879C8]", bg: "bg-blue-50 dark:bg-blue-950/40" },
-  "PDF Report Generation": { Icon: FileText, color: "text-[#0879C8]", bg: "bg-blue-50 dark:bg-blue-950/40" }
+  "PDF Report Generation": { Icon: FileText, color: "text-[#0879C8]", bg: "bg-blue-50 dark:bg-blue-950/40" },
+  "Pipeline Risk Dashboard": { Icon: LayoutDashboard, color: "text-[#0879C8]", bg: "bg-blue-50 dark:bg-blue-950/40" },
+  "Analyze Through AI Prediction": { Icon: BrainCircuit, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950/40" }
 };
 
 import LandingIntegrityPreview from "@/components/landing-integrity-preview";
@@ -76,15 +83,15 @@ export default function LandingPage() {
 
       <section className="relative overflow-hidden border-b border-[#d8e7ef] bg-[#f5fafd] bg-[radial-gradient(circle_at_top_right,rgba(0,168,181,0.12),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(8,121,200,0.1),transparent_36%)] dark:border-slate-800 dark:bg-slate-950">
         <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(rgba(8,121,200,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(8,121,200,0.08)_1px,transparent_1px)] [background-size:32px_32px] dark:opacity-20" />
-        <div className="mx-auto grid max-w-7xl items-center gap-7 px-4 py-8 sm:px-6 sm:py-11 lg:grid-cols-[minmax(0,1.02fr)_minmax(400px,0.98fr)] lg:gap-8 lg:px-8 lg:py-14">
-          <div className="flex max-w-3xl flex-col justify-center">
+        <div className="mx-auto grid max-w-7xl items-start gap-7 px-4 py-8 sm:px-6 sm:py-11 lg:grid-cols-[minmax(0,1.02fr)_minmax(400px,0.98fr)] lg:gap-8 lg:px-8 lg:py-8">
+          <div className="flex max-w-3xl flex-col self-start">
             <p className="mb-3 text-xs font-bold uppercase tracking-[0.28em] text-[#0879C8] dark:text-cyan-300">
               Klinthru integrity engineering platform
             </p>
             <p className="public-hero-heading max-w-full text-[34px] font-bold leading-[1.08] tracking-tight text-[#123047] dark:text-white sm:text-[44px] lg:text-[54px]">
               Pipeline ILI <span className="bg-gradient-to-r from-[#0879C8] to-[#00A8B5] bg-clip-text text-transparent">(In-Line Inspection)</span>
             </p>
-            <p className="public-readable-copy mt-3 max-w-2xl text-slate-600 dark:text-slate-300">
+            <p className="public-readable-copy mt-3 max-w-2xl text-slate-600 dark:text-slate-300 lg:text-justify">
               Corrosion Prediction, Pipeline Risk Assessment, AI Detection &amp; Engineering Report Generation — unified in one structured integrity workspace.
             </p>
 
@@ -100,6 +107,10 @@ export default function LandingPage() {
               </Link>
             </div>
             <div className="mt-6 grid max-w-xl grid-cols-3 border-t border-[#d8e7ef] pt-4 dark:border-slate-800"><div><p className="text-[19px] font-bold leading-tight text-[#123047] dark:text-white sm:text-[21px] lg:text-[24px]">12 Types</p><p className="mt-1 text-sm font-medium leading-5 text-[#557184] dark:text-slate-400 lg:text-base">Corrosion &amp; Risk Models</p></div><div><p className="text-[19px] font-bold leading-tight text-[#00A8B5] sm:text-[21px] lg:text-[24px]">SCADA + IoT</p><p className="mt-1 text-sm font-medium leading-5 text-[#557184] dark:text-slate-400 lg:text-base">Live CP &amp; Sensor Feeds</p></div><div><p className="text-[19px] font-bold leading-tight text-[#123047] dark:text-white sm:text-[21px] lg:text-[24px]">1-Click PDF</p><p className="mt-1 text-sm font-medium leading-5 text-[#557184] dark:text-slate-400 lg:text-base">Audit-Ready Reports</p></div></div>
+            <div className="mt-7 flex max-w-xl flex-col gap-4 rounded-2xl border border-[#b9e3e3] bg-[linear-gradient(110deg,#C7E5FB_0%,#BDEBE7_55%,#D5F0CC_100%)] p-4 shadow-[0_12px_30px_rgba(18,48,71,0.12)] dark:border-teal-900 dark:bg-[linear-gradient(110deg,#204a69_0%,#1e5b5b_65%,#3f6139_100%)] sm:p-5">
+              <div className="flex min-w-0 items-start gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/70 text-[#00A8B5] dark:bg-slate-950/30"><Layers size={19} /></span><div className="min-w-0"><p className="text-sm font-bold uppercase tracking-[0.16em] text-[#0879C8] dark:text-cyan-200">Annual platform subscription</p><p className="mt-1 text-sm leading-6 text-[#123047] dark:text-slate-200">One complete Klinthru workspace, configured for your pipeline capacity and team.</p></div></div>
+              <Link className="group inline-flex w-fit shrink-0 items-center justify-center gap-2 rounded-full bg-[#00A8B5] px-5 py-2.5 text-[15px] font-semibold text-white shadow-sm transition duration-300 hover:bg-[#008d99] hover:shadow-[0_8px_20px_rgba(0,168,181,0.2)]" href="/subscription">View Annual Plan <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" /></Link>
+            </div>
           </div>
 
           <LandingIntegrityPreview />
@@ -167,13 +178,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="relative z-10 -mt-9 border-b border-transparent bg-transparent dark:border-transparent">
-        <div className="public-banner-in mx-auto flex max-w-6xl flex-col gap-4 rounded-2xl border border-[#b9e3e3] bg-[linear-gradient(110deg,#C7E5FB_0%,#BDEBE7_55%,#D5F0CC_100%)] px-5 py-4 shadow-[0_18px_45px_rgba(18,48,71,0.14)] sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:border-teal-900 dark:bg-[linear-gradient(110deg,#204a69_0%,#1e5b5b_65%,#3f6139_100%)]">
-          <div className="flex min-w-0 items-center gap-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/70 text-[#00A8B5] dark:bg-slate-950/30"><Layers size={20} /></span><div><p className="text-sm font-bold uppercase tracking-[0.2em] text-[#0879C8] dark:text-cyan-200 lg:text-[17px]">Annual platform subscription</p><p className="mt-1 text-sm text-[#123047] dark:text-slate-200 lg:text-base">One complete Klinthru workspace, configured for your pipeline capacity and team.</p></div></div>
-          <Link className="group inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#00A8B5] px-5 py-2.5 text-[15px] font-semibold text-white shadow-sm transition duration-300 hover:bg-[#008d99] hover:shadow-[0_8px_20px_rgba(0,168,181,0.2)]" href="/subscription">View Annual Plan <ArrowRight size={15} className="transition-transform duration-300 group-hover:translate-x-1" /></Link>
-        </div>
-      </section>
-
       <section id="about" className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[0.72fr_1fr] lg:gap-14 lg:px-8 lg:py-20">
           <div className="public-about-heading">
@@ -185,7 +189,7 @@ export default function LandingPage() {
               {aboutCapabilities.map(({ Icon, label, color, bg }) => <div key={label} className="public-capability-card flex items-center gap-3 rounded-xl border border-[#d8e7ef] bg-[#f7fbfd] px-3 py-3 text-[14px] font-normal text-[#123047] transition duration-200 hover:border-[#0879C8]/40 hover:bg-white sm:text-[15px] lg:text-[16px] dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-800"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${bg}`}><Icon size={21} className={color} /></span>{label}</div>)}
             </div>
           </div>
-          <div className="public-about-copy public-readable-copy grid gap-5 text-[#557184] dark:text-slate-300">
+          <div className="public-about-copy public-readable-copy grid gap-5 text-[#557184] dark:text-slate-300 lg:text-justify">
             <p className="border-l-2 border-[#0879C8] pl-5 font-semibold">
               Klinthru is a pipeline data management platform that brings integrity records, corrosion assessments, cathodic protection (CP) monitoring, inspection and In-Line Inspection (ILI) data, risk reviews, documents, and reporting workflows together in one integrated engineering workspace.
             </p>
@@ -201,18 +205,17 @@ export default function LandingPage() {
 
       <section id="features" className="border-b border-[#d8e7ef] bg-[#f5fafd] dark:border-slate-800 dark:bg-slate-950">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div className="public-features-heading max-w-3xl"><p className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.28em] text-[#0879C8] dark:text-cyan-300"><span className="h-px w-6 bg-[#0879C8]" />Features</p><h2 className="mt-4 text-[27px] font-bold leading-[1.18] tracking-tight text-[#123047] dark:text-white sm:text-[32px] lg:text-[36px]">Tools for corrosion assessment, monitoring, prediction, and pipeline risk management</h2><p className="public-readable-copy mt-4 text-[#557184] dark:text-slate-300">Every module works from the same pipeline record, so assessments, monitoring, and reports stay connected.</p></div>
-          <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{features.filter(feature => feature.title !== "Pipeline Risk Dashboard").map((feature, index) => { const visual = featureIcons[feature.title]; const Icon = visual.Icon; return <article key={feature.title} style={{ animationDelay: `${index * 70}ms` }} className="public-feature-card group flex h-full flex-col rounded-[18px] border border-[#d8e7ef] bg-white p-5 shadow-[0_8px_24px_rgba(18,48,71,0.06)] transition duration-300 hover:-translate-y-1 hover:border-[#0879C8]/40 hover:shadow-[0_16px_32px_rgba(8,121,200,0.12)] dark:border-slate-700 dark:bg-slate-900"><div className="flex items-start justify-between"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${visual.bg} transition duration-300 group-hover:scale-105`}><Icon size={20} className={visual.color} /></span><ArrowUpRight size={15} className="text-slate-300 opacity-0 transition duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" /></div><h3 className="mt-5 text-base font-bold text-[#123047] dark:text-white sm:text-lg">{feature.href ? <Link href={feature.href} className="outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:focus-visible:ring-cyan-900">{feature.title}</Link> : feature.title}</h3><p className="public-readable-copy mt-3 text-[#557184] dark:text-slate-300">{feature.description}</p></article>; })}</div>
-          <div className="public-risk-banner mt-5 overflow-hidden rounded-[20px] border border-[#9edbd9] bg-[linear-gradient(110deg,#A9D8FA_0%,#9BDFDC_55%,#B8E8B1_100%)] p-6 text-[#123047] shadow-[0_18px_40px_rgba(8,121,200,0.16)] sm:p-7 dark:border-teal-900 dark:bg-[linear-gradient(110deg,#1b4965_0%,#17605f_55%,#355d38_100%)] dark:text-slate-100"><div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between"><div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(8,121,200,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(8,121,200,0.18)_1px,transparent_1px)] [background-size:28px_28px]" /><div className="relative max-w-xl"><span className="mb-4 flex h-9 w-9 items-center justify-center rounded-xl bg-white/60 text-[#0879C8] dark:bg-slate-950/30 dark:text-cyan-300"><LayoutDashboard size={19} /></span><h3 className="text-xl font-bold sm:text-2xl">Pipeline Risk Dashboard</h3><p className="public-readable-copy mt-2 text-[#294B5C] dark:text-slate-200">View pipeline health, anomalies, corrosion indicators, CP status, risk levels, alerts, and integrity information from one dashboard.</p></div><div className="relative flex max-w-xl flex-wrap gap-2">{["Pipeline Health", "Anomalies", "Corrosion Indicators", "CP Status", "Risk Levels", "Alerts", "Integrity Information"].map(pill => <span key={pill} className="rounded-full border border-[#72c9cf] bg-white/60 px-3 py-1.5 text-xs text-[#123047] transition hover:bg-white dark:border-cyan-700 dark:bg-slate-950/30 dark:text-cyan-100 dark:hover:bg-slate-950/50">{pill}</span>)}</div></div></div>
+          <div className="public-features-heading max-w-3xl lg:max-w-none"><p className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.28em] text-[#0879C8] dark:text-cyan-300"><span className="h-px w-6 bg-[#0879C8]" />Features</p><h2 className="mt-4 text-[27px] font-bold leading-[1.18] tracking-tight text-[#123047] dark:text-white sm:text-[32px] lg:text-[36px]">Tools for corrosion assessment, monitoring, prediction, and pipeline risk management</h2><p className="public-readable-copy mt-4 text-[#557184] dark:text-slate-300 lg:text-justify">Every module works from the same pipeline record, so assessments, monitoring, and reports stay connected.</p></div>
+          <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{features.map((feature, index) => { const visual = featureIcons[feature.title]; const Icon = visual.Icon; return <article key={feature.title} style={{ animationDelay: `${index * 70}ms` }} className="public-feature-card group flex h-full flex-col rounded-[18px] border border-[#d8e7ef] bg-white p-5 shadow-[0_8px_24px_rgba(18,48,71,0.06)] transition duration-300 hover:-translate-y-1 hover:border-[#0879C8]/40 hover:shadow-[0_16px_32px_rgba(8,121,200,0.12)] dark:border-slate-700 dark:bg-slate-900"><div className="flex items-start justify-between"><span className={`flex h-9 w-9 items-center justify-center rounded-xl ${visual.bg} transition duration-300 group-hover:scale-105`}><Icon size={20} className={visual.color} /></span><ArrowUpRight size={15} className="text-slate-300 opacity-0 transition duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" /></div><h3 className="mt-5 text-base font-bold text-[#123047] dark:text-white sm:text-lg">{feature.href ? <Link href={feature.href} className="outline-none focus-visible:ring-4 focus-visible:ring-blue-100 dark:focus-visible:ring-cyan-900">{feature.title}</Link> : feature.title}</h3><p className="public-readable-copy mt-3 text-[#557184] dark:text-slate-300">{feature.description}</p></article>; })}</div>
         </div>
       </section>
 
       <section id="how-it-works" className="border-y border-slate-200 bg-slate-50">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div className="public-workflow-heading max-w-3xl">
+          <div className="public-workflow-heading max-w-3xl lg:max-w-none">
             <p className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.28em] text-[#0879C8] dark:text-cyan-300"><span className="h-px w-6 bg-[#0879C8]" />How It Works</p>
-            <h2 className="mt-4 text-[28px] font-bold leading-[1.15] tracking-tight text-[#123047] dark:text-white sm:text-[32px] lg:text-[40px]">From pipeline inputs to an engineering report in four steps</h2>
-            <p className="public-readable-copy mt-4 text-[#557184] dark:text-slate-300">A clear, repeatable workflow from raw data to a documented, reviewable result.</p>
+            <h2 className="mt-4 text-[28px] font-bold leading-[1.15] tracking-tight text-[#123047] dark:text-white sm:text-[32px] lg:text-[40px]">From pipeline inputs to an AI report in four steps</h2>
+            <p className="public-readable-copy mt-4 text-[#557184] dark:text-slate-300 lg:text-justify">A clear, repeatable workflow from raw data to a documented, reviewable result.</p>
           </div>
           <div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {workflowSteps.map(({ number, title, Icon, accent, description }, index) => (

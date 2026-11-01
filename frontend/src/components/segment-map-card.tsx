@@ -1,9 +1,10 @@
 "use client";
+import { drawSavedPipelineOverlay, pipelineOverlayLabel } from "@/lib/saved-pipeline-overlay";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink, MapPin, RefreshCw, Route } from "lucide-react";
 import { Panel } from "@/components/ui";
-import { savedMapCoordinate, savedMapRoute, savedSegmentMapRoute } from "@/lib/dashboard-map-data";
+import { savedMapEndpoints, savedMapCoordinate, savedMapRoute, savedSegmentMapRoute } from "@/lib/dashboard-map-data";
 import { attachBasemap, GEOGRAPHIC_MAP_OPTIONS, UAE_VIEW } from "@/lib/map-provider";
 import { segmentKp } from "@/lib/segment-data";
 import type { AssetMasterAssetRecord, AssetMasterSegmentRecord, GeoJsonLineString, PipelineRecord } from "@/lib/types";
@@ -62,7 +63,7 @@ export function SegmentMapCard({ pipeline, segment, segments, assets, onSelectSe
   // Use the same scoped, distance-checked record for the selected preview.
   segment = segments.find(item => item.id === segment?.id) ?? null;
   const located = assets.filter((asset) => asset.pipelineId === pipeline?.id && savedMapCoordinate(asset.latitude, asset.longitude));
-  const hasLocation = (savedMapRoute(pipeline?.routeGeometry, pipeline?.pipeLengthKm ?? NaN) ?? []).length >= 2 || segments.some((item) => points(item.routeGeometry).length >= 2) || located.length > 0;
+  const hasLocation = (savedMapEndpoints(pipeline?.routeGeometry) ?? []).length >= 2 || segments.some((item) => points(item.routeGeometry).length >= 2) || located.length > 0;
   const range = segment && segmentKp(segment.startKp) !== null && segmentKp(segment.endKp) !== null ? `KP ${segment.startKp} – ${segment.endKp}` : "KP range not recorded";
 
   useEffect(() => {
@@ -88,7 +89,7 @@ export function SegmentMapCard({ pipeline, segment, segments, assets, onSelectSe
         coordinates.forEach((point) => bounds.extend(point));
         [coordinates[0], coordinates[coordinates.length - 1]].forEach((point) => L.circleMarker(point, { radius: 5, color, weight: 2, fillColor: "#ffffff", fillOpacity: 1 }).addTo(map));
       };
-      draw(savedMapRoute(pipeline?.routeGeometry, pipeline?.pipeLengthKm ?? NaN) ? pipeline?.routeGeometry : undefined, "#94a3b8", 4, pipeline?.pipelineCode ?? "Pipeline route");
+      drawSavedPipelineOverlay(L, map, pipeline).forEach(point => bounds.extend(point));
       segments.filter((item) => item.id !== segment?.id).forEach((item) => draw(item.routeGeometry, "#fbbf24", 4, item.segmentId, item.id));
       draw(segment?.routeGeometry, primary, 7, `${segment?.segmentId} · ${range}`, segment?.id);
       located.forEach((asset) => {
@@ -118,7 +119,7 @@ export function SegmentMapCard({ pipeline, segment, segments, assets, onSelectSe
       </> : <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 p-5 text-center text-xs text-slate-600"><Route size={32} className="text-slateblue-600" /><p className="font-semibold text-slate-800">{segment ? "KP overview" : "Select a segment"}</p><p>{segment ? "No map coordinates saved for this pipeline yet." : "Choose a segment from the register to view its location."}</p><div className="w-full"><SegmentKpOverview segment={segment} segments={segments} onSelectSegment={onSelectSegment} /></div></div>}
     </div>
     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-600">
-      <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-slate-400" />Pipeline route</span>
+      <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-slate-400" />{pipelineOverlayLabel(pipeline)}</span>
       <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-amber-400" />Other segment</span>
       <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-slateblue-600" />Selected segment</span>
       <span className="inline-flex items-center gap-1.5"><i className="h-2.5 w-2.5 bg-emerald-600" />Major asset</span>

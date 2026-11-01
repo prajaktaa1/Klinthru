@@ -1,4 +1,5 @@
 "use client";
+import { drawSavedPipelineOverlay, pipelineOverlayLabel } from "@/lib/saved-pipeline-overlay";
 import { ChainageFeedback } from "@/components/chainage-details";
 import { normalizeChainageImport, parseKp, tryKp } from "@/lib/chainage";
 
@@ -12,7 +13,7 @@ import { AssetRegisterActions, AssetRegisterWorkspace } from "@/components/asset
 import { MasterChangeLogWorkspace } from "@/components/master-change-log-workspace";
 import { InspectionHistoryWorkspace } from "@/components/inspection-history-workspace";
 import { DrawingsDocumentsWorkspace } from "@/components/drawings-documents-workspace";
-import { savedMapCoordinate, savedMapRoute, savedSegmentMapRoute } from "@/lib/dashboard-map-data";
+import { savedMapEndpoints, savedMapCoordinate, savedMapRoute, savedSegmentMapRoute } from "@/lib/dashboard-map-data";
 import { attachBasemap, GEOGRAPHIC_MAP_OPTIONS, UAE_VIEW } from "@/lib/map-provider";
 import { watchMapDataChanged } from "@/lib/map-sync";
 import { PipelineMapWorkspace } from "@/components/pipeline-map-workspace";
@@ -393,7 +394,7 @@ function OverviewRouteMap({ pipeline, segments, assets, error, onViewMap, onEdit
   const mapElement = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
-  const hasLocation = Boolean(savedMapRoute(pipeline.routeGeometry, pipeline.pipeLengthKm ?? NaN) || segments.some(segment => savedSegmentMapRoute(segment)) || assets.some(asset => asset.pipelineId === pipeline.id && savedMapCoordinate(asset.latitude, asset.longitude)));
+  const hasLocation = Boolean(savedMapEndpoints(pipeline.routeGeometry) || segments.some(segment => savedSegmentMapRoute(segment)) || assets.some(asset => asset.pipelineId === pipeline.id && savedMapCoordinate(asset.latitude, asset.longitude)));
   const routeName = [pipeline.pipelineName, pipeline.pipelineCode].filter(Boolean).join(" / ") || "Pipeline Route";
 
   useEffect(() => {
@@ -408,19 +409,19 @@ function OverviewRouteMap({ pipeline, segments, assets, error, onViewMap, onEdit
       map = L.map(mapElement.current, { ...GEOGRAPHIC_MAP_OPTIONS, scrollWheelZoom: false }).setView(UAE_VIEW, 7);
       base = attachBasemap(map, L, "hybrid");
       const bounds = L.latLngBounds([]);
-      const label = (value: string) => { const element = document.createElement("span"); element.textContent = value; return element; };
+      const label = (value: string) => { const element = document.createElement("span"); element.textContent = value; element.style.cssText = "display:block;width:170px;white-space:normal"; return element; };
       const draw = (geometry: GeoJsonLineString | undefined, name: string, color: string, weight: number, dashed = false) => {
         const points = routeLatLngs(geometry);
         if (points.length < 2) return;
         L.polyline(points, { color, weight, opacity: 0.95, dashArray: dashed ? "7 5" : undefined }).addTo(map).bindTooltip(label(name), { permanent: true, direction: "center" });
         points.forEach((point) => bounds.extend(point));
       };
-      draw(savedMapRoute(pipeline.routeGeometry, pipeline.pipeLengthKm ?? NaN) ? pipeline.routeGeometry : undefined, routeName, "#1687f5", 5);
+      drawSavedPipelineOverlay(L, map, pipeline).forEach(point => bounds.extend(point));
       segments.filter(segment => segment.pipelineId === pipeline.id && savedSegmentMapRoute(segment)).forEach((segment) => draw(segment.routeGeometry, segment.segmentId, "#0f766e", 3, true));
       assets.filter((asset) => asset.pipelineId === pipeline.id && savedMapCoordinate(asset.latitude, asset.longitude)).forEach((asset) => {
         const position = [asset.latitude!, asset.longitude!];
         const name = [asset.assetId, asset.name, asset.kp?.trim() ? `KP ${asset.kp}` : ""].filter(Boolean).join(" / ");
-        L.circleMarker(position, { radius: 6, color: "#ffffff", weight: 2, fillColor: mapAssetColor(mapAssetCategory(asset)), fillOpacity: 1 }).addTo(map).bindTooltip(label(name), { permanent: true, direction: "top" });
+        L.circleMarker(position, { radius: 6, color: "#ffffff", weight: 2, fillColor: mapAssetColor(mapAssetCategory(asset)), fillOpacity: 1 }).addTo(map).bindTooltip(label(name), { permanent: true, direction: "left", offset: [-8, 0] });
         bounds.extend(position);
       });
       if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
@@ -434,7 +435,7 @@ function OverviewRouteMap({ pipeline, segments, assets, error, onViewMap, onEdit
   return <div className="relative isolate overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
     <div ref={mapElement} className="relative z-0 h-[340px]" aria-label={`Pipeline route and linked assets overview map: ${routeName}`} />
     {!hasLocation ? <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50 p-5 text-center"><div><Route size={28} className="mx-auto text-slateblue-600" /><p className="mt-2 font-semibold text-slate-800">Pipeline location not available - GIS data required</p><p className="mt-1 text-xs leading-5 text-slate-500">Add route geometry or verified asset coordinates to display the map.</p><button type="button" onClick={onEdit} className="mt-3 rounded-md bg-slateblue-600 px-3 py-2 text-xs font-semibold text-white">Edit Pipeline / Import GIS</button></div></div> : state !== "ready" ? <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-50/95 p-5 text-sm text-slate-600"><p>{state === "error" ? "Map could not be loaded." : "Loading map..."}</p>{state === "error" ? <button type="button" onClick={() => setAttempt((value) => value + 1)} className="font-semibold text-slateblue-700">Retry map</button> : null}</div> : null}
-    <div className="pointer-events-none absolute left-3 top-3 z-20 max-w-[calc(100%-1.5rem)] rounded-md border border-slate-200 bg-slate-900/90 px-3 py-2 text-xs text-white shadow-lg"><p className="break-words font-semibold">{routeName}</p><p className="mt-1">Saved route & segments / Facilities / Valves / Other assets</p>{error ? <p className="mt-1">Some segment or asset data is unavailable.</p> : null}</div>
+    <div className="pointer-events-none absolute left-[52px] top-3 z-20 max-w-[calc(100%-4rem)] rounded-md border border-slate-200 bg-slate-900/90 px-3 py-2 text-xs text-white shadow-lg"><p className="break-words font-semibold">{routeName}</p><p className="mt-1">{pipelineOverlayLabel(pipeline)} / GPS assets / Available KP labels</p>{error ? <p className="mt-1">Some segment or asset data is unavailable.</p> : null}</div>
     <button type="button" onClick={onViewMap} className="absolute bottom-3 right-3 z-20 rounded-md bg-white px-3 py-2 text-xs font-semibold text-slateblue-700 shadow-lg hover:bg-slateblue-50">View Full Map <ArrowUpFromLine size={13} className="ml-1 inline" /></button>
   </div>;
 }

@@ -18,6 +18,17 @@ export function savedMapRoute(geometry: unknown, lengthKm?: number): [number, nu
   return coordinates.map(([longitude, latitude]) => [latitude, longitude]);
 }
 
+// Display-only fallback for a saved endpoint pair. This deliberately skips
+// alignment-length validation: callers must keep full-route/KP readiness
+// separate and must not treat the pair as a surveyed alignment.
+export function savedMapEndpoints(geometry: unknown): [number, number][] | null {
+  if (!geometry || typeof geometry !== "object" || !("type" in geometry) || geometry.type !== "LineString" || !("coordinates" in geometry) || !Array.isArray(geometry.coordinates) || geometry.coordinates.length < 2) return null;
+  const coordinates = geometry.coordinates;
+  if (!coordinates.every((point) => Array.isArray(point) && point.length === 2 && savedMapCoordinate(point[1], point[0]))) return null;
+  if (!coordinates.some((point) => point[0] !== coordinates[0][0] || point[1] !== coordinates[0][1])) return null;
+  return coordinates.map(([longitude, latitude]) => [latitude, longitude]);
+}
+
 export function savedSegmentMapRoute(segment: AssetMasterSegmentRecord): [number, number][] | null {
   if (!segment.startKp || !segment.endKp) return null;
   try { return savedMapRoute(segment.routeGeometry, (parseKp(segment.endKp).meters - parseKp(segment.startKp).meters) / 1000); } catch { return null; }

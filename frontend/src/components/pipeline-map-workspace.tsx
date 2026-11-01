@@ -1,4 +1,5 @@
 "use client";
+import { drawSavedPipelineOverlay, PIPELINE_BLUE } from "@/lib/saved-pipeline-overlay";
 import Link from "next/link";
 import { ChainageDetails } from "@/components/chainage-details";
 import { alignmentReadiness, chainageSummary, coordinateAtChainage, parseKp, projectToAlignment, tryKp } from "@/lib/chainage";
@@ -11,7 +12,7 @@ import { loadLeaflet } from "@/components/segment-map-card";
 import { fetchCpMonitoringData, fetchCpTestPoints, fetchDocuments, type DocumentRepositoryItem } from "@/lib/apiClient";
 import { pipelineAlignment, segmentChainageLabel, savedAlignmentPosition } from "@/lib/map-chainage";
 import { attachBasemap, GEOGRAPHIC_MAP_OPTIONS, UAE_VIEW } from "@/lib/map-provider";
-import { savedMapRoute, savedMapCoordinate, savedSegmentMapRoute } from "@/lib/dashboard-map-data";
+import { savedMapEndpoints, savedMapRoute, savedMapCoordinate, savedSegmentMapRoute } from "@/lib/dashboard-map-data";
 import { segmentKp } from "@/lib/segment-data";
 import type { AssetMasterAssetRecord, AssetMasterSegmentRecord, GeoJsonLineString, PipelineRecord } from "@/lib/types";
 type Asset = AssetMasterAssetRecord & { description?: string; pressureRating?: string; lastInspection?: string; nextInspection?: string };
@@ -40,7 +41,7 @@ export function PipelineMapWorkspace({ pipeline, segments: allSegments, assets: 
   onSelectAsset: (id: string) => void; onOpenAssetRegister: (id: string) => void; onOpenHistory: () => void;
 }) {
   const savedPipeline = pipeline;
-  pipeline = useMemo(() => savedPipeline && { ...savedPipeline, routeGeometry: savedMapRoute(savedPipeline.routeGeometry, savedPipeline.pipeLengthKm ?? NaN) ? savedPipeline.routeGeometry : undefined }, [savedPipeline]);
+  pipeline = useMemo(() => savedPipeline, [savedPipeline]);
   const segments = useMemo(() => allSegments.filter(item => item.pipelineId === pipeline?.id).map(segment => ({ ...segment, routeGeometry: savedSegmentMapRoute(segment) ? segment.routeGeometry : undefined })), [allSegments, pipeline?.id]);
   const assets = allAssets.filter(item => item.pipelineId === pipeline?.id);
   const alignment = pipelineAlignment(savedPipeline);
@@ -63,7 +64,10 @@ export function PipelineMapWorkspace({ pipeline, segments: allSegments, assets: 
   const selected = assets.find((asset) => asset.id === selectedId) ?? null;
   const selectedSegment = segments.find((segment) => segment.id === selected?.segmentId || segment.segmentId === selected?.segmentId);
   const gpsAssets = assets.filter(located);
-  const hasRoute = Boolean(coordinates(pipeline?.routeGeometry).length >= 2);
+  const hasCompleteRoute = Boolean(savedMapRoute(pipeline?.routeGeometry, pipeline?.pipeLengthKm ?? NaN));
+  const hasRoute = hasCompleteRoute;
+  const endpointRoute = savedMapEndpoints(pipeline?.routeGeometry) ?? [];
+  const hasDisplayRoute = endpointRoute.length >= 2;
   const hasSegments = segments.some((segment) => coordinates(segment.routeGeometry).length >= 2);
   const hasLocations = hasRoute || hasSegments || gpsAssets.length > 0;
   const normalizedQuery = query.trim().toLowerCase().replace(/^kp\s*/, "");
@@ -156,13 +160,13 @@ export function PipelineMapWorkspace({ pipeline, segments: allSegments, assets: 
   useEffect(() => {
     if (state !== "ready" || !map.current || !mapElement.current) return;
     const L = (window as unknown as { L: any }).L;
-    const primary = getComputedStyle(mapElement.current).getPropertyValue("--app-primary").trim() || "#0891b2";
+    const primary = PIPELINE_BLUE;
     vectors.current.forEach((layer) => layer.remove()); vectors.current = [];
     const bounds = L.latLngBounds([]);
     const add = (layer: any) => { layer.addTo(map.current); vectors.current.push(layer); return layer; };
     const label = (value: string) => { const element = document.createElement("span"); element.textContent = value; return element; };
-    const draw = (geometry: GeoJsonLineString | undefined, color: string, weight: number, title: string, dashed = false) => {
-      const points = coordinates(geometry); if (points.length < 2) return;
+    const draw = (geometry: GeoJsonLineString | undefined, color: string, weight: number, title: string, dashed = false, allowEndpointDisplay = false) => {
+      const points = allowEndpointDisplay ? (savedMapEndpoints(geometry) ?? []) : coordinates(geometry); if (points.length < 2) return;
       const line = add(L.polyline(points, { color, weight, opacity: 0.95, dashArray: dashed ? "7 5" : undefined })).bindTooltip(label(title));
       if (!dashed && pipeline?.routeGeometry) line.on("click", (event: { latlng: { lng: number; lat: number } }) => {
         if (!alignment.ready) { setNotice(alignment.reason ?? "Verified GIS calibration is required."); return; }
@@ -171,7 +175,7 @@ export function PipelineMapWorkspace({ pipeline, segments: allSegments, assets: 
       });
       points.forEach((point) => bounds.extend(point));
     };
-    if (layers.route) draw(pipeline?.routeGeometry, primary, 5, [pipeline?.pipelineCode, pipeline?.pipelineName].filter(Boolean).join(" — ") || "Pipeline route");
+    if (layers.route) drawSavedPipelineOverlay(L, map.current, pipeline, add).forEach(point => bounds.extend(point));
     if (layers.route && alignment.ready && pipeline?.routeGeometry) {
       const length = Math.min(alignment.length_m ?? 0, (pipeline.pipeLengthKm ?? Infinity) * 1000);
       const interval = Math.max(1000, Math.ceil(length / 100000) * 1000);
@@ -209,7 +213,7 @@ export function PipelineMapWorkspace({ pipeline, segments: allSegments, assets: 
     if (!map.current || state !== "ready") return;
     const L = (window as unknown as { L: any }).L;
     if (mode === "selected") { if (selected && located(selected)) { setLayers((current) => ({ ...current, [category(selected)]: true })); map.current.flyTo([selected.latitude, selected.longitude], Math.max(map.current.getZoom(), 13)); setNotice(""); } else setNotice("The selected asset has no saved coordinates."); return; }
-    const points = mode === "route" ? [...coordinates(pipeline?.routeGeometry), ...segments.flatMap((segment) => coordinates(segment.routeGeometry))] : gpsAssets.map((asset) => [asset.latitude!, asset.longitude!] as [number, number]);
+    const points = mode === "route" ? [...endpointRoute, ...segments.flatMap((segment) => coordinates(segment.routeGeometry))] : gpsAssets.map((asset) => [asset.latitude!, asset.longitude!] as [number, number]);
     if (points.length) { if (mode === "route") setLayers(current => ({ ...current, route: true, segments: true })); map.current.stop(); map.current.invalidateSize({ pan: false }); map.current.fitBounds(L.latLngBounds(points), { padding: [72, 88], maxZoom: 14, animate: false }); setNotice(""); }
     else setNotice(mode === "route" ? "GIS Route Data Required — no accepted pipeline or segment alignment is saved." : "No saved asset coordinates are available.");
   }
@@ -236,7 +240,7 @@ export function PipelineMapWorkspace({ pipeline, segments: allSegments, assets: 
     <Panel className="min-w-0 !p-3 lg:sticky lg:top-3">
       <button type="button" onClick={() => setLayersOpen((open) => !open)} aria-expanded={layersOpen} className="mb-3 flex w-full items-center gap-2 text-left text-lg font-semibold text-slate-900"><Layers3 size={23} className="text-slateblue-600" />Map Layers{layersOpen ? <ChevronUp className="ml-auto" size={16} /> : <ChevronDown className="ml-auto" size={16} />}</button>
       {layersOpen ? <div className="space-y-1.5">
-        <LayerControl label="Pipeline Route" icon={<Route size={20} />} checked={layers.route} onChange={() => toggle("route")} disabled={!hasRoute} reason="No pipeline route coordinates saved" />
+        <LayerControl label="Pipeline Route" icon={<Route size={20} />} checked={layers.route} onChange={() => toggle("route")} disabled={!hasDisplayRoute} reason={hasCompleteRoute ? "No pipeline route coordinates saved" : "Saved endpoints only; surveyed alignment required for a complete route"} />
         <LayerControl label="Segments" icon={<MapIcon size={20} />} checked={layers.segments} onChange={() => toggle("segments")} disabled={!hasSegments} reason="No segment route coordinates saved" />
         {kinds.map(({ key, label, icon: Icon, color }) => <LayerControl key={key} label={label} icon={<Icon size={20} className={color} />} checked={layers[key]} onChange={() => toggle(key)} count={gpsAssets.filter((asset) => category(asset) === key).length} />)}
         <LayerControl label="Other Assets" icon={<MapPin size={20} />} checked={layers.other} onChange={() => toggle("other")} count={gpsAssets.filter((asset) => category(asset) === "other").length} />
@@ -255,7 +259,7 @@ export function PipelineMapWorkspace({ pipeline, segments: allSegments, assets: 
         <form onSubmit={(event) => { event.preventDefault(); search(); }} className="relative min-w-[180px] flex-1"><div className="flex rounded-md border border-slate-300 bg-white shadow-sm"><button type="submit" aria-label="Search map" className="px-3 text-slateblue-700"><Search size={16} /></button><input aria-label="Search map by KP, asset, segment or location" placeholder="Search by KP, Asset ID, or location..." value={query} onChange={(event) => { setQuery(event.target.value); setSearchOpen(true); }} onFocus={() => setSearchOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") setSearchOpen(false); }} className="min-w-0 flex-1 rounded-md bg-white py-2.5 pr-3 text-xs text-slate-800 outline-none" /><button type="button" aria-label="Clear map search" disabled={!query} onClick={() => { setQuery(""); setSearchOpen(false); setNotice(""); }} className="px-2 text-slate-400 disabled:opacity-30"><X size={14} /></button></div>
           {searchOpen && query.trim() ? <div className="absolute inset-x-0 top-full mt-1 max-h-64 overflow-y-auto rounded-md border border-slate-200 bg-white p-1 shadow-panel" role="listbox" aria-label="Map search results">{assetMatches.slice(0, 6).map((asset) => <button key={asset.id} type="button" role="option" aria-selected={asset.id === selectedId} onClick={() => chooseAsset(asset)} className="block w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slateblue-50"><strong>{asset.assetId}</strong> · {asset.name ?? assetTypeLabels[asset.assetType]}{asset.kp ? ` · KP ${asset.kp}` : ""}</button>)}{segmentMatches.slice(0, 4).map((segment) => <button key={segment.id} type="button" role="option" aria-selected={false} onClick={() => chooseSegment(segment)} className="block w-full rounded px-3 py-2 text-left text-xs text-slate-700 hover:bg-slateblue-50"><strong>{segment.segmentId}</strong> · KP {text(segment.startKp)} – {text(segment.endKp)}</button>)}{!assetMatches.length && !segmentMatches.length ? <p className="px-3 py-2 text-slate-500">No matching saved locations.</p> : null}</div> : null}
         </form>
-        <div className="flex rounded-md bg-white shadow-sm"><button type="button" onClick={() => fit("route")} disabled={state !== "ready" || (!hasRoute && !hasSegments)} className={button}><Scan size={16} />Fit to Route</button><details className="relative"><summary aria-label="More map fitting options" className={`${button} cursor-pointer list-none px-1.5`}><ChevronDown size={15} /></summary><div className="absolute right-0 mt-1 min-w-40 rounded-md border border-slate-200 bg-white p-1 shadow-panel" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }}><button type="button" disabled={!gpsAssets.length || state !== "ready"} onClick={() => fit("assets")} className="block w-full px-3 py-2 text-left disabled:opacity-50">Fit all assets</button><button type="button" disabled={!selected || !located(selected) || state !== "ready"} onClick={() => fit("selected")} className="block w-full px-3 py-2 text-left disabled:opacity-50">Fit selected asset</button></div></details></div>
+        <div className="flex rounded-md bg-white shadow-sm"><button type="button" onClick={() => fit("route")} disabled={state !== "ready" || (!hasDisplayRoute && !hasSegments)} className={button}><Scan size={16} />Fit to Route</button><details className="relative"><summary aria-label="More map fitting options" className={`${button} cursor-pointer list-none px-1.5`}><ChevronDown size={15} /></summary><div className="absolute right-0 mt-1 min-w-40 rounded-md border border-slate-200 bg-white p-1 shadow-panel" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }}><button type="button" disabled={!gpsAssets.length || state !== "ready"} onClick={() => fit("assets")} className="block w-full px-3 py-2 text-left disabled:opacity-50">Fit all assets</button><button type="button" disabled={!selected || !located(selected) || state !== "ready"} onClick={() => fit("selected")} className="block w-full px-3 py-2 text-left disabled:opacity-50">Fit selected asset</button></div></details></div>
         <label className="flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 shadow-sm"><Globe2 size={16} className="text-slateblue-600" /><select aria-label="Map basemap" value={basemap} onChange={(event) => setBasemap(event.target.value as Basemap)} className="min-w-0 bg-white py-2.5 text-xs font-semibold text-slateblue-700">{(Object.keys(maps) as Basemap[]).map((key) => <option value={key} key={key}>{maps[key].label}</option>)}</select></label>
         <details className="relative"><summary aria-label="Export map" className={`${button} cursor-pointer list-none shadow-sm`}><Download size={16} />Export<ChevronDown size={14} /></summary><div className="absolute right-0 mt-1 min-w-44 rounded-md border border-slate-200 bg-white p-1 shadow-panel" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }}><button type="button" onClick={downloadGeoJson} className="block w-full rounded px-3 py-2 text-left hover:bg-slate-50">Export visible GeoJSON</button><button type="button" disabled={!assets.length} onClick={() => exportAssetRegister(assets)} className="block w-full rounded px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-50">Export assets CSV</button></div></details>
       </div>
@@ -264,7 +268,7 @@ export function PipelineMapWorkspace({ pipeline, segments: allSegments, assets: 
       <div style={{ bottom: footerHeight + 12 }} className="pointer-events-none absolute right-3 z-[400] hidden h-[105px] w-[140px] overflow-hidden rounded-md border-2 border-white bg-slate-50 shadow-md sm:block"><div ref={miniElement} className="h-full w-full" role="region" aria-label="Map overview" /></div>
       {state === "loading" ? <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-slate-50/70 text-slate-600">Loading map...</div> : null}
       {state === "error" ? <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-50 text-slate-600"><MapPin size={36} className="text-slateblue-600" /><p>Map could not be loaded.</p><button type="button" onClick={() => setAttempt((value) => value + 1)} className={button}><RefreshCw size={15} />Retry map</button></div> : null}
-      {state === "ready" && !hasRoute ? <div style={{ bottom: footerHeight + 12 }} role="status" className="pointer-events-none absolute left-3 right-3 z-[400] rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-600 sm:right-[166px]">GIS Route Data Required — {pipeline?.pipelineCode}: {pipeline?.pipelineName}</div> : null}
+      {state === "ready" && (!hasCompleteRoute || !hasDisplayRoute) ? <div style={{ bottom: footerHeight + 12 }} role="status" className="pointer-events-none absolute left-3 right-3 z-[400] rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-600 sm:right-[166px]">{hasDisplayRoute && !hasCompleteRoute ? `Incomplete Route ? Saved endpoint pair displayed — ${pipeline?.pipeLengthKm ?? "Configured"} km configured — GIS Route Data Required for complete surveyed alignment — ${pipeline?.pipelineCode}: ${pipeline?.pipelineName}` : `GIS Route Data Required — ${pipeline?.pipelineCode}: ${pipeline?.pipelineName}`}</div> : null}
       {state === "ready" && !alignment.ready ? <p style={{ bottom: footerHeight + 60 }} className="absolute left-3 right-3 z-[400] rounded-md border border-amber-200 bg-white px-3 py-2 text-xs text-slate-700" role="status">Chainage markers: BLOCKED - {alignment.reason}</p> : null}
       {notice ? <div style={{ bottom: footerHeight + 12 }} role="status" className="absolute left-3 right-3 z-[450] flex items-start gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-700 shadow-sm"><span className="flex-1">{notice}</span><button type="button" aria-label="Dismiss map message" onClick={() => setNotice("")}><X size={14} /></button></div> : null}
     </section>

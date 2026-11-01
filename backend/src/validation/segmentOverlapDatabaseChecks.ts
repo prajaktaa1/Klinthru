@@ -36,7 +36,7 @@ async function run() {
     const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
     const response = await fetch(`${base}/api/asset-master/segments`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ pipelineId: pipeline.id, segmentId: "HTTP-BLOCKED", startKp: "2+500", endKp: "3+000" }) });
     assert.equal(response.status, 400); const error = await response.json() as { fields: { endKp: string } }; assert.match(error.fields.endKp, /overlaps/);
-    const pl001 = existing.find(p => p.pipelineCode === "PL-001")!;
+    const pl001 = existing.find((p: (typeof existing)[number]) => p.pipelineCode === "PL-001")!;
     const originalOverlapSave = await fetch(`${base}/api/asset-master/segments/${pl001.segments[0].id}`, { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ pipelineId: pl001.id, segmentId: pl001.segments[0].segmentId, startKp: pl001.segments[0].startKp, endKp: pl001.segments[0].endKp }) });
     assert.equal(originalOverlapSave.status, 400, "Existing overlapping intervals are not silently saved or repaired.");
     await db.segment.deleteMany({ where: { pipelineId: { in: ids } } }); await db.pipeline.deleteMany({ where: { id: { in: ids } } }); ids.length = 0;

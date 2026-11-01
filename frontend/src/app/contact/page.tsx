@@ -1,5 +1,6 @@
 import { PublicFooter } from "@/components/public-footer";
 import { PublicNavbar } from "@/components/public-navbar";
+import { PublicEnquiryForm } from "@/components/public-enquiry-form";
 
 const formFields = [
   { label: "Your name", name: "name", type: "text", placeholder: "Your full name" },
@@ -8,7 +9,7 @@ const formFields = [
 
 export default function ContactPage() {
   return (
-    <main className="public-motion min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <main className="public-subpage public-motion min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <PublicNavbar />
 
       <section className="border-b border-slate-200 bg-slate-50 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.09),transparent_34%)] dark:border-slate-800 dark:bg-slate-950">
@@ -53,7 +54,9 @@ export default function ContactPage() {
           </div>
 
           <section className="rounded-[32px] border border-slate-200 bg-white p-3 shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20">
-            <form className="grid gap-5 rounded-[24px] border border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-950 sm:p-7" aria-label="Contact form">
+            <PublicEnquiryForm />
+            {/* The form is implemented in the client component so this page remains a Server Component. */}
+            {/*
               <div className="grid gap-4 sm:grid-cols-2">
                 {formFields.map((field) => (
                   <label className="block" htmlFor={field.name} key={field.name}>
@@ -124,7 +127,7 @@ export default function ContactPage() {
                   Send to support
                 </button>
               </div>
-            </form>
+            </form>*/}
           </section>
         </div>
       </section>

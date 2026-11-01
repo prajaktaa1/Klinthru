@@ -3,12 +3,16 @@ import { NextFunction, Request, Response } from "express";
 import { verifyToken } from "../lib/jwt";
 import { store } from "../data/store";
 import { AuthUser } from "../types/domain";
+import { env } from "../config/env";
+import { getPrismaClient } from "../lib/prisma";
 
 declare global {
   namespace Express {
     interface Request {
       user?: AuthUser;
       token?: string;
+      companyId?: string;
+      companyRole?: "CompanyAdmin" | "Engineer" | "Viewer";
     }
   }
 }
@@ -46,6 +50,15 @@ export async function requireAuth(request: Request, response: Response, next: Ne
 
     request.user = store.toAuthUser(user);
     request.token = token;
+    if (env.companyWorkflowEnabled) {
+      const db = getPrismaClient();
+      const membership = db ? await db.companyMembership.findFirst({ where: { userId: user.id, status: "Active" }, orderBy: { createdAt: "asc" } }) : null;
+      if (membership) {
+        request.companyId = membership.companyId;
+        request.companyRole = membership.role;
+        request.user = { ...request.user, companyId: membership.companyId, companyRole: membership.role };
+      }
+    }
     next();
   } catch {
     response.status(401).json({ message: "Unauthorized" });

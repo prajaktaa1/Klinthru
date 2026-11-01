@@ -7,6 +7,8 @@ import { ownerScope, canModifyMasterData } from "../lib/access";
 import { requireAuth } from "../middleware/auth";
 import { validatePipelineInput } from "../validation/pipelineValidation";
 import { assertNoDangerousKeys } from "../validation/validationErrors";
+import { env } from "../config/env";
+import { enforcePipelineKmCapacity } from "../superAdmin/service";
 
 export const pipelinesRouter = Router();
 
@@ -25,9 +27,13 @@ pipelinesRouter.post("/", async (request, response, next: NextFunction) => {
     assertNoDangerousKeys(request.body);
     const input = validatePipelineInput(request.body);
     if (input.routeGeometry && !canModifyMasterData(request.user!)) { response.status(403).json({ message: "Route import requires Admin or Engineer permission." }); return; }
+    if (env.companyWorkflowEnabled && request.user?.companyId) {
+      await enforcePipelineKmCapacity(request.user.companyId, Number(input.pipeLengthKm ?? 0));
+    }
     const created = await store.createPipeline({
       pipeline: input,
-      createdById: request.user?.id
+      createdById: request.user?.id,
+      companyId: request.user?.companyId
     });
     response.status(201).json(created);
   } catch (error) {
@@ -61,10 +67,14 @@ pipelinesRouter.put("/:id", async (request, response, next: NextFunction) => {
       const [assets, segments] = await Promise.all([store.listAssets({ pipelineId: existing.id, ...scope }), store.listSegments({ pipelineId: existing.id, ...scope })]);
       const locations = [...assets.map(asset => asset.kp), ...segments.flatMap(segment => [segment.startKp, segment.endKp])].filter((value): value is string => Boolean(value?.trim()));
       if (locations.some(value => parseKp(value).kilometers > input.pipeLengthKm!)) throw createValidationError({ pipeLengthKm: "Pipeline length cannot exclude saved segment or asset chainages." });
+      if (env.companyWorkflowEnabled && request.user?.companyId) {
+        await enforcePipelineKmCapacity(request.user.companyId, Number(input.pipeLengthKm) - Number(existing.pipeLengthKm ?? 0));
+      }
     }
     const updated = await store.updatePipeline(request.params.id, {
       pipeline: input,
-      createdById: existing.createdById
+      createdById: existing.createdById,
+      companyId: request.user?.companyId
     });
     response.json(updated);
   } catch (error) {

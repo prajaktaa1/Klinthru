@@ -11,6 +11,8 @@
     "start": "node dist/server.js",
     "bootstrap:admin": "tsx src/scripts/bootstrapAdmin.ts",
     "reset:admin-password": "tsx src/scripts/resetAdminPassword.ts",
+    "super-admin:set-password": "tsx src/scripts/setSuperAdminPassword.ts",
+    "validation:super-admin-password-input": "tsx src/validation/superAdminPasswordInputChecks.ts",
     "validation:check": "tsx src/validation/runValidationChecks.ts",
     "validation:cors": "tsx src/validation/corsChecks.ts",
     "validation:save-diagnostics": "tsx src/validation/saveDiagnosticsChecks.ts",
@@ -32,10 +34,19 @@
     "validation:chainage": "tsx src/validation/chainageChecks.ts",
     "validation:chainage-database": "tsx src/validation/chainageDatabaseChecks.ts",
     "validation:gis-map": "tsx src/validation/gisMapChecks.ts",
+    "validation:super-admin-domain": "tsx src/validation/superAdminDomainChecks.ts",
+    "validation:super-admin-api": "tsx src/validation/superAdminApiChecks.ts",
+    "validation:neon-readonly-readiness": "tsx src/validation/neonReadOnlyReadiness.ts",
+    "notifications:process": "tsx src/scripts/processNotifications.ts",
+    "email:super-admin-preview": "tsx src/scripts/sendSuperAdminEmailPreview.ts",
+    "email": "npm run email:super-admin-preview",
+    "validation:email-notifications": "tsx src/validation/emailNotificationChecks.ts",
     "audit:gis-map": "node src/validation/gisMapAudit.cjs"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "6.19.3",
     "@prisma/client": "^6.11.1",
+    "@types/pg": "8.15.5",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -43,6 +54,7 @@
     "jsonwebtoken": "^9.0.2",
     "klinthru": "file:..",
     "pdf-lib": "^1.17.1",
+    "pg": "8.16.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {

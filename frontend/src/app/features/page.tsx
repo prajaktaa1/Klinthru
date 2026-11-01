@@ -239,7 +239,7 @@ function FeatureShowcaseCard({
 
 export default function FeaturesPage() {
   return (
-    <main className="public-motion min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950">
+    <main className="public-subpage public-motion min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950">
       <PublicNavbar />
 
       <section className="overflow-hidden border-b border-slate-200 bg-slate-50 bg-[radial-gradient(circle_at_top_right,rgba(8,145,178,0.16),transparent_34%)] dark:border-slate-800 dark:bg-slate-950">
@@ -303,16 +303,16 @@ export default function FeaturesPage() {
             </p>
           </div>
 
-          <article className="mt-10 overflow-hidden rounded-[32px] border border-cyan-500/20 bg-slate-950 text-white shadow-panel">
-            <div className="grid gap-8 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.22),transparent_38%)] p-6 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:p-10">
+          <article className="mt-10 overflow-hidden rounded-[32px] border border-[#9edbd9] !bg-[linear-gradient(110deg,#A9D8FA_0%,#9BDFDC_55%,#B8E8B1_100%)] !text-[#123047] shadow-panel dark:border-teal-900 dark:!bg-[linear-gradient(110deg,#1b4965_0%,#17605f_55%,#355d38_100%)] dark:!text-slate-100">
+            <div className="grid gap-8 !bg-[radial-gradient(circle_at_top_right,rgba(0,168,181,0.16),transparent_38%)] p-6 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:p-10">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.32em] text-cyan-300">
                   Platform Focus
                 </p>
-                <h3 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+                <h3 className="mt-4 text-3xl font-semibold tracking-tight !text-[#123047] sm:text-4xl dark:!text-white">
                   One workspace for source-backed integrity review.
                 </h3>
-                <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+                <p className="mt-5 max-w-2xl text-sm leading-7 !text-[#294B5C] sm:text-base dark:!text-slate-200">
                   Klinthru connects pipeline records, assessments, CP evidence,
                   ILI readiness, risk context, reports, and configured data
                   sources while making unavailable or demo-only areas explicit.
@@ -326,7 +326,7 @@ export default function FeaturesPage() {
                   "Traceable reports",
                 ].map((item) => (
                   <div
-                    className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-slate-100"
+                    className="rounded-2xl border border-[#72c9cf] bg-white/60 px-4 py-3 text-sm font-semibold !text-[#123047] dark:border-cyan-700 dark:bg-slate-950/30 dark:!text-cyan-100"
                     key={item}
                   >
                     {item}

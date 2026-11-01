@@ -1,4 +1,5 @@
 import { env } from "../config/env";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 type PrismaClientLike = {
   // Optional until the additive Reports contract migration is explicitly deployed.
@@ -33,6 +34,7 @@ type PrismaClientLike = {
     findUnique(args: unknown): Promise<any>;
     create(args: unknown): Promise<any>;
     update(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
   };
   assessment: {
     findMany(args: unknown): Promise<any[]>;
@@ -159,6 +161,54 @@ type PrismaClientLike = {
     findUnique(args: unknown): Promise<any>;
     create(args: unknown): Promise<any>;
   };
+  company: {
+    findMany(args?: unknown): Promise<any[]>;
+    findUnique(args: unknown): Promise<any>;
+    findFirst(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+  };
+  companyMembership: {
+    findMany(args?: unknown): Promise<any[]>;
+    findUnique(args: unknown): Promise<any>;
+    findFirst(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    update(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
+    count(args?: unknown): Promise<number>;
+  };
+  superAdmin: {
+    findUnique(args: unknown): Promise<any>;
+    findFirst(args: unknown): Promise<any>;
+    findMany(args?: unknown): Promise<any[]>;
+    update(args: unknown): Promise<any>;
+  };
+  referralCode: {
+    findMany(args?: unknown): Promise<any[]>;
+    findUnique(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    updateMany(args: unknown): Promise<any>;
+  };
+  companySubscription: {
+    findMany(args?: unknown): Promise<any[]>;
+    findFirst(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+  };
+  publicSubmission: {
+    create(args: unknown): Promise<any>;
+    findUnique(args: unknown): Promise<any>;
+    findMany(args?: unknown): Promise<any[]>;
+  };
+  auditLog: {
+    findMany(args?: unknown): Promise<any[]>;
+    create(args: unknown): Promise<any>;
+  };
+  superAdminSession: {
+    findUnique(args: unknown): Promise<any>;
+    create(args: unknown): Promise<any>;
+    delete(args: unknown): Promise<any>;
+    deleteMany(args: unknown): Promise<any>;
+  };
 };
 
 let prismaClient: PrismaClientLike | null = null;
@@ -169,12 +219,13 @@ export function getPrismaClient(): PrismaClientLike | null {
   }
 
   if (!prismaClient) {
-    const prismaModule = require("@prisma/client") as { PrismaClient?: new () => PrismaClientLike };
+    const prismaModule = require("@prisma/client") as { PrismaClient?: new (options?: { adapter: PrismaPg }) => PrismaClientLike };
     if (!prismaModule.PrismaClient) {
       return null;
     }
 
-    prismaClient = new prismaModule.PrismaClient();
+    const adapter = new PrismaPg({ connectionString: env.databaseUrl });
+    prismaClient = new prismaModule.PrismaClient({ adapter });
   }
 
   return prismaClient;

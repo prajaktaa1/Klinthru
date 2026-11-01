@@ -55,6 +55,7 @@ type ReportSearch = {
 type OwnershipScope = {
   viewerUserId?: string;
   viewerRole?: AuthUser["role"];
+  viewerCompanyId?: string;
 };
 type PipelineSearch = OwnershipScope & {
   search?: string;
@@ -62,6 +63,7 @@ type PipelineSearch = OwnershipScope & {
 type SavePipelineInput = {
   pipeline: PipelineInput;
   createdById?: string;
+  companyId?: string;
 };
 type SegmentSearch = OwnershipScope & {
   pipelineId?: string;
@@ -69,6 +71,7 @@ type SegmentSearch = OwnershipScope & {
 type SaveSegmentInput = {
   id?: string;
   segment: SegmentInput;
+  companyId?: string;
 };
 type AssetSearch = OwnershipScope & {
   pipelineId?: string;
@@ -79,6 +82,7 @@ type AssetSearch = OwnershipScope & {
 type SaveAssetInput = {
   id?: string;
   asset: AssetInput;
+  companyId?: string;
 };
 type CpAssetSearch = OwnershipScope & {
   pipelineId?: string;
@@ -86,10 +90,12 @@ type CpAssetSearch = OwnershipScope & {
 type SaveCpTestPointInput = {
   id?: string;
   testPoint: CpTestPointInput | CpTestPointUpdateInput;
+  companyId?: string;
 };
 type SaveCpRectifierInput = {
   id?: string;
   rectifier: CpRectifierInput | CpRectifierUpdateInput;
+  companyId?: string;
 };
 type CpCalculationSearch = OwnershipScope & {
   pipelineId?: string;
@@ -349,7 +355,7 @@ class MemoryStore {
   }
 
   async saveSegment(input: SaveSegmentInput): Promise<SegmentRecord> {
-    const pipeline = await this.findPipelineById(input.segment.pipelineId);
+    const pipeline = await this.findPipelineById(input.segment.pipelineId, { viewerCompanyId: input.companyId });
     if (!pipeline) {
       throw new Error("Pipeline not found.");
     }
@@ -426,7 +432,7 @@ class MemoryStore {
   }
 
   async saveAsset(input: SaveAssetInput): Promise<AssetRecord> {
-    const pipeline = await this.findPipelineById(input.asset.pipelineId);
+    const pipeline = await this.findPipelineById(input.asset.pipelineId, { viewerCompanyId: input.companyId });
     if (!pipeline) {
       throw new Error("Pipeline not found.");
     }
@@ -1045,6 +1051,11 @@ function matchesViewerScope(authorId: string | undefined, search: ReportSearch) 
 }
 
 function matchesOwnerScope(authorId: string | undefined, scope: OwnershipScope) {
+  // Company-scoped callers are filtered by a verified company relationship at
+  // the query/parent level. Do not narrow them back to records they created.
+  if (scope.viewerCompanyId) {
+    return true;
+  }
   if (!scope.viewerUserId || scope.viewerRole === "Admin") {
     return true;
   }
@@ -1486,6 +1497,7 @@ function toStoredPipelineInput(pipeline: PipelineInput): PipelineInput {
 function toPipelineData(input: SavePipelineInput) {
   const pipeline = toStoredPipelineInput(input.pipeline);
   return {
+    companyId: input.companyId,
     pipelineCode: pipeline.pipelineCode.trim(),
     normalizedPipelineCode: normalizePipelineCode(pipeline.pipelineCode),
     pipelineName: pipeline.pipelineName.trim(),
@@ -1837,8 +1849,9 @@ class PrismaStore {
     const query = search.search?.trim();
     const records = await prisma.pipeline.findMany({
       where: {
+        companyId: search.viewerCompanyId,
         createdById:
-          search.viewerUserId && search.viewerRole !== "Admin"
+          !search.viewerCompanyId && search.viewerUserId && search.viewerRole !== "Admin"
             ? search.viewerUserId
             : undefined,
         OR: query
@@ -1911,8 +1924,8 @@ class PrismaStore {
       return null;
     }
 
-    const record = await prisma.pipeline.findUnique({
-      where: { id },
+    const record = await prisma.pipeline.findFirst({
+      where: { id, companyId: search.viewerCompanyId },
       include: { createdBy: true }
     });
     if (!record || !matchesOwnerScope(record.createdById ?? undefined, search)) {
@@ -1932,8 +1945,10 @@ class PrismaStore {
       where: {
         pipelineId: search.pipelineId,
         pipeline:
-          search.viewerUserId && search.viewerRole !== "Admin"
-            ? { createdById: search.viewerUserId }
+          search.viewerCompanyId
+            ? { companyId: search.viewerCompanyId }
+            : search.viewerUserId && search.viewerRole !== "Admin"
+              ? { createdById: search.viewerUserId }
             : undefined
       },
       orderBy: { segmentId: "asc" }
@@ -1948,8 +1963,8 @@ class PrismaStore {
       return null;
     }
 
-    const record = await prisma.segment.findUnique({
-      where: { id },
+    const record = await prisma.segment.findFirst({
+      where: { id, pipeline: search.viewerCompanyId ? { companyId: search.viewerCompanyId } : undefined },
       include: { pipeline: true }
     });
 
@@ -2001,8 +2016,10 @@ class PrismaStore {
         assetType: search.assetType,
         physicalStatus: search.physicalStatus,
         pipeline:
-          search.viewerUserId && search.viewerRole !== "Admin"
-            ? { createdById: search.viewerUserId }
+          search.viewerCompanyId
+            ? { companyId: search.viewerCompanyId }
+            : search.viewerUserId && search.viewerRole !== "Admin"
+              ? { createdById: search.viewerUserId }
             : undefined
       },
       orderBy: { assetId: "asc" }
@@ -2017,8 +2034,8 @@ class PrismaStore {
       return null;
     }
 
-    const record = await prisma.asset.findUnique({
-      where: { id },
+    const record = await prisma.asset.findFirst({
+      where: { id, pipeline: search.viewerCompanyId ? { companyId: search.viewerCompanyId } : undefined },
       include: { pipeline: true }
     });
 
@@ -2035,20 +2052,20 @@ class PrismaStore {
       throw new DatabaseUnavailableError();
     }
 
-    const pipeline = await this.findPipelineById(input.asset.pipelineId);
+    const pipeline = await this.findPipelineById(input.asset.pipelineId, { viewerCompanyId: input.companyId });
     if (!pipeline) {
       throw new Error("Pipeline not found.");
     }
 
     if (input.asset.segmentId) {
-      const segment = await prisma.segment.findUnique({ where: { id: input.asset.segmentId } });
+      const segment = await prisma.segment.findFirst({ where: { id: input.asset.segmentId, pipeline: input.companyId ? { companyId: input.companyId } : undefined } });
       if (!segment || segment.pipelineId !== input.asset.pipelineId) {
         throw new Error("Segment not found for this pipeline.");
       }
     }
 
     if (input.asset.parentAssetId) {
-      const parent = await prisma.asset.findUnique({ where: { id: input.asset.parentAssetId } });
+      const parent = await prisma.asset.findFirst({ where: { id: input.asset.parentAssetId, pipeline: input.companyId ? { companyId: input.companyId } : undefined } });
       if (!parent || parent.pipelineId !== input.asset.pipelineId || parent.id === input.id) {
         throw new Error("Parent asset not found for this pipeline.");
       }
@@ -2093,9 +2110,11 @@ class PrismaStore {
       where: {
         pipelineId: search.pipelineId,
         pipeline:
-          search.viewerUserId && search.viewerRole !== "Admin"
-            ? { createdById: search.viewerUserId }
-            : undefined
+          search.viewerCompanyId
+            ? { companyId: search.viewerCompanyId }
+            : search.viewerUserId && search.viewerRole !== "Admin"
+              ? { createdById: search.viewerUserId }
+              : undefined
       },
       include: { assetMaster: true },
       orderBy: { code: "asc" }
@@ -2110,8 +2129,8 @@ class PrismaStore {
       return null;
     }
 
-    const record = await prisma.cpTestPoint.findUnique({
-      where: { id },
+    const record = await prisma.cpTestPoint.findFirst({
+      where: { id, pipeline: search.viewerCompanyId ? { companyId: search.viewerCompanyId } : undefined },
       include: { pipeline: true, assetMaster: true }
     });
 
@@ -2129,7 +2148,7 @@ class PrismaStore {
     }
 
     const existing = input.id
-      ? await prisma.cpTestPoint.findUnique({ where: { id: input.id }, include: { assetMaster: true } })
+      ? await prisma.cpTestPoint.findFirst({ where: { id: input.id, pipeline: input.companyId ? { companyId: input.companyId } : undefined }, include: { assetMaster: true } })
       : null;
     if (input.id && !existing) {
       throw new Error("CP test point not found.");
@@ -2137,7 +2156,7 @@ class PrismaStore {
 
     const pipelineId = "pipelineId" in input.testPoint ? input.testPoint.pipelineId : existing!.pipelineId;
     const assetMasterId = "assetMasterId" in input.testPoint ? input.testPoint.assetMasterId : existing!.assetMasterId;
-    const asset = await prisma.asset.findUnique({ where: { id: assetMasterId } });
+    const asset = await prisma.asset.findFirst({ where: { id: assetMasterId, pipeline: input.companyId ? { companyId: input.companyId } : undefined } });
     validateCpAssetLink(asset ? toAssetRecord(asset) : null, pipelineId, "TEST_POST", "CpTestPoint");
 
     const duplicate = await prisma.cpTestPoint.findFirst({
@@ -2190,9 +2209,11 @@ class PrismaStore {
       where: {
         pipelineId: search.pipelineId,
         pipeline:
-          search.viewerUserId && search.viewerRole !== "Admin"
-            ? { createdById: search.viewerUserId }
-            : undefined
+          search.viewerCompanyId
+            ? { companyId: search.viewerCompanyId }
+            : search.viewerUserId && search.viewerRole !== "Admin"
+              ? { createdById: search.viewerUserId }
+              : undefined
       },
       include: { assetMaster: true },
       orderBy: { rectifierCode: "asc" }
@@ -2207,8 +2228,8 @@ class PrismaStore {
       return null;
     }
 
-    const record = await prisma.cpRectifier.findUnique({
-      where: { id },
+    const record = await prisma.cpRectifier.findFirst({
+      where: { id, pipeline: search.viewerCompanyId ? { companyId: search.viewerCompanyId } : undefined },
       include: { pipeline: true, assetMaster: true }
     });
 
@@ -2226,7 +2247,7 @@ class PrismaStore {
     }
 
     const existing = input.id
-      ? await prisma.cpRectifier.findUnique({ where: { id: input.id }, include: { assetMaster: true } })
+      ? await prisma.cpRectifier.findFirst({ where: { id: input.id, pipeline: input.companyId ? { companyId: input.companyId } : undefined }, include: { assetMaster: true } })
       : null;
     if (input.id && !existing) {
       throw new Error("CP rectifier not found.");
@@ -2234,7 +2255,7 @@ class PrismaStore {
 
     const pipelineId = "pipelineId" in input.rectifier ? input.rectifier.pipelineId : existing!.pipelineId;
     const assetMasterId = "assetMasterId" in input.rectifier ? input.rectifier.assetMasterId : existing!.assetMasterId;
-    const asset = await prisma.asset.findUnique({ where: { id: assetMasterId } });
+    const asset = await prisma.asset.findFirst({ where: { id: assetMasterId, pipeline: input.companyId ? { companyId: input.companyId } : undefined } });
     validateCpAssetLink(asset ? toAssetRecord(asset) : null, pipelineId, "RECTIFIER", "CpRectifier");
 
     const duplicate = await prisma.cpRectifier.findFirst({

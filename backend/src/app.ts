@@ -26,6 +26,10 @@ import { scadaRouter } from "./routes/scada";
 import { documentsRouter } from "./routes/documents";
 import { settingsRouter } from "./routes/settings";
 import { cpEngineeringDesignBasesRouter } from "./routes/cpEngineeringDesignBases";
+import { companyUsersRouter, superAdminRouter } from "./routes/superAdmin";
+import { superAdminAuthRouter } from "./routes/superAdminAuth";
+import { publicSubmissionsRouter } from "./routes/publicSubmissions";
+import { requireAuditedTenantModule } from "./middleware/tenantIsolationGuard";
 import { isRequestValidationError } from "./validation/validationErrors";
 import { DatabaseUnavailableError } from "./data/store";
 import {
@@ -39,6 +43,7 @@ export function createApp() {
 
   app.use(
     cors({
+      credentials: true,
       origin(origin, callback) {
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
@@ -51,32 +56,36 @@ export function createApp() {
   );
 
   app.use(saveDiagnosticsMiddleware);
-  app.use("/api/letter-heads", letterHeadsRouter);
-  app.use("/api/documents", documentsRouter);
+  app.use("/api/letter-heads", requireAuditedTenantModule, letterHeadsRouter);
+  app.use("/api/documents", requireAuditedTenantModule, documentsRouter);
   app.use(express.json({ limit: "100kb" }));
 
   app.use("/api", healthRouter);
+  app.use("/api/public-submissions", publicSubmissionsRouter);
   app.use("/api/auth", authRouter);
-  app.use("/api/assessments", assessmentsRouter);
-  app.use("/api/risk-assessments", riskAssessmentsRouter);
+  app.use("/api/super-admin-auth", superAdminAuthRouter);
+  app.use("/api/super-admin", superAdminRouter);
+  app.use("/api/company", companyUsersRouter);
+  app.use("/api/assessments", requireAuditedTenantModule, assessmentsRouter);
+  app.use("/api/risk-assessments", requireAuditedTenantModule, riskAssessmentsRouter);
   app.use("/api/asset-master", assetMasterRouter);
-  app.use("/api/chainage", chainageRouter);
-  app.use("/api/inspection-records", inspectionRecordsRouter);
-  app.use("/api/ai-predictions", aiPredictionsRouter);
-  app.use("/api/cp-calculations", cpCalculationsRouter);
-  app.use("/api/cp-engineering/design-bases", cpEngineeringDesignBasesRouter);
+  app.use("/api/chainage", requireAuditedTenantModule, chainageRouter);
+  app.use("/api/inspection-records", requireAuditedTenantModule, inspectionRecordsRouter);
+  app.use("/api/ai-predictions", requireAuditedTenantModule, aiPredictionsRouter);
+  app.use("/api/cp-calculations", requireAuditedTenantModule, cpCalculationsRouter);
+  app.use("/api/cp-engineering/design-bases", requireAuditedTenantModule, cpEngineeringDesignBasesRouter);
   app.use("/api/cp-monitoring", cpMonitoringRouter);
-  app.use("/api/dashboard", dashboardRouter);
-  app.use("/api/devices", devicesRouter);
-  app.use("/api/external-pipe-data", externalPipeDataRouter);
-  app.use("/api/ili", iliRouter);
-  app.use("/api/integrations", integrationsRouter);
+  app.use("/api/dashboard", requireAuditedTenantModule, dashboardRouter);
+  app.use("/api/devices", requireAuditedTenantModule, devicesRouter);
+  app.use("/api/external-pipe-data", requireAuditedTenantModule, externalPipeDataRouter);
+  app.use("/api/ili", requireAuditedTenantModule, iliRouter);
+  app.use("/api/integrations", requireAuditedTenantModule, integrationsRouter);
   app.use("/api/pipelines", pipelinesRouter);
-  app.use("/api/reports/contracts", reportContractsRouter);
-  app.use("/api/reports", reportsRouter);
-  app.use("/api/sensor-assignments", sensorAssignmentsRouter);
-  app.use("/api/scada", scadaRouter);
-  app.use("/api/settings", settingsRouter);
+  app.use("/api/reports/contracts", requireAuditedTenantModule, reportContractsRouter);
+  app.use("/api/reports", requireAuditedTenantModule, reportsRouter);
+  app.use("/api/sensor-assignments", requireAuditedTenantModule, sensorAssignmentsRouter);
+  app.use("/api/scada", requireAuditedTenantModule, scadaRouter);
+  app.use("/api/settings", requireAuditedTenantModule, settingsRouter);
 
   app.use((error: Error, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
     recordSaveDiagnosticsError(error);

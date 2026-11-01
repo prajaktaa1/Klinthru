@@ -706,7 +706,7 @@ function LeafletMapViewLegacy({ pipeline, assets, segments, onOpenAssetRegister,
   const [selectedId, setSelectedId] = useState("");
   const [layers, setLayers] = useState({ stations: true, valves: true, rectifiers: true, testPosts: true, compressors: true, sensors: true, other: true });
   const [query, setQuery] = useState("");
-  const [mapType, setMapType] = useState<"street" | "satellite" | "terrain">("street");
+  const [mapType, setMapType] = useState<"street" | "satellite" | "terrain">("satellite");
   const [showRoute, setShowRoute] = useState(true);
   const [showSegments, setShowSegments] = useState(true);
   const mapElement = useRef<HTMLDivElement>(null);
@@ -790,7 +790,7 @@ function GoogleMapView({ assets, segments }: { assets: AssetMasterAssetRecord[];
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? "";
   const located = assets.filter((asset) => Number.isFinite(asset.latitude) && Number.isFinite(asset.longitude));
   const [selectedId, setSelectedId] = useState("");
-  const [satellite, setSatellite] = useState(false);
+  const [satellite, setSatellite] = useState(true);
   const [layers, setLayers] = useState({ stations: true, valves: true, rectifiers: true, testPosts: true, other: true });
   const mapElement = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<any>(null);
@@ -826,7 +826,7 @@ function GoogleMapView({ assets, segments }: { assets: AssetMasterAssetRecord[];
       mapInstance.current.setMapTypeId(satellite ? "satellite" : "roadmap");
     }).catch(() => undefined);
     return () => { cancelled = true; };
-  }, [apiKey, located.length, visible.map((asset) => asset.id).join(","), satellite]);
+  }, [apiKey, located.length, visible.map((asset) => `${asset.id}:${asset.latitude}:${asset.longitude}`).join("|"), satellite]);
 
   if (!apiKey) return <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_280px]"><MasterPanel title="Map Layers"><p className="text-sm text-slate-600">Google Maps is not configured. Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY.</p></MasterPanel><MasterPanel title="Map View"><Unavailable compact title="Map API key missing" detail="No map was rendered because a Google Maps key is not configured." /></MasterPanel><MasterPanel title="Selected Asset"><Unavailable compact title="No map selection" detail="Map selection is unavailable until Google Maps is configured." /></MasterPanel></div>;
   if (!located.length) return <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_280px]"><MasterPanel title="Map Layers"><p className="text-sm text-slate-600">{segments.length} segments available; no asset layer coordinates.</p></MasterPanel><MasterPanel title="Map View"><Unavailable compact title="No verified coordinates" detail="Asset Master returned no latitude/longitude values. No marker or guessed route was created." /></MasterPanel><MasterPanel title="Selected Asset"><Unavailable compact title="No map selection" detail="Add verified GPS coordinates to an Asset Master record." /></MasterPanel></div>;

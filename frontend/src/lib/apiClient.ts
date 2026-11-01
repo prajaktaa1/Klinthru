@@ -1019,7 +1019,7 @@ export function fetchDocumentVersions(documentId: string): Promise<{ items: Docu
 }
 
 export function createDocumentVersion(documentId: string, input: Record<string, unknown>): Promise<{ item: DocumentVersionRecord }> {
-  return request(`/api/documents/${encodeURIComponent(documentId)}/versions`, { method: "POST", body: JSON.stringify(input) });
+  return requestUpload(`/api/documents/${encodeURIComponent(documentId)}/versions`, input);
 }
 
 export function linkExistingDocument(documentId: string, input: { pipelineId?: string; segmentId?: string; assetId?: string }): Promise<{ items: unknown[] }> {

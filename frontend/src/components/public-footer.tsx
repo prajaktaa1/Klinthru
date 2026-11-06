@@ -16,19 +16,13 @@ const companyLinks = [
 
 const supportLinks = [
   { label: "Help Center", href: "/contact" },
-  { label: "Terms", href: "/terms" },
+  { label: "Terms and Conditions", href: "/terms" },
   { label: "Cookies", href: "/cookies" },
   { label: "Start Now", href: "/login" }
 ];
 
-const capabilityLinks = [
-  { label: "External Corrosion Assessment", href: "/external-corrosion-assessment" },
-  { label: "Internal Corrosion Assessment", href: "/internal-corrosion-assessment" },
-  { label: "Sensor Monitoring", href: "/sensors" }
-];
-
-const linkClass = "group inline-flex items-center gap-2 rounded-sm text-sm text-slate-400 outline-none transition duration-200 hover:translate-x-0.5 hover:text-cyan-300 focus-visible:text-cyan-300 focus-visible:ring-4 focus-visible:ring-cyan-400/20";
-const contactRowClass = "group flex items-start gap-2 rounded-sm text-sm leading-6 text-slate-400 outline-none transition hover:translate-x-0.5 hover:text-cyan-300 focus-visible:text-cyan-300 focus-visible:ring-4 focus-visible:ring-cyan-400/20";
+const linkClass = "group inline-flex items-center gap-2 rounded-sm text-[14px] leading-[1.5] text-[#D3E8F4] outline-none transition duration-200 hover:translate-x-0.5 hover:text-[#55D7DF] focus-visible:text-[#55D7DF] focus-visible:ring-4 focus-visible:ring-cyan-400/20";
+const contactRowClass = "group flex items-start gap-2 rounded-sm text-[14px] leading-[1.5] text-[#D3E8F4] outline-none transition hover:translate-x-0.5 hover:text-[#55D7DF] focus-visible:text-[#55D7DF] focus-visible:ring-4 focus-visible:ring-cyan-400/20";
 
 function ArrowIcon() {
   return <svg aria-hidden="true" className="h-3.5 w-3.5 opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
@@ -50,39 +44,38 @@ export function PublicFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative overflow-hidden border-t border-slate-800 bg-slate-950 text-slate-300">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(34,211,238,0.13),transparent_30%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(7,11,18,1))]" />
+    <footer className="relative overflow-hidden border-t border-[#285263] bg-[linear-gradient(115deg,#20566B_0%,#173B52_32%,#10283B_52%,#103D46_75%,#123D39_100%)] text-[#E2EDF5]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(85,215,223,0.11),transparent_30%),radial-gradient(circle_at_88%_100%,rgba(54,181,74,0.08),transparent_32%)]" />
       <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.15fr_0.82fr_0.92fr_0.82fr_1fr_1.1fr]">
-          <div className="max-w-xs">
-            <Link className="inline-flex rounded-sm outline-none transition focus-visible:ring-4 focus-visible:ring-cyan-400/20" href="/">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[minmax(240px,1.35fr)_0.82fr_0.92fr_0.82fr_1.1fr] lg:gap-x-3">
+          <div className="relative max-w-sm pt-8 text-center">
+            <div className="pointer-events-none absolute left-1/2 top-3 h-24 w-48 -translate-x-1/2 rounded-full bg-cyan-400/20 blur-2xl" />
+            <Link className="relative z-10 mx-auto inline-flex rounded-sm outline-none transition focus-visible:ring-4 focus-visible:ring-cyan-400/20" href="/">
               <img
                 alt="Klinthru"
                 className="h-12 w-auto"
                 src="/klinthru-logo.png"
               />
             </Link>
-            <p className="mt-4 text-sm font-medium text-cyan-300">Pipeline integrity management</p>
-            <p className="mt-3 text-sm leading-6 text-slate-400">A focused workspace for pipeline integrity data, engineering assessment, monitoring context, and traceable reporting.</p>
+            <p className="relative z-10 mt-4 !text-[16px] font-semibold !leading-6 text-[#55D7DF]">Pipeline integrity management</p>
           </div>
 
           {[
             { title: "Platform", links: productLinks },
             { title: "Company", links: companyLinks },
-            { title: "Support", links: supportLinks },
-            { title: "Capabilities", links: capabilityLinks }
+            { title: "Support", links: supportLinks }
           ].map((group) => (
             <div key={group.title}>
-              <h2 className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-200">{group.title}</h2>
-              <nav aria-label={`${group.title} links`} className="mt-5 grid gap-3">
+              <h2 className="min-h-6 !text-[16px] font-semibold !leading-6 text-[#F5FAFF]">{group.title}</h2>
+              <nav aria-label={`${group.title} links`} className="mt-3 grid gap-2">
                 {group.links.map((link) => <Link className={linkClass} href={link.href} key={link.href}>{link.label}<ArrowIcon /></Link>)}
               </nav>
             </div>
           ))}
 
           <div>
-            <h2 className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-200">Contact</h2>
-            <div className="mt-5 grid gap-3">
+            <h2 className="min-h-6 !text-[16px] font-semibold !leading-6 text-[#F5FAFF]">Contact</h2>
+            <div className="mt-3 grid gap-2">
               <a className={contactRowClass} href="mailto:info@klinthru.com">
                 <EmailIcon />
                 <span>info@klinthru.com</span>
@@ -91,7 +84,7 @@ export function PublicFooter() {
                 <PhoneIcon />
                 <span>+971 543 900 939</span>
               </a>
-              <div className="flex items-start gap-2 text-sm leading-6 text-slate-400">
+              <div className="flex min-w-0 items-start gap-2 break-words text-[14px] leading-[1.5] text-[#B9CBD8]">
                 <LocationIcon />
                 <span>Office no. 6, PO Box 20317, Abu Dhabi, UAE</span>
               </div>
@@ -99,9 +92,8 @@ export function PublicFooter() {
           </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-4 border-t border-white/10 pt-5 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-8 flex flex-col gap-3 border-t border-white/15 pt-5 text-[13px] leading-[1.5] text-[#B9CBD8] sm:flex-row sm:items-center sm:justify-between">
           <p>&copy; {year} Klinthru. All rights reserved.</p>
-          <Link className="rounded-sm transition hover:text-cyan-300 focus-visible:text-cyan-300 focus-visible:ring-4 focus-visible:ring-cyan-400/20" href="/terms">Terms &amp; Conditions</Link>
         </div>
       </div>
     </footer>

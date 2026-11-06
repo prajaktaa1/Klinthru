@@ -8,9 +8,30 @@ export class EmailDeliveryNotConfiguredError extends Error {
 }
 
 export class EmailDeliveryError extends Error {
-  constructor(message = "Email delivery failed.") {
+  constructor(message = "Email delivery failed.", public readonly providerStatus?: number) {
     super(message);
     this.name = "EmailDeliveryError";
+  }
+}
+
+const RESEND_ENDPOINT = "https://api.resend.com/emails";
+const EMAIL_REQUEST_TIMEOUT_MS = 10_000;
+
+export async function sendTransactionalEmail(input: { to: string; subject: string; html: string; text: string; replyTo?: string; from?: string }): Promise<string | null> {
+  if (!env.resendApiKey || !env.emailFrom) throw new EmailDeliveryNotConfiguredError();
+  try {
+    const response = await fetch(RESEND_ENDPOINT, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.resendApiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: input.from || env.emailFrom, to: input.to, subject: input.subject, html: input.html, text: input.text, reply_to: input.replyTo || env.emailReplyTo || undefined }),
+      signal: AbortSignal.timeout(EMAIL_REQUEST_TIMEOUT_MS)
+    });
+    if (!response.ok) throw new EmailDeliveryError("Email delivery failed.", response.status);
+    const body = await response.json().catch(() => ({})) as { id?: string };
+    return body.id || null;
+  } catch (error) {
+    if (error instanceof EmailDeliveryError) throw error;
+    throw new EmailDeliveryError();
   }
 }
 
@@ -34,21 +55,30 @@ export async function sendOtpEmail({
     "If you did not request this code, you can ignore this email."
   ].join("\n\n");
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.resendApiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      from: env.emailFrom,
-      to: email,
-      subject,
-      text
-    })
-  });
+  try {
+    const response = await fetch(RESEND_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.resendApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: env.emailFrom,
+        to: email,
+        subject,
+        text
+      }),
+      signal: AbortSignal.timeout(EMAIL_REQUEST_TIMEOUT_MS)
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      throw new EmailDeliveryError("Email delivery failed.", response.status);
+    }
+  } catch (error) {
+    if (error instanceof EmailDeliveryError) {
+      throw error;
+    }
+
     throw new EmailDeliveryError();
   }
 }

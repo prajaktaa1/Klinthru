@@ -52,7 +52,7 @@ cpMonitoringRouter.post("/test-points", async (request, response, next) => {
       return;
     }
 
-    const created = await store.saveCpTestPoint({ testPoint: input });
+    const created = await store.saveCpTestPoint({ testPoint: input, companyId: request.user?.companyId });
     response.status(201).json(toLinkedTestPointResponse(created));
   } catch (error) {
     handleCpAssetLinkError(error, response, next);
@@ -69,7 +69,7 @@ cpMonitoringRouter.put("/test-points/:id", async (request, response, next) => {
     }
 
     const input = validateCpTestPointUpdateInput(request.body);
-    const updated = await store.saveCpTestPoint({ id: request.params.id, testPoint: input });
+    const updated = await store.saveCpTestPoint({ id: request.params.id, testPoint: input, companyId: request.user?.companyId });
     response.json(toLinkedTestPointResponse(updated));
   } catch (error) {
     handleCpAssetLinkError(error, response, next);
@@ -112,7 +112,7 @@ cpMonitoringRouter.post("/rectifiers", async (request, response, next) => {
       return;
     }
 
-    const created = await store.saveCpRectifier({ rectifier: input });
+    const created = await store.saveCpRectifier({ rectifier: input, companyId: request.user?.companyId });
     response.status(201).json(toLinkedRectifierResponse(created));
   } catch (error) {
     handleCpAssetLinkError(error, response, next);
@@ -129,7 +129,7 @@ cpMonitoringRouter.put("/rectifiers/:id", async (request, response, next) => {
     }
 
     const input = validateCpRectifierUpdateInput(request.body);
-    const updated = await store.saveCpRectifier({ id: request.params.id, rectifier: input });
+    const updated = await store.saveCpRectifier({ id: request.params.id, rectifier: input, companyId: request.user?.companyId });
     response.json(toLinkedRectifierResponse(updated));
   } catch (error) {
     handleCpAssetLinkError(error, response, next);

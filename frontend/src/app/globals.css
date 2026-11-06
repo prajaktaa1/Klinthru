@@ -15,6 +15,11 @@
   border: 0;
 }
 
+/* The Superadmin header keeps authentication behavior but does not expose an internal API label. */
+header.relative.overflow-hidden > div > div:last-child > span:first-child {
+  display: none;
+}
+
 :root {
   color-scheme: light;
   --font-size-heading: 14px;
@@ -1361,6 +1366,205 @@ body:has(nav[aria-label="Public navigation"]) main h1 {
   body:has(nav[aria-label="Public navigation"]) main button:hover:not(:disabled) {
     transform: none;
   }
+}
+
+.hero-chart-line {
+  stroke-dasharray: 760;
+  stroke-dashoffset: 760;
+  animation: hero-chart-draw 1.1s ease-out forwards;
+  transition: d 420ms ease, stroke 240ms ease;
+}
+.hero-chart-marker { animation: hero-marker-glide 3.6s ease-in-out infinite; }
+@keyframes hero-chart-draw { to { stroke-dashoffset: 0; } }
+@keyframes hero-marker-glide { 0%, 100% { opacity: .55; transform: translateX(-2px); } 50% { opacity: 1; transform: translateX(3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .hero-chart-line { animation: none; stroke-dashoffset: 0; }
+  .hero-chart-marker { animation: none; }
+}
+
+.public-banner-in { animation: public-card-in 600ms ease-out both; }
+.public-about-heading { animation: public-hero-focus 650ms ease-out 80ms both; }
+.public-about-copy { animation: public-card-in 650ms ease-out 180ms both; }
+.public-capability-card { animation: public-card-in 520ms ease-out both; }
+.public-capability-card:nth-child(2) { animation-delay: 80ms; }
+.public-capability-card:nth-child(3) { animation-delay: 160ms; }
+.public-capability-card:nth-child(4) { animation-delay: 240ms; }
+.public-features-heading { animation: public-hero-focus 650ms ease-out both; }
+.public-feature-card { animation: public-card-in 520ms ease-out both; }
+.public-risk-banner { animation: public-card-in 700ms ease-out 260ms both; }
+.public-workflow-heading { animation: public-hero-focus 650ms ease-out both; }
+.public-workflow-card { animation: public-card-in 520ms ease-out both; }
+.public-workflow-card .workflow-step-badge,
+.public-workflow-card .workflow-step-icon { transition: background-color 240ms ease, color 240ms ease, transform 240ms ease; }
+.public-workflow-card:hover .workflow-step-icon { transform: translateY(-1px) scale(1.05); }
+.public-workflow-card.blue .workflow-step-badge { background: #0879c8; }
+.public-workflow-card.blue .workflow-step-icon { background: #eaf5ff; color: #0879c8; }
+.public-workflow-card.teal .workflow-step-badge { background: #00a8b5; }
+.public-workflow-card.teal .workflow-step-icon { background: #e3f9f9; color: #008c99; }
+.public-workflow-card.green .workflow-step-badge { background: #36b54a; }
+.public-workflow-card.green .workflow-step-icon { background: #e8f8ec; color: #238b38; }
+.public-workflow-card.blue-green .workflow-step-badge { background: #087e7c; }
+.public-workflow-card.blue-green .workflow-step-icon { background: #e5f7f4; color: #087e7c; }
+.public-workflow-card:hover.blue { border-color: rgba(8,121,200,.45); }
+.public-workflow-card:hover.teal { border-color: rgba(0,168,181,.5); }
+.public-workflow-card:hover.green { border-color: rgba(54,181,74,.5); }
+.public-workflow-card:hover.blue-green { border-color: rgba(8,126,124,.5); }
+.public-workflow-cta { animation: public-card-in 700ms ease-out 240ms both; }
+.public-support-card { animation: public-card-in 520ms ease-out both; }
+.public-support-form-shell { animation: public-card-in 700ms ease-out 140ms both; }
+.public-feature-card h3 { font-size: 19px; }
+.public-feature-card > div:first-child > span { width: 2.5rem; height: 2.5rem; }
+.public-feature-card > div:first-child > span svg { width: 23px; height: 23px; }
+.public-feature-card > p { font-size: 15px; line-height: 1.7; }
+.public-risk-banner h3 { font-size: 22px; }
+.public-risk-banner p { font-size: 15px; line-height: 1.65; }
+.public-risk-banner .relative.flex.max-w-xl.flex-wrap span { font-size: 15px; font-weight: 500; }
+@media (min-width: 640px) {
+  .public-feature-card h3 { font-size: 21px; }
+  .public-feature-card > p { font-size: 16px; }
+  .public-risk-banner h3 { font-size: 24px; }
+  .public-risk-banner p { font-size: 16px; }
+}
+@media (min-width: 1024px) {
+  .public-feature-card h3 { font-size: 23px; }
+  .public-feature-card > p { font-size: 17px; }
+  .public-risk-banner h3 { font-size: 28px; }
+  .public-risk-banner p { font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-banner-in, .public-about-heading, .public-about-copy, .public-capability-card, .public-features-heading, .public-feature-card, .public-risk-banner, .public-workflow-heading, .public-workflow-card, .public-workflow-cta, .public-support-card, .public-support-form-shell { animation: none; }
+  .public-workflow-card .workflow-step-icon { transform: none; }
+}
+
+/* Public-only typography system. Protected app and Superadmin pages intentionally do not inherit this scope. */
+.public-site {
+  --public-font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif;
+  --public-body-size: clamp(1rem, 0.96rem + 0.18vw, 1.125rem);
+  --public-body-leading: 1.65;
+  --public-heading-leading: 1.15;
+  font-family: var(--public-font-family);
+  font-size: var(--public-body-size);
+  line-height: var(--public-body-leading);
+}
+
+.public-site h1,
+.public-site h2,
+.public-site h3,
+.public-site h4,
+.public-site h5,
+.public-site h6 {
+  font-family: var(--public-font-family);
+  line-height: var(--public-heading-leading);
+}
+
+.public-site h1 { font-size: clamp(2.125rem, 1.65rem + 2vw, 4rem); }
+.public-site h2 { font-size: clamp(1.75rem, 1.45rem + 1.1vw, 2.625rem); }
+.public-site h3 { font-size: clamp(1.1875rem, 1.05rem + 0.4vw, 1.5rem); }
+.public-site p { line-height: var(--public-body-leading); }
+.public-site .public-readable-copy {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.7;
+}
+.public-site .public-hero-heading {
+  line-height: 1.08 !important;
+}
+.public-site button,
+.public-site input,
+.public-site select,
+.public-site textarea { font-family: var(--public-font-family); }
+
+.public-site .public-site-label,
+.public-site nav a,
+.public-site button { letter-spacing: normal; }
+
+.public-site .public-site-label,
+.public-site h1[class*="tracking-["],
+.public-site h2[class*="tracking-["] { letter-spacing: -0.015em; }
+
+.public-site .public-site-label,
+.public-site p[class*="uppercase"] { letter-spacing: 0.16em; }
+
+@media (max-width: 639px) {
+  .public-site h1 { font-size: clamp(2.125rem, 8vw, 2.5rem); }
+  .public-site h2 { font-size: clamp(1.75rem, 7vw, 2rem); }
+  .public-site h3 { font-size: clamp(1.1875rem, 5vw, 1.3125rem); }
+  .public-site p { line-height: 1.65; }
+}
+
+@media (min-width: 640px) {
+  .public-site .public-readable-copy { font-size: 15px; }
+}
+
+@media (min-width: 1024px) {
+  .public-site .public-readable-copy { font-size: 16px; }
+}
+
+/* Coordinated public subpage presentation; Home remains intentionally separate. */
+.public-subpage > section:not(:last-child) {
+  position: relative;
+}
+.public-subpage > section:first-of-type {
+  background-color: #f5fafd;
+  background-image: linear-gradient(rgba(8,121,200,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(8,121,200,.045) 1px, transparent 1px), radial-gradient(circle at 88% 8%, rgba(0,168,181,.13), transparent 34%), radial-gradient(circle at 8% 90%, rgba(54,181,74,.08), transparent 30%);
+  background-size: 32px 32px, 32px 32px, auto, auto;
+}
+.public-subpage > section:first-of-type h1 {
+  font-size: clamp(2.25rem, 1.5rem + 2.5vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.08;
+  color: #123047;
+}
+.public-subpage > section:first-of-type h1 + p,
+.public-subpage > section:first-of-type p[class*="text-base"],
+.public-subpage > section:first-of-type p[class*="text-lg"] {
+  font-size: clamp(1rem, .92rem + .25vw, 1.125rem);
+  line-height: 1.7;
+  color: #557184;
+}
+.public-subpage article {
+  border-color: #d8e7ef;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(18,48,71,.06);
+}
+.public-subpage article:hover {
+  border-color: rgba(8,121,200,.42);
+  box-shadow: 0 16px 32px rgba(8,121,200,.12);
+}
+.public-subpage article h3 { font-size: clamp(1.125rem, 1rem + .25vw, 1.375rem); font-weight: 700; }
+.public-subpage article p { font-size: clamp(.9375rem, .88rem + .18vw, 1.0625rem); line-height: 1.65; }
+.public-subpage h1,
+.public-subpage h2,
+.public-subpage h3,
+.public-subpage p {
+  height: auto;
+  max-height: none;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.public-subpage h1,
+.public-subpage h2,
+.public-subpage h3 { line-height: 1.2; }
+.public-subpage p { line-height: 1.7; }
+.public-subpage .grid > *,
+.public-subpage .flex > * { min-width: 0; }
+.public-subpage .max-w-3xl,
+.public-subpage .max-w-2xl { max-width: 100%; }
+.public-subpage a[class*="rounded-full"],
+.public-subpage button[class*="rounded-full"] { transition-duration: 240ms; }
+html.dark .public-subpage > section:first-of-type {
+  background-color: #07171d;
+  background-image: linear-gradient(rgba(34,211,238,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,.04) 1px, transparent 1px), radial-gradient(circle at 88% 8%, rgba(0,168,181,.16), transparent 34%);
+}
+html.dark .public-subpage > section:first-of-type h1 { color: #f8fafc; }
+html.dark .public-subpage > section:first-of-type h1 + p,
+html.dark .public-subpage > section:first-of-type p[class*="text-base"],
+html.dark .public-subpage > section:first-of-type p[class*="text-lg"] { color: #cbd9e4; }
+
+@media (prefers-reduced-motion: reduce) {
+  .public-subpage article { transition: none; }
 }
 
 /* Settings uses the same shared KLINTHRU theme tokens as the engineering modules.

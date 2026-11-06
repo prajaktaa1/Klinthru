@@ -19,8 +19,14 @@ const PUBLIC_ROUTES = new Set([
   "/cookies",
   "/disclaimer",
   "/login",
-  "/signup"
+  "/signup",
+  "/subscription"
 ]);
+
+const LOCAL_SUPER_ADMIN_PREVIEW_ROUTE = "/super-admin/demo";
+const LOCAL_SUPER_ADMIN_LOGIN_ROUTE = "/super-admin/login";
+const LOCAL_SUPER_ADMIN_MANAGEMENT_ROUTE = "/super-admin/manage";
+const SUPER_ADMIN_MANAGEMENT_ROUTE = "/super-admin";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -29,8 +35,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const isLoginRoute = pathname === "/login";
+  const isSuperAdminLoginRoute = pathname === LOCAL_SUPER_ADMIN_LOGIN_ROUTE;
   const isSignupRoute = pathname === "/signup";
-  const isPublicRoute = PUBLIC_ROUTES.has(pathname);
+  const isLocalSuperAdminPreview = process.env.NODE_ENV === "development" && pathname === LOCAL_SUPER_ADMIN_PREVIEW_ROUTE;
+  const isLocalSuperAdminMockManagement = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_SUPER_ADMIN_API_MODE === "mock" && pathname === LOCAL_SUPER_ADMIN_MANAGEMENT_ROUTE;
+  const isPublicRoute = PUBLIC_ROUTES.has(pathname) || isLocalSuperAdminPreview || isSuperAdminLoginRoute;
+  const isSuperAdminManagementRoute = pathname === SUPER_ADMIN_MANAGEMENT_ROUTE || pathname === LOCAL_SUPER_ADMIN_MANAGEMENT_ROUTE;
   const isDashboardRoute = pathname === "/dashboard";
 
   useEffect(() => {
@@ -45,22 +55,27 @@ export function AppShell({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!isAuthenticated && !authError && !isPublicRoute) {
-      router.replace("/login");
+    if (!isAuthenticated && !authError && !isPublicRoute && !isSuperAdminManagementRoute) {
+      router.replace(pathname === SUPER_ADMIN_MANAGEMENT_ROUTE || pathname === LOCAL_SUPER_ADMIN_MANAGEMENT_ROUTE ? LOCAL_SUPER_ADMIN_LOGIN_ROUTE : "/login");
       return;
     }
 
     if (isAuthenticated && (isLoginRoute || isSignupRoute)) {
       router.replace("/dashboard");
     }
-  }, [authError, isAuthenticated, isLoginRoute, isPublicRoute, isReady, isSignupRoute, router]);
+  }, [authError, isAuthenticated, isLoginRoute, isPublicRoute, isReady, isSignupRoute, isSuperAdminManagementRoute, router]);
+
+  if (pathname === SUPER_ADMIN_MANAGEMENT_ROUTE || pathname === LOCAL_SUPER_ADMIN_MANAGEMENT_ROUTE) {
+    return <div className="min-h-screen">{children}</div>;
+  }
 
   if (isPublicRoute) {
-    const publicBackground = isLoginRoute || isSignupRoute
+    const publicBackground = isLoginRoute || isSignupRoute || isSuperAdminLoginRoute
       ? "bg-slate-100 bg-grid bg-[size:32px_32px]"
       : "bg-slate-50";
+    const isProtectedPreview = isLocalSuperAdminPreview || isSuperAdminLoginRoute;
 
-    return <div className={`min-h-screen ${publicBackground}`}>{children}</div>;
+    return <div className={`min-h-screen ${publicBackground} ${isProtectedPreview ? "" : "public-site"}`}>{children}</div>;
   }
 
   if (authError && !isLoginRoute) {

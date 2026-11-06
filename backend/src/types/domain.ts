@@ -18,6 +18,7 @@ export type AuthUser = {
   email: string;
   role: UserRole;
   companyId?: string;
+  companyRole?: "CompanyAdmin" | "Engineer" | "Viewer";
 };
 
 export type UserRecord = AuthUser & {

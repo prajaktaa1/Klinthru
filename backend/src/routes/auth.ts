@@ -2,11 +2,14 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { Router } from "express";
 
+import { env } from "../config/env";
 import { store } from "../data/store";
-import { EmailDeliveryNotConfiguredError, sendOtpEmail } from "../lib/email";
+import { EmailDeliveryError, EmailDeliveryNotConfiguredError, sendOtpEmail } from "../lib/email";
 import { signToken } from "../lib/jwt";
 import { createOtp, OtpCooldownError, OtpVerificationError, verifyOtp } from "../lib/otp";
 import { requireAuth, revokeToken } from "../middleware/auth";
+import { createPendingCompany } from "../superAdmin/service";
+import { getPrismaClient } from "../lib/prisma";
 
 export const authRouter = Router();
 
@@ -16,6 +19,14 @@ function readString(value: unknown): string {
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function isPlatformSuperadmin(email: string, userId: string): Promise<boolean> {
+  if (env.superAdminEmail && email === env.superAdminEmail) return true;
+  const db = getPrismaClient();
+  if (!db) return false;
+  const account = await db.superAdmin.findUnique({ where: { userId }, select: { status: true } });
+  return account?.status === "Active";
 }
 
 function respondWithToken(response: import("express").Response, user: Awaited<ReturnType<typeof store.findUserByEmail>>) {
@@ -40,6 +51,11 @@ authRouter.post("/login", async (request, response) => {
 
   const user = await store.findUserByEmail(email);
   if (!user) {
+    response.status(401).json({ message: "Invalid credentials." });
+    return;
+  }
+
+  if (await isPlatformSuperadmin(email, user.id)) {
     response.status(401).json({ message: "Invalid credentials." });
     return;
   }
@@ -69,6 +85,11 @@ authRouter.post("/login/request-otp", async (request, response) => {
     return;
   }
 
+  if (await isPlatformSuperadmin(email, user.id)) {
+    response.status(404).json({ message: "No account exists for this email." });
+    return;
+  }
+
   try {
     const otp = createOtp({ email, purpose: "login" });
     await sendOtpEmail({ email, otp: otp.otp, purpose: "login" });
@@ -85,6 +106,11 @@ authRouter.post("/login/request-otp", async (request, response) => {
 
     if (error instanceof EmailDeliveryNotConfiguredError) {
       response.status(503).json({ message: error.message });
+      return;
+    }
+
+    if (error instanceof EmailDeliveryError) {
+      response.status(502).json({ message: "The verification email could not be sent. Please try again later." });
       return;
     }
 
@@ -155,6 +181,11 @@ authRouter.post("/signup/request-otp", async (request, response) => {
       return;
     }
 
+    if (error instanceof EmailDeliveryError) {
+      response.status(502).json({ message: "The verification email could not be sent. Please try again later." });
+      return;
+    }
+
     throw error;
   }
 });
@@ -188,6 +219,9 @@ authRouter.post("/signup/verify-otp", async (request, response) => {
       passwordHash,
       role: "Admin"
     });
+    if (env.companyWorkflowEnabled) {
+      await createPendingCompany({ name: verified.signup.companyName, mobileNumber: verified.signup.mobileNumber, signupEmail: email, userId: user.id });
+    }
     respondWithToken(response, user);
   } catch (error) {
     if (error instanceof OtpVerificationError) {

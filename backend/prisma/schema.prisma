@@ -13,6 +13,82 @@ enum Role {
   Viewer
 }
 
+enum CompanyStatus {
+  SignupPending
+  SignupRejected
+  Approved
+  TrialActive
+  TrialExpired
+  PaidActive
+  PaidExpired
+  Suspended
+}
+
+enum CompanyMemberRole {
+  CompanyAdmin
+  Engineer
+  Viewer
+}
+
+enum MembershipStatus {
+  Invited
+  Active
+  Inactive
+}
+
+enum PlatformRoleStatus {
+  Active
+  Revoked
+}
+
+enum ReferralCodeStatus {
+  Available
+  Redeemed
+  Expired
+  Revoked
+}
+
+enum SubscriptionStatus {
+  Trial
+  Active
+  Expired
+  Cancelled
+}
+
+enum SubscriptionPlan {
+  Annual
+}
+
+enum NotificationType {
+  CompanyWelcome
+  TrialActivated
+  TrialExpiryReminder2
+  TrialExpired
+  SubscriptionActivated
+  RenewalReminder30
+  RenewalReminder10
+  RenewalReminder7
+  SubscriptionExpired
+  SubscriptionRenewed
+  EnquiryAcknowledgement
+  EnquiryNotification
+  SupportAcknowledgement
+  SupportNotification
+}
+
+enum PublicSubmissionType {
+  Enquiry
+  Support
+}
+
+enum NotificationStatus {
+  Pending
+  Sending
+  Sent
+  Failed
+  Cancelled
+}
+
 enum TestPointAssetStatus {
   Active
   Inactive
@@ -261,6 +337,13 @@ model User {
   documentFamilies      DocumentFamily[]
   documentVersions      DocumentVersion[]
   documentLinks         DocumentLink[]
+  companyMemberships    CompanyMembership[]
+  platformRole          SuperAdmin?
+  approvedCompanies     Company[] @relation("CompanyApprovedBy")
+  activatedCompanies    Company[] @relation("CompanyActivatedBy")
+  subscriptionActions   CompanySubscription[] @relation("SubscriptionActionedBy")
+  referralRedemptions   ReferralCode[] @relation("ReferralRedeemedBy")
+  auditEvents            AuditLog[] @relation("AuditActor")
 }
 
 model LetterHead {
@@ -511,10 +594,13 @@ model Pipeline {
   designLife                  Int?
   routeGeometry               Json?
   status                      String                      @default("Active")
+  companyId                   String?
+  company                     Company?                    @relation(fields: [companyId], references: [id], onDelete: SetNull)
   createdById                 String?
   createdBy                   User?                       @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt                   DateTime                    @default(now())
   updatedAt                   DateTime                    @default(now()) @updatedAt
+  @@index([companyId])
   assessments                 Assessment[]
   reports                     Report[]
   externalPipeData            ExternalPipeData[]
@@ -3071,4 +3157,164 @@ enum ChainageDirection {
 enum ChainageBoundaryPolicy {
   REJECT
   WARN
+}
+
+model Company {
+  id                   String               @id @default(cuid())
+  name                 String
+  mobileNumber         String
+  signupEmail          String
+  status               CompanyStatus        @default(SignupPending)
+  trialUsed            Boolean              @default(false)
+  approvedAt           DateTime?
+  approvedById         String?
+  approvedBy           User?                @relation("CompanyApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  activatedAt          DateTime?
+  activatedById        String?
+  activatedBy          User?                @relation("CompanyActivatedBy", fields: [activatedById], references: [id], onDelete: SetNull)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  memberships          CompanyMembership[]
+  pipelines            Pipeline[]
+  subscriptions        CompanySubscription[]
+  referralCodes        ReferralCode[]
+  auditLogs            AuditLog[]
+  notifications        NotificationDelivery[]
+
+  @@index([status, createdAt])
+  @@unique([signupEmail])
+}
+
+model CompanyMembership {
+  id          String             @id @default(cuid())
+  companyId   String
+  userId      String
+  role        CompanyMemberRole
+  status      MembershipStatus   @default(Active)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId, status])
+  @@index([companyId, role, status])
+}
+
+model SuperAdmin {
+  id        String             @id @default(cuid())
+  userId    String             @unique
+  status    PlatformRoleStatus @default(Active)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ReferralCode {
+  id              String             @id @default(cuid())
+  code            String             @unique
+  companyId       String?
+  purpose         String?
+  status          ReferralCodeStatus @default(Available)
+  generatedAt     DateTime           @default(now())
+  expiresAt       DateTime
+  redeemedAt      DateTime?
+  redeemedByUserId String?
+  company         Company?           @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  redeemedBy      User?              @relation("ReferralRedeemedBy", fields: [redeemedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, expiresAt])
+}
+
+model CompanySubscription {
+  id                 String             @id @default(cuid())
+  companyId          String
+  plan               SubscriptionPlan   @default(Annual)
+  status             SubscriptionStatus
+  startedAt          DateTime
+  expiresAt          DateTime
+  pipelineKmLimit    Decimal            @db.Decimal(14, 3)
+  namedUserLimit     Int
+  actionedById       String?
+  actionedByEmail     String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actionedBy         User?              @relation("SubscriptionActionedBy", fields: [actionedById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status, expiresAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  companyId  String?
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  requestId  String?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId, createdAt])
+}
+
+model SuperAdminSession {
+  id        String   @id
+  email     String
+  csrf      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([email, expiresAt])
+}
+
+model NotificationDelivery {
+  id                String             @id @default(cuid())
+  dedupeKey         String             @unique
+  companyId         String?
+  subscriptionId    String?
+  type              NotificationType
+  recipient         String
+  payload           Json
+  scheduledFor      DateTime
+  status            NotificationStatus @default(Pending)
+  attempts          Int                @default(0)
+  claimExpiresAt    DateTime?
+  nextAttemptAt     DateTime?
+  providerMessageId String?
+  lastError         String?
+  sentAt            DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  company           Company?           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  publicSubmission  PublicSubmission?  @relation(fields: [publicSubmissionId], references: [id], onDelete: Cascade)
+  publicSubmissionId String?
+
+  @@index([status, scheduledFor])
+  @@index([companyId, createdAt])
+  @@index([subscriptionId, type])
+  @@index([publicSubmissionId, type])
+}
+
+model PublicSubmission {
+  id          String              @id @default(cuid())
+  type        PublicSubmissionType
+  name        String
+  email       String
+  topic       String?
+  platform    String?
+  message     String
+  createdAt   DateTime            @default(now())
+  deliveries  NotificationDelivery[]
+
+  @@index([type, createdAt])
+  @@index([email, createdAt])
 }

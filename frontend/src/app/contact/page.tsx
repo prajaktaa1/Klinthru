@@ -1,5 +1,6 @@
 import { PublicFooter } from "@/components/public-footer";
 import { PublicNavbar } from "@/components/public-navbar";
+import { PublicEnquiryForm } from "@/components/public-enquiry-form";
 
 const formFields = [
   { label: "Your name", name: "name", type: "text", placeholder: "Your full name" },
@@ -8,7 +9,7 @@ const formFields = [
 
 export default function ContactPage() {
   return (
-    <main className="public-motion min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <main className="public-subpage public-motion min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <PublicNavbar />
 
       <section className="border-b border-slate-200 bg-slate-50 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.09),transparent_34%)] dark:border-slate-800 dark:bg-slate-950">
@@ -18,9 +19,9 @@ export default function ContactPage() {
               Contact Us
             </p>
             <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl lg:leading-[1.02]">
-              Contact the Klinthru team.
+              Connect with us.
             </h1>
-            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 dark:text-slate-300 sm:text-lg">
+            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 dark:text-slate-300 sm:text-lg lg:text-justify">
               Use the details below or send your message through the contact form.
             </p>
 
@@ -31,7 +32,7 @@ export default function ContactPage() {
               <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
                 Reach us directly.
               </h2>
-              <div className="mt-8 space-y-6 text-base leading-7 text-slate-700 dark:text-slate-300">
+              <div className="mt-8 space-y-6 text-lg leading-7 text-slate-700 dark:text-slate-300">
                 <p>
                   <span className="font-semibold text-slate-950 dark:text-white">Email:</span>{" "}
                   <a className="text-cyan-700 transition hover:text-slateblue-700 dark:text-cyan-300 dark:hover:text-cyan-200" href="mailto:support@klinthru.com">
@@ -53,7 +54,9 @@ export default function ContactPage() {
           </div>
 
           <section className="rounded-[32px] border border-slate-200 bg-white p-3 shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20">
-            <form className="grid gap-5 rounded-[24px] border border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-950 sm:p-7" aria-label="Contact form">
+            <PublicEnquiryForm />
+            {/* The form is implemented in the client component so this page remains a Server Component. */}
+            {/*
               <div className="grid gap-4 sm:grid-cols-2">
                 {formFields.map((field) => (
                   <label className="block" htmlFor={field.name} key={field.name}>
@@ -124,7 +127,7 @@ export default function ContactPage() {
                   Send to support
                 </button>
               </div>
-            </form>
+            </form>*/}
           </section>
         </div>
       </section>

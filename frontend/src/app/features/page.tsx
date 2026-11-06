@@ -88,6 +88,14 @@ const capabilityGroups: Array<{
     description:
       "View pipeline health, anomalies, corrosion indicators, CP status, risk levels, alerts, and integrity information from one dashboard.",
   },
+  {
+    title: "Analyze Through AI Prediction",
+    accent: "cyan",
+    icon: "ai",
+    status: "Data-dependent",
+    description:
+      "Analyze corrosion trends, identify potential risks, and forecast remaining pipeline life using AI-powered insights to support informed engineering decisions.",
+  },
 ];
 
 const guardrails = [
@@ -220,7 +228,7 @@ function FeatureShowcaseCard({
       <div className="relative flex items-start justify-between gap-4">
         <FeatureGlyph icon={feature.icon} />
         <span
-          className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${statusStyles[feature.status]}`}
+          className={`rounded-full border px-3 py-1 text-base font-semibold ${statusStyles[feature.status]}`}
         >
           {feature.status}
         </span>
@@ -229,7 +237,7 @@ function FeatureShowcaseCard({
         <h3 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
           {feature.title}
         </h3>
-        <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+        <p className="mt-3 text-base leading-7 text-slate-600 dark:text-slate-300 lg:text-lg lg:text-justify">
           {feature.description}
         </p>
       </div>
@@ -239,7 +247,7 @@ function FeatureShowcaseCard({
 
 export default function FeaturesPage() {
   return (
-    <main className="public-motion min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950">
+    <main className="public-subpage public-motion min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950">
       <PublicNavbar />
 
       <section className="overflow-hidden border-b border-slate-200 bg-slate-50 bg-[radial-gradient(circle_at_top_right,rgba(8,145,178,0.16),transparent_34%)] dark:border-slate-800 dark:bg-slate-950">
@@ -251,7 +259,7 @@ export default function FeaturesPage() {
             <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-5xl lg:text-6xl lg:leading-[1.02]">
               Verified pipeline integrity capabilities, clearly bounded.
             </h1>
-            <p className="mt-6 max-w-3xl text-base leading-8 text-slate-600 dark:text-slate-300 sm:text-lg">
+          <p className="mt-6 max-w-3xl text-lg leading-8 text-slate-600 dark:text-slate-300 lg:text-2xl">
               Klinthru combines source-backed assessment workflows,
               selected-pipeline readiness checks, monitoring records,
               integration status, AI readiness, reports, and document handling
@@ -288,7 +296,7 @@ export default function FeaturesPage() {
       <section className="relative overflow-hidden border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.12),transparent_55%)]" />
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div className="mx-auto max-w-3xl text-center">
+          <div className="mx-auto max-w-3xl text-center lg:max-w-5xl">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slateblue-700">
               Features
             </p>
@@ -296,23 +304,23 @@ export default function FeaturesPage() {
               Tools for corrosion assessment, monitoring, prediction, and
               pipeline risk management
             </h2>
-            <p className="mt-5 text-sm leading-7 text-slate-600 dark:text-slate-300 sm:text-base">
+            <p className="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300 lg:text-2xl">
               Verified Klinthru features grouped into practical engineering
               areas, with demo, foundation, and configuration-dependent
               capabilities kept clearly bounded.
             </p>
           </div>
 
-          <article className="mt-10 overflow-hidden rounded-[32px] border border-cyan-500/20 bg-slate-950 text-white shadow-panel">
-            <div className="grid gap-8 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.22),transparent_38%)] p-6 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:p-10">
+          <article className="mt-10 overflow-hidden rounded-[32px] border border-[#9edbd9] !bg-[linear-gradient(110deg,#A9D8FA_0%,#9BDFDC_55%,#B8E8B1_100%)] !text-[#123047] shadow-panel dark:border-teal-900 dark:!bg-[linear-gradient(110deg,#1b4965_0%,#17605f_55%,#355d38_100%)] dark:!text-slate-100">
+            <div className="grid gap-8 !bg-[radial-gradient(circle_at_top_right,rgba(0,168,181,0.16),transparent_38%)] p-6 sm:p-8 lg:grid-cols-[1.05fr_0.95fr] lg:p-10">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.32em] text-cyan-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.32em] !text-[#123047]">
                   Platform Focus
                 </p>
-                <h3 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+                <h3 className="mt-4 text-3xl font-semibold tracking-tight !text-[#123047] sm:text-4xl dark:!text-white">
                   One workspace for source-backed integrity review.
                 </h3>
-                <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+                <p className="mt-5 max-w-2xl text-lg leading-8 !text-[#294B5C] lg:text-2xl dark:!text-slate-200">
                   Klinthru connects pipeline records, assessments, CP evidence,
                   ILI readiness, risk context, reports, and configured data
                   sources while making unavailable or demo-only areas explicit.
@@ -326,7 +334,7 @@ export default function FeaturesPage() {
                   "Traceable reports",
                 ].map((item) => (
                   <div
-                    className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-slate-100"
+                    className="rounded-2xl border border-[#72c9cf] bg-white/60 px-4 py-3 text-base font-semibold !text-[#123047] lg:text-lg dark:border-cyan-700 dark:bg-slate-950/30 dark:!text-cyan-100"
                     key={item}
                   >
                     {item}
@@ -336,7 +344,7 @@ export default function FeaturesPage() {
             </div>
           </article>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
             {capabilityGroups.map((feature) => (
               <FeatureShowcaseCard feature={feature} key={feature.title} />
             ))}
@@ -353,7 +361,7 @@ export default function FeaturesPage() {
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
               Features are organized around selected-pipeline evidence.
             </h2>
-            <p className="mt-5 text-sm leading-7 text-slate-600 dark:text-slate-300">
+            <p className="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300 lg:text-2xl">
               The application favors traceable source records and explicit
               unavailable states over hidden assumptions or duplicated
               calculations.
@@ -368,37 +376,9 @@ export default function FeaturesPage() {
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slateblue-600 text-sm font-semibold text-white">
                   {index + 1}
                 </span>
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                <p className="text-base font-semibold text-slate-800 dark:text-slate-100 lg:text-lg">
                   {step}
                 </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white dark:bg-slate-900">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:px-8 lg:py-16">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slateblue-700">
-              Capability Boundaries
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">
-              What this page does not claim.
-            </h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {[
-              "No fake live telemetry or SCADA connectivity claim.",
-              "No claim that OPC-UA, Modbus, MQTT, REST, SQL, or webhooks are connected unless records are configured.",
-              "No autonomous AI prediction or model-performance claim without readiness and source data.",
-              "No invented customers, certifications, partnerships, deployment counts, or pipeline statistics.",
-            ].map((item) => (
-              <div
-                className="rounded-[24px] border border-slate-200 bg-slate-50 p-5 text-sm font-semibold leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-                key={item}
-              >
-                {item}
               </div>
             ))}
           </div>

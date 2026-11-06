@@ -68,7 +68,7 @@ assetMasterRouter.post("/segments", async (request, response, next: NextFunction
     }
     validateSegmentKpRange(segment, pipeline.pipeLengthKm);
 
-    const created = await store.saveSegment({ segment });
+    const created = await store.saveSegment({ segment, companyId: request.user?.companyId });
     response.status(201).json(created);
   } catch (error) {
     handleAssetMasterError(error, response, next);
@@ -96,7 +96,7 @@ assetMasterRouter.put("/segments/:id", async (request, response, next: NextFunct
     }
     validateSegmentKpRange(segment, pipeline.pipeLengthKm);
 
-    const updated = await store.saveSegment({ id: request.params.id, segment });
+    const updated = await store.saveSegment({ id: request.params.id, segment, companyId: request.user?.companyId });
     response.json(updated);
   } catch (error) {
     handleAssetMasterError(error, response, next);
@@ -161,7 +161,7 @@ assetMasterRouter.post("/assets", async (request, response, next: NextFunction) 
     }
 
     await validateAssetLocation(asset, pipeline.pipeLengthKm, ownerScope(request.user!));
-    const created = await store.saveAsset({ asset });
+    const created = await store.saveAsset({ asset, companyId: request.user?.companyId });
     response.status(201).json(created);
   } catch (error) {
     handleAssetMasterError(error, response, next);
@@ -189,7 +189,7 @@ assetMasterRouter.put("/assets/:id", async (request, response, next: NextFunctio
     }
 
     await validateAssetLocation(asset, pipeline.pipeLengthKm, ownerScope(request.user!));
-    const updated = await store.saveAsset({ id: request.params.id, asset });
+    const updated = await store.saveAsset({ id: request.params.id, asset, companyId: request.user?.companyId });
     response.json(updated);
   } catch (error) {
     handleAssetMasterError(error, response, next);

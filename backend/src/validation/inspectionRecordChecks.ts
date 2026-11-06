@@ -5,12 +5,14 @@ import { createServer } from "node:http";
 process.env.NODE_ENV = "test";
 process.env.DATABASE_URL = "postgresql://test:test@127.0.0.1:1/inspection_test";
 process.env.JWT_SECRET = "inspection-record-isolated-test-secret";
+process.env.MASTER_MUTATION_WRITES_ENABLED = "false";
 
 async function run() {
   const { getPrismaClient, disconnectPrisma } = await import("../lib/prisma");
   const { store } = await import("../data/store");
   const { signToken } = await import("../lib/jwt");
   const { createApp } = await import("../app");
+  const { env } = await import("../config/env");
   const users = {
     engineer: { id: "engineer", name: "Inspector", email: "engineer@example.invalid", role: "Engineer" as const },
     viewer: { id: "viewer", name: "Viewer", email: "viewer@example.invalid", role: "Viewer" as const }
@@ -22,8 +24,17 @@ async function run() {
   });
   const saved: Record<string, unknown>[] = [];
   const db = getPrismaClient()!;
-  Object.assign(db, { $queryRawUnsafe: async (sql: string, ...values: unknown[]) => {
-    if (sql.startsWith("SELECT")) return saved.filter((record) => record.pipelineId === values[0]);
+  Object.assign(db, { $transaction: async (operation: (client: typeof db) => Promise<unknown>) => operation(db), $queryRawUnsafe: async (sql: string, ...values: unknown[]) => {
+    if (sql.startsWith('SELECT id FROM "Pipeline"')) return [{ id: values[0] }];
+    if (sql.includes('lower("reference")')) return saved.filter(record => record.pipelineId === values[0] && String(record.reference).toLowerCase() === String(values[1]).toLowerCase() && (!sql.includes('id<>') || record.id !== values[2]));
+    if (sql.startsWith("SELECT")) return saved.filter((record) => sql.includes('WHERE "id"') ? record.id === values[0] : record.pipelineId === values[0]);
+    if (sql.startsWith("UPDATE")) {
+      const record = saved.find((item) => item.id === values[9]);
+      assert.ok(record);
+      const names = ["reference", "type", "date", "segmentId", "vendor", "findings", "status", "nextDue", "risk"];
+      names.forEach((name, index) => { record[name] = values[index]; });
+      return [record];
+    }
     assert.ok(sql.includes("VALUES ($1, $2"), "Writes must bind values");
     const names = ["id", "pipelineId", "reference", "type", "date", "segmentId", "vendor", "findings", "status", "nextDue", "risk", "authorId", "createdBy"];
     const record = Object.fromEntries(names.map((name, index) => [name, values[index]]));
@@ -56,6 +67,22 @@ async function run() {
     assert.equal((await call("PUT", { ...input, reference: "Updated inspection" }, "engineer", `/${created.id}`)).status, 423, "Edit must remain blocked when master mutation writes are disabled");
     assert.equal((await call("DELETE", undefined, "engineer", `/${created.id}`)).status, 423, "Delete must remain blocked when master mutation writes are disabled");
     assert.equal(saved.length, 1, "Blocked edit/delete requests must not mutate the isolated record");
+    assert.equal((await call("POST", { ...input, reference: input.reference.toUpperCase() })).status, 409, "Duplicate references must not create another record");
+    const oldEnvironment = env.nodeEnv;
+    env.nodeEnv = "development";
+    const edited = { ...input, reference: "Updated inspection" };
+    assert.equal((await call("PUT", { ...edited, expected: input }, "engineer", `/${created.id}`)).status, 200, "Development edits use the normal validator and owned record");
+    assert.equal((await call("PUT", { ...input, expected: input }, "engineer", `/${created.id}`)).status, 409, "Stale forms must preserve the latest manually saved values");
+    assert.equal(saved[0].reference, "Updated inspection");
+    assert.equal((await call("PUT", edited, "viewer", `/${created.id}`)).status, 403);
+    env.nodeEnv = oldEnvironment;
+
+    env.masterMutationWritesEnabled = true;
+    assert.equal((await call("PUT", { ...input, segmentId: "foreign-segment" }, "engineer", `/${created.id}`)).status, 400, "An editable inspection must reject a segment from another pipeline");
+    assert.equal(saved[0].segmentId, "valid-segment", "Rejected segment reassignment must preserve the saved relationship");
+    assert.equal((await call("PUT", { ...input, pipelineId: "inaccessible" }, "engineer", `/${created.id}`)).status, 400, "An editable inspection must stay in its original pipeline");
+    assert.equal((await call("PUT", input, "engineer", `/${created.id}`)).status, 200, "A valid same-pipeline update must succeed");
+    env.masterMutationWritesEnabled = false;
     const reloaded = await call("GET", undefined, "engineer", "?pipelineId=owned-pipeline");
     assert.equal(reloaded.status, 200);
     assert.deepEqual(await reloaded.json(), [created], "Saved records must survive reloading the list");

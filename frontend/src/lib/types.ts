@@ -268,6 +268,7 @@ export type PipelineRecord = {
   installationYear?: number;
   inspectionYear?: number;
   installationDate?: string;
+  commissioningDate?: string | null;
   designLife?: number;
   routeGeometry?: GeoJsonLineString;
   status: string;
@@ -340,6 +341,10 @@ export type AssetMasterSegmentRecord = {
 };
 
 export type AssetMasterAssetRecord = {
+  serialNumber?: string;
+  condition?: string;
+  description?: string;
+  pressureRatingBar?: number | null;
   id: string;
   assetId: string;
   assetType: "STATION" | "VALVE" | "TEST_POST" | "RECTIFIER" | "COMPRESSOR" | "SENSOR" | "PUMP" | "METER" | "PIG_LAUNCHER" | "PIG_RECEIVER" | "PIPELINE_FITTING" | "FLANGE" | "INSULATING_JOINT" | "PIPELINE_CROSSING" | "OTHER";

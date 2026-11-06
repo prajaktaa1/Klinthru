@@ -473,6 +473,8 @@ model ExternalPipeData {
 }
 
 model Pipeline {
+  masterChangeEvents MasterChangeEvent[]
+  proposedRoutes PipelineProposedRoute[]
   // Chainage Agent: additive preparation only; review draft SQL before deployment.
   chainageOriginMeters        Decimal? @db.Decimal(24, 9)
   chainageOriginName          String?
@@ -536,6 +538,7 @@ model Pipeline {
   installationYear            Int?
   inspectionYear              Int?
   installationDate            DateTime?
+  commissioningDate           DateTime?
   designLife                  Int?
   routeGeometry               Json?
   status                      String                      @default("Active")
@@ -574,6 +577,22 @@ model Pipeline {
   @@index([createdById])
   @@index([pipelineName])
   @@index([createdAt])
+}
+
+model PipelineProposedRoute {
+  id             String   @id @default(cuid())
+  pipelineId     String
+  pipeline       Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  geometry       Json
+  provenance     String
+  status         String   @default("ACTIVE")
+  sourceMetadata Json?
+  version        Int
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([pipelineId, version])
+  @@index([pipelineId, status])
 }
 
 model InspectionRecord {
@@ -655,6 +674,10 @@ model Asset {
   installationDate DateTime?
   manufacturer     String?
   model            String?
+  serialNumber     String?
+  condition        String?
+  description      String?
+  pressureRatingBar Float?
   physicalStatus   AssetPhysicalStatus @default(Unknown)
   parentAssetId    String?
   parentAsset      Asset?              @relation("AssetParent", fields: [parentAssetId], references: [id], onDelete: SetNull)
@@ -3234,4 +3257,19 @@ enum ChainageDirection {
 enum ChainageBoundaryPolicy {
   REJECT
   WARN
+}
+
+// Prospective master changes; separate from approval workflows.
+model MasterChangeEvent {
+  id String @id
+  pipelineId String
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Restrict)
+  objectType String
+  objectId String
+  userId String?
+  action String
+  occurredAt DateTime @default(now())
+  beforeValues Json?
+  afterValues Json
+  @@index([pipelineId, occurredAt(sort: Desc)])
 }

@@ -19,7 +19,7 @@ export function InspectionRecordForm({ pipelineId, segments, initial, onClose, o
     <form onSubmit={async (event) => {
       event.preventDefault(); if (saving) return;
       setSaving(true); setError("");
-      try { onSaved(initial ? await updateInspectionRecord(initial.id, input) : await createInspectionRecord(input)); }
+      try { onSaved(initial ? await updateInspectionRecord(initial.id, input, initial) : await createInspectionRecord(input)); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Unable to save inspection record."); }
       finally { setSaving(false); }
     }}>

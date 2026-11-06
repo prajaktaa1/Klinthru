@@ -45,28 +45,7 @@ async function main() {
     assert.equal(mode.document.getElementById('klinthru-google-maps-api'),undefined);
   }
 
-  const retry = environment('unit-test-only-no-network');
-  const first = retry.loadGoogleMaps(), concurrent = retry.loadGoogleMaps();
-  assert.equal(first, concurrent); assert.equal(retry.nodes.length, 1);
-  const script = retry.document.getElementById('klinthru-google-maps-api');
-  assert.match(script.src, /region=AE&language=en/);
-  script.onerror(); await assert.rejects(first, /failed to load/); assert.equal(script.removed, true);
-  const second = retry.loadGoogleMaps(); assert.notEqual(first, second); assert.equal(retry.nodes.length, 2);
-  const maps = { Map: function () {} }; retry.window.google = { maps }; retry.window.__klinthruGoogleMapsReady();
-  assert.equal(await second, maps);
-
-  const timeout = environment('unit-test-only-no-network'); const timedOut = timeout.loadGoogleMaps();
-  timeout.timers.values().next().value(); await assert.rejects(timedOut, /timed out/);
-  assert.equal(timeout.document.getElementById('klinthru-google-maps-api'), undefined);
-
-  const auth = environment('unit-test-only-no-network'), authMap = mapEnvironment(auth); let googleMapsCreated = 0;
-  const authLoad = auth.loadGoogleMaps();
-  auth.window.google = { maps: { Map: function () { googleMapsCreated++; } } };
-  auth.window.__klinthruGoogleMapsReady(); await authLoad; auth.window.gm_authFailure(); await flush();
-  assert.equal(googleMapsCreated, 0, 'A late SDK callback must not overwrite authorization fallback');
-  auth.attachBasemap(authMap.map,authMap.L,'hybrid');
-  assert.equal(authMap.tiles.length, 2); assert.equal(authMap.container.dataset.mapProvider, 'esri');
-  await assert.rejects(auth.loadGoogleMaps(), /authorization failed/);
+  assert.equal(typeof missing.loadGoogleMaps, 'undefined', 'The Leaflet map provider must not load Google Maps.');
 
   const events = new EventTarget(), exports = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(require.resolve('../src/lib/map-sync.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, { window: events, exports });
@@ -79,6 +58,6 @@ async function main() {
     const search = environment('', async url => { assert.match(url,/addressdetails=1&countrycodes=ae/); return {ok:true,json:async()=>[result]}; });
     await assert.rejects(search.searchUaeLocation('test navigation only'),/No UAE location/);
   }
-  console.log('PASS Esri imagery/reference labels, attribution, zoom, tile-error recovery, cleanup and no Google basemap requests; optional search-loader and map-sync contracts. No real Google authorization claimed.');
+  console.log('PASS Esri imagery/reference labels, attribution, zoom, tile-error recovery, cleanup, open-geocoder validation and no Google basemap requests.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1,3 +1,7 @@
+import {validateLocalInboundIngestion} from "../integrations/localInbound";
+import {scadaReadingSchema,normalizeScadaReading} from "../validation/scadaReading";
+import {realSensorAssetBlockers} from "../validation/sensorAssetRegistration";
+import {type SourceChannel,type IngestionIdentity,apiReadingPayload,readingProvenance} from "./readingProvenance";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { DatabaseUnavailableError, store } from "../data/store";
@@ -23,11 +27,7 @@ export const scadaTagSchema = z.object({
   if (limits.length && !tag.thresholdSource) ctx.addIssue({ code: "custom", path: ["thresholdSource"], message: "Threshold source/type is required" });
 });
 export const scadaBatchSchema = z.object({
-  readings: z.array(z.object({
-    tagId: text, sourceTimestamp: timestamp, sourceTimezone: text, sequence: z.string().max(120).default(""),
-    value: z.union([z.number().finite(), z.string().max(500), z.null()]), state: text.optional(),
-    engineeringUnit: text, quality: z.enum(["Good", "Uncertain", "Bad", "Missing", "Stale", "Substituted"])
-  }).strict()).max(500).default([]),
+  readings: z.array(scadaReadingSchema).max(500).default([]),
   alarms: z.array(z.object({
     tagId: text, sourceAlarmId: text, description: text, sourcePriority: text,
     severity: z.enum(["Info", "Low", "Medium", "High", "Critical"]),
@@ -65,6 +65,20 @@ export function scadaDatabase() {
   if (!db) throw new DatabaseUnavailableError();
   return db;
 }
+/** A logical SCADA tag may be independent; a claimed device assignment must be real and match the saved asset. */
+export async function validateTagDeviceLink(tag: {sensorAssignmentId?:string|null;assetId:string;pipelineId:string},user:AuthUser) {
+ const scope=ownerScope(user);
+ const asset=await store.findAssetById(tag.assetId,scope);
+ if(asset?.assetType==="SENSOR"&&realSensorAssetBlockers(asset).length)throw createValidationError({assetId:"Saved sensor asset is quarantined or illustrative."});
+ if(asset?.assetType==="SENSOR"&&(await store.listDevices(scope)).some(device=>device.deviceId===asset.assetId&&device.isDemoData))throw createValidationError({assetId:"DEMO devices cannot be linked to REAL SCADA tags."});
+ if(!tag.sensorAssignmentId)return;
+ const [assignment,devices]=await Promise.all([store.findSensorAssignmentById(tag.sensorAssignmentId,scope),store.listDevices(scope)]);
+ if(!assignment||assignment.activeTo||!asset||asset.pipelineId!==tag.pipelineId||asset.assetType!=="SENSOR"||asset.assetId!==assignment.sensorId) throw createValidationError({sensorAssignmentId:"Active assignment must identify the saved sensor asset in this pipeline"});
+ if(realSensorAssetBlockers(asset).length)throw createValidationError({sensorAssignmentId:"Saved sensor asset is quarantined or illustrative."});
+ const matches=devices.filter(device=>device.deviceId===assignment.sensorId&&!device.isDemoData);
+ if(matches.length!==1) throw createValidationError({sensorAssignmentId:"A unique registered REAL device is required"});
+}
+
 export async function accessiblePipeline(pipelineId: string, user: AuthUser) {
   const pipeline = await store.findPipelineById(pipelineId, ownerScope(user));
   if (!pipeline) throw createValidationError({ pipelineId: "Pipeline not found or access denied" });
@@ -80,7 +94,7 @@ export type ScadaTagRow = {
   activeFrom: Date; active: boolean;
 };
 export type ScadaReadingRow = {
-  id: string; tagId: string; sourceTimestamp: Date; normalizedUtcTimestamp: Date; sourceTimezone: string;
+  rawValue?: unknown; id: string; tagId: string; sourceTimestamp: Date; normalizedUtcTimestamp: Date; sourceTimezone: string;
   receiveTimestamp: Date; value: number | null; state: string | null; engineeringUnit: string; quality: string;
 };
 type ScadaQualityExceptionRow = { readingId: string; tagId: string; tagName: string; assetId: string; assetName: string | null; station: string | null; sourceTimestamp: Date; value: number | null; engineeringUnit: string; quality: string };
@@ -140,7 +154,7 @@ export async function getScadaOverview(pipelineId: string, user: AuthUser) {
       status.freshness = reading ? "Stale" : "Missing";
       status.processStatus = reading ? "Stale" : "Unknown";
     }
-    return { ...tag, reading: reading ?? null, ...status };
+    return { ...tag, reading: reading ? {...reading,...readingProvenance(reading.rawValue,tag.connectorId)} : null, ...status };
   });
   const stations = assets.filter(a => a.facilityType);
   const online = stations.filter(a => currentTags.some(t => (t.assetId === a.id || assets.find(e => e.id === t.assetId)?.parentAssetId === a.id) && t.freshness === "Live")).length;
@@ -273,18 +287,32 @@ export async function getScadaQuality(pipelineId: string, user: AuthUser, hours 
     limitations: ['Availability measures configured sampling-slot coverage, not connector uptime. Exception severity is a KLINTHRU display policy, not source alarm priority.', 'Exception results are capped at the newest 1000 records.'] };
 }
 
-export async function ingestScadaBatch(connectorId: string, input: unknown, user: AuthUser) {
+export async function ingestScadaBatch(connectorId: string, input: unknown, user: AuthUser, context:{channel:SourceChannel;identity:IngestionIdentity;tagId:string}|undefined=undefined) {
   const batch = parseScada(scadaBatchSchema, input);
-  return scadaDatabase().$transaction(db => ingestValidatedScadaBatch(connectorId, batch, user, db), { timeout: 60000 });
+  return scadaDatabase().$transaction(db => ingestValidatedScadaBatch(connectorId, batch, user, db,context), { timeout: 60000 });
 }
 
-async function ingestValidatedScadaBatch(connectorId: string, batch: z.infer<typeof scadaBatchSchema>, user: AuthUser, db: Pick<ReturnType<typeof scadaDatabase>, "$queryRawUnsafe" | "integrationConnector">) {
+async function ingestValidatedScadaBatch(connectorId: string, batch: z.infer<typeof scadaBatchSchema>, user: AuthUser, db: Pick<ReturnType<typeof scadaDatabase>, "$queryRawUnsafe" | "integrationConnector" | "asset">,context?:{channel:SourceChannel;identity:IngestionIdentity;tagId:string}) {
   const connector = await db.integrationConnector.findFirst({ where: { id: connectorId, authorId: user.id, enabled: true } });
   if (!connector) throw createValidationError({ connectorId: "Enabled connector owned by the ingesting user is required" });
+  if(connector.connectorType!=="REST") throw createValidationError({connectorId:"API ingestion requires a REST connector"});
+  const configuration=connector.configuration as {dataMode?:string;integrationScope?:{pipelineId?:string;assetId?:string}}|null;
+  if(configuration?.dataMode&&configuration.dataMode!=="REAL") throw createValidationError({connectorId:"Demo connectors cannot ingest real readings"});
+  await validateLocalInboundIngestion(db,connector,user,context);
   const ids = [...new Set([...batch.readings, ...batch.alarms, ...batch.events.filter(r => r.tagId), ...batch.anomalies.filter(r => r.tagId), ...batch.qualityRecords].map(r => r.tagId).filter((id): id is string => Boolean(id)))];
   const tags = await db.$queryRawUnsafe<ScadaTagRow[]>(`SELECT * FROM "ScadaTag" WHERE "connectorId"=$1 AND id=ANY($2::text[]) AND active=true`, connectorId, ids);
   if (tags.length !== ids.length) throw createValidationError({ tagId: "Unknown, inactive or unmapped connector tag" });
-  for (const tag of tags) await accessiblePipeline(tag.pipelineId, user);
+  for (const tag of tags) {
+    await accessiblePipeline(tag.pipelineId, user);
+    await validateTagDeviceLink(tag,user);
+    if(context){
+      const asset=await store.findAssetById(tag.assetId,ownerScope(user));
+      const devices=await store.listDevices(ownerScope(user));
+      if(asset&&realSensorAssetBlockers(asset).length)throw createValidationError({deviceId:"Saved sensor asset is quarantined or illustrative."});
+      if(tag.id!==context.tagId||tag.pipelineId!==context.identity.pipelineId||asset?.pipelineId!==context.identity.pipelineId||asset.assetType!=="SENSOR"||asset.assetId!==context.identity.deviceId||devices.filter(device=>device.deviceId===context.identity.deviceId&&!device.isDemoData).length!==1)throw createValidationError({deviceId:"Registered REAL device and tag must match the selected sensor asset and pipeline"});
+    }
+    if(configuration?.integrationScope?.pipelineId&&configuration.integrationScope.pipelineId!==tag.pipelineId||configuration?.integrationScope?.assetId&&configuration.integrationScope.assetId!==tag.assetId) throw createValidationError({tagId:"Tag is outside the connector scope"});
+  }
   const byId = new Map(tags.map(t => [t.id, t]));
   async function validateSource(pipelineId: string, sourceSystemId: string, tagId?: string) {
     if (tagId && byId.get(tagId)?.sourceSystemId !== sourceSystemId) throw createValidationError({ sourceSystemId: "Source system must match the registered tag" });
@@ -320,13 +348,10 @@ async function ingestValidatedScadaBatch(connectorId: string, batch: z.infer<typ
   let accepted = 0, duplicate = 0;
   for (const r of batch.readings) {
     const tag = byId.get(r.tagId)!;
-    let quality: string = r.quality;
-    const value = typeof r.value === "number" ? r.value : null;
-    if (r.engineeringUnit !== tag.engineeringUnit || (value === null && !r.state && quality === "Good")) quality = "Bad";
-    if (Date.parse(r.sourceTimestamp) > Date.now() + 60000 && quality === "Good") quality = "Uncertain";
+    const {value,quality}=normalizeScadaReading(r,tag.engineeringUnit);
     const rows = await db.$queryRawUnsafe<any[]>(`INSERT INTO "SharedTimeSeriesReading" (id,"tagId","sourceTimestamp","sourceTimezone","normalizedUtcTimestamp",sequence,value,"rawValue",state,"engineeringUnit",quality)
       VALUES ($1,$2,$3::timestamp,$4,$3::timestamp,$5,$6,$7::jsonb,$8,$9,$10) ON CONFLICT ("tagId","sourceTimestamp",sequence) DO NOTHING RETURNING id`,
-      randomUUID(), r.tagId, new Date(r.sourceTimestamp).toISOString(), r.sourceTimezone, r.sequence, value, JSON.stringify(r.value), r.state ?? null, r.engineeringUnit, quality);
+      randomUUID(), r.tagId, new Date(r.sourceTimestamp).toISOString(), r.sourceTimezone, r.sequence, value, JSON.stringify(apiReadingPayload(r.value,connectorId,context?.channel??"API",context?.identity)), r.state ?? null, r.engineeringUnit, quality);
     if (rows.length) accepted++; else duplicate++;
   }
   for (const a of batch.alarms) {

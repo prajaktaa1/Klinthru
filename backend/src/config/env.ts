@@ -24,6 +24,8 @@ function readCorsOrigins(rawOrigins: string | undefined, rawSingleOrigin: string
 export const env = {
   nodeEnv: readTrimmed(process.env.NODE_ENV) || "development",
   port: readPort(process.env.PORT),
+  // Optional explicit binding for local-only operation; no running listener is changed.
+  apiHost: readTrimmed(process.env.API_HOST) || undefined,
   jwtSecret: readTrimmed(process.env.JWT_SECRET) || "local-dev-secret",
   databaseUrl: readTrimmed(process.env.DATABASE_URL),
   corsOrigins: readCorsOrigins(process.env.CORS_ORIGINS, process.env.CORS_ORIGIN),
@@ -42,7 +44,10 @@ export const env = {
   companySignupWritesEnabled: readTrimmed(process.env.COMPANY_SIGNUP_WRITES_ENABLED) === "true",
   // Destructive master-data and inspection mutations stay disabled until the
   // isolated security/database test gate is approved.
-  masterMutationWritesEnabled: readTrimmed(process.env.MASTER_MUTATION_WRITES_ENABLED) === "true"
+  masterMutationWritesEnabled: readTrimmed(process.env.MASTER_MUTATION_WRITES_ENABLED) === "true",
+  // One-time, development-only cleanup exception. This never enables the
+  // global mutation gate and is accepted only by the fixed PL-001 allowlist.
+  pl001DemoCleanupEnabled: readTrimmed(process.env.PL001_DEMO_CLEANUP_ENABLED) === "true"
 };
 
 export const isProduction = env.nodeEnv === "production";

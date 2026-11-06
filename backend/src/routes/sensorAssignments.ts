@@ -1,9 +1,10 @@
+import {validateSavedAssignmentIdentity} from "../validation/savedAssignmentIdentity";
 import { NextFunction, Router } from "express";
 
 import { store } from "../data/store";
 import { canModifySensors, ownerScope } from "../lib/access";
 import { requireAuth } from "../middleware/auth";
-import { assertNoDangerousKeys } from "../validation/validationErrors";
+import { createValidationError, assertNoDangerousKeys } from "../validation/validationErrors";
 import {
   validateSensorAssignmentInput,
   validateSensorAssignmentList,
@@ -71,6 +72,8 @@ sensorAssignmentsRouter.post("/", async (request, response, next: NextFunction) 
 
     assertNoDangerousKeys(request.body);
     const assignment = validateSensorAssignmentInput(request.body);
+    if((await store.listDevices(ownerScope(request.user!))).some(device=>device.deviceId===assignment.sensorId&&(device.isDemoData||device.deviceId==="SNS-DEMO-001")))throw createValidationError({sensorId:"DEMO and quarantined devices cannot receive REAL sensor assignments."});
+    await validateSavedAssignmentIdentity(assignment,request.user!);
     const created = await store.saveSensorAssignment({
       assignment,
       authorId: request.user?.id
@@ -97,6 +100,7 @@ sensorAssignmentsRouter.put("/:id", async (request, response, next: NextFunction
     }
 
     const assignment = validateSensorAssignmentUpdate(request.body);
+    if((await store.listDevices(ownerScope(request.user!))).some(device=>device.deviceId===(assignment.sensorId??existing.sensorId)&&(device.isDemoData||device.deviceId==="SNS-DEMO-001")))throw createValidationError({sensorId:"DEMO and quarantined devices cannot receive REAL sensor assignments."});
     const updated = await store.saveSensorAssignment({
       id: request.params.id,
       assignment,

@@ -13,8 +13,10 @@ import {SensorByTypeView} from "@/components/sensor-by-type-view";
 import {SensorByPipelineView} from "@/components/sensor-by-pipeline-view";
 import {SensorByAssetView} from "@/components/sensor-by-asset-view";
 import {SensorHealthConnectivityView} from "@/components/sensor-health-connectivity-view";
+import {DemoDeviceRegistry} from "@/components/demo-device-registry";
 import {SensorsTable} from "@/components/sensors-table";
 import {SensorRegistrationForm} from "@/components/sensor-registration-form";
+import {CompactSensorAssignmentForm} from "@/components/compact-sensor-assignment-form";
 import {SensorAssignmentForm} from "@/components/sensor-assignment-form";
 import {Panel,StatCard} from "@/components/ui";
 import {fetchDeviceRecords,fetchSensorAssignments,fetchSensorMasterLinks,createSensorAssignment,updateSensorAssignment,isUnauthorizedError} from "@/lib/apiClient";
@@ -92,7 +94,7 @@ export function SensorsView() {
     <StatCard label="Attention" value={na} tone="amber"/><StatCard label="Calibration Due" value={na} tone="amber"/><StatCard label="Maintenance Due" value={na} tone="blue"/>
    </div>
    <p className="text-xs text-slate-500">Total Sensors counts registry devices not flagged as demo. Connectivity, hardware attention, calibration and maintenance totals require their own source records.</p>
-   {isLoading?<Panel><p role="status" className="text-sm text-slate-500">Loading sensor records...</p></Panel>:errorMessage?<Panel><p role="alert" className="text-sm text-rose-700">{errorMessage}</p></Panel>:<SensorsTable records={realRecords} assignments={assignments} masterLinks={masterLinks} assignmentsError={assignmentError} canEdit={canModify} initialPipelineId={requestedPipelineId} initialType={sensorTypeFilter} initialQuery={sensorSearchFilter} onEdit={assignment=>open("edit-assignment",assignment)}/>}
+   {isLoading?<Panel><p role="status" className="text-sm text-slate-500">Loading sensor records...</p></Panel>:null}{errorMessage?<Panel><p role="alert" className="text-sm text-rose-700">{errorMessage}</p></Panel>:null}<SensorsTable refreshVersion={version} records={realRecords} assignments={assignments} masterLinks={masterLinks} assignmentsError={assignmentError} canEdit={canModify} initialPipelineId={requestedPipelineId} initialType={sensorTypeFilter} initialQuery={sensorSearchFilter} onEdit={assignment=>open("edit-assignment",assignment)}/>
    {assignmentError?<p role="status" className="text-xs text-amber-700">Assignment details are Not Available. Registry records remain visible; Refresh retries both sources.</p>:null}
    <div className="grid min-w-0 gap-4 lg:grid-cols-3">
     {[
@@ -101,7 +103,7 @@ export function SensorsView() {
      ["Maintenance Schedule","Maintenance","Device maintenance tasks and due dates are Not Available."]
     ].map(([title,view,message])=><Panel key={title} className="min-w-0 !p-4"><div className="flex items-center justify-between gap-2"><h3 className="text-sm font-semibold">{title}</h3><button type="button" className="shrink-0 text-xs font-semibold text-slateblue-700 dark:text-slateblue-300" onClick={()=>setActiveView(view)}>View All<span className="sr-only"> {title}</span></button></div><p className="mt-4 text-xs leading-5 text-slate-500">{message}</p></Panel>)}
    </div>
-   {demoCount?<p className="text-xs text-slate-500">{demoCount} existing demo device record(s) are preserved and excluded from real inventory, KPIs and export.</p>:null}
+   <DemoDeviceRegistry records={records} canEdit={canModify} onUpdated={()=>setVersion(value=>value+1)} onUnauthorized={()=>router.replace("/login")}/>
   </>:null}
    {activeView==="Data Quality"?<SensorDataQualityView records={records} isLoading={isLoading} errorMessage={errorMessage} onViewSensor={record=>{setSensorTypeFilter(record.deviceType);setSensorSearchFilter(record.deviceId);setActiveView("All Sensors");}}/>:null}
   {activeView==="Calibration"?<SensorCalibrationView/>:null}
@@ -110,9 +112,9 @@ export function SensorsView() {
   {activeView==="Configuration"?<SensorConfigurationView/>:null}
   <dialog ref={dialog} aria-label={drawer==="register"?"Add Sensor":drawer==="edit-assignment"?"Edit Sensor Assignment":"Create Sensor Assignment"} onCancel={event=>{if(busy)event.preventDefault();else setDrawer(null);}} onClose={()=>{if(!busy)setDrawer(null);}} className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-none w-full max-w-4xl overflow-y-auto border-l border-slate-200 bg-white p-4 text-slate-900 shadow-2xl backdrop:bg-slate-950/40 dark:border-slate-700 dark:bg-slate-900 dark:text-white sm:p-6">
    {drawer?<><div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">{drawer==="register"?"Add Sensor":drawer==="edit-assignment"?"Edit Sensor Assignment":"Create Sensor Assignment"}</h2><button type="button" disabled={busy} aria-label="Close sensor form" className={action} onClick={()=>setDrawer(null)}><X size={18}/></button></div>
-    <p className="mb-4 text-xs text-slate-500">Only fields supported by the existing registry and assignment records can be saved. Channel telemetry, master relationships and lifecycle records are Not Available.</p>
+    {drawer!=="create-assignment"?<p className="mb-4 text-xs text-slate-500">Only fields supported by the existing registry and assignment records can be saved. Channel telemetry, master relationships and lifecycle records are Not Available.</p>:null}
     {saveError?<p role="alert" className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{saveError}</p>:null}
-    {drawer==="register"?<SensorRegistrationForm onRegistered={saved} onUnauthorized={()=>router.replace("/login")} onCancel={()=>setDrawer(null)} onBusyChange={setBusy}/>:<SensorAssignmentForm key={editing?.id??"new"} devices={realRecords} demoDeviceCount={demoCount} devicesError={errorMessage} isDevicesLoading={isLoading} mode={drawer==="edit-assignment"?"edit":"create"} selectedAssignment={editing} isSaving={busy} onCancel={()=>setDrawer(null)} onSubmit={saveAssignment}/>}
+    {drawer==="register"?<SensorRegistrationForm onRegistered={saved} onUnauthorized={()=>router.replace("/login")} onCancel={()=>setDrawer(null)} onBusyChange={setBusy}/>:drawer==="create-assignment"?<CompactSensorAssignmentForm devices={records} devicesError={errorMessage} isDevicesLoading={isLoading} isSaving={busy} onSubmit={saveAssignment} onCancel={()=>setDrawer(null)} onUnauthorized={()=>router.replace("/login")}/>:<SensorAssignmentForm key={editing?.id??"new"} devices={realRecords} demoDeviceCount={demoCount} devicesError={errorMessage} isDevicesLoading={isLoading} mode={drawer==="edit-assignment"?"edit":"create"} selectedAssignment={editing} isSaving={busy} onCancel={()=>setDrawer(null)} onSubmit={saveAssignment}/>}
    </>:null}
   </dialog>
  </div>;

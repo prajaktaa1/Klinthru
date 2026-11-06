@@ -106,6 +106,7 @@ export type PipelineRecord = import("../validation/chainageSettings").ChainageSe
   installationYear?: number;
   inspectionYear?: number;
   installationDate?: string;
+  commissioningDate?: string | null;
   designLife?: number;
   routeGeometry?: RouteGeometry;
   status: string;
@@ -189,6 +190,10 @@ export type RouteGeometry = {
 };
 
 export type AssetRecord = {
+  serialNumber?: string;
+  condition?: string;
+  description?: string;
+  pressureRatingBar?: number | null;
   name?: string;
   facilityType?: string;
   equipmentType?: string;

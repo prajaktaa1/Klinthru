@@ -3,7 +3,7 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
 import { store } from "../data/store";
 import { ownerScope } from "../lib/access";
-import { accessiblePipeline, getScadaConfiguration, getScadaHistory, getScadaOverview, getScadaQuality, parseScada, scadaDatabase, scadaTagSchema } from "../utils/scadaData";
+import { validateTagDeviceLink, accessiblePipeline, getScadaConfiguration, getScadaHistory, getScadaOverview, getScadaQuality, parseScada, scadaDatabase, scadaTagSchema } from "../utils/scadaData";
 import { z } from "zod";
 import { createValidationError } from "../validation/validationErrors";
 
@@ -86,6 +86,7 @@ scadaRouter.post("/tags", async (request, response, next) => {
     await accessiblePipeline(tag.pipelineId, request.user!);
     const asset = await store.findAssetById(tag.assetId, ownerScope(request.user!));
     if (!asset || asset.pipelineId !== tag.pipelineId) throw createValidationError({ assetId: "Asset must belong to the selected pipeline" });
+    await validateTagDeviceLink(tag,request.user!);
     const db = scadaDatabase();
     const connector = await db.integrationConnector.findFirst({ where: { id: tag.connectorId, authorId: request.user!.id } });
     if (!connector) throw createValidationError({ connectorId: "Connector must be owned by the registering user" });

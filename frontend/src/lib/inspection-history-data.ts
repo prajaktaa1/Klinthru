@@ -2,6 +2,9 @@ import type { CpMonitoringRealData, IliDataResponse, IliRunSummary, ReportRecord
 import type { PipelineHistory, StoredAssessment } from "@/lib/types";
 
 export const inspectionUnavailable = "Not Available";
+export function isSampleInspection(row: { reference?: string; vendor?: string | null; findings?: string | null }) {
+  return [row.reference, row.vendor, row.findings].some(value => /\bDEMO DATA\b|(?:^|[-_])DEMO(?:[-_]|$)/i.test(value ?? ""));
+}
 export type InspectionHistoryRow = {
   key: string; id: string; reference: string; source: "Assessment" | "Report" | "ILI" | "CP Survey" | "Manual";
   type: string; date?: string; createdAt?: string; pipelineId: string;

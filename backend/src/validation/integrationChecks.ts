@@ -43,7 +43,7 @@ async function run() {
   assert.equal(canTestIntegrations("Engineer"), true);
   assert.equal(canTestIntegrations("Viewer"), false);
 
-  const scopeContext = { userId: "user-1", role: "Engineer" as const, companyId: "company-1", pipeline: { id: "pipeline-1", createdById: "user-1", companyId: "company-1" }, asset: { id: "asset-1", pipelineId: "pipeline-1" } };
+  const scopeContext = { userId: "user-1", role: "Engineer" as const, companyId: "company-1", pipeline: { id: "pipeline-1", createdById: "user-1", companyId: "company-1",creatorCompanyId:"company-1",companyRecordId:"company-1" }, asset: { id: "asset-1", pipelineId: "pipeline-1" } };
   assert.deepEqual(validateConnectorScope({ pipelineId: "pipeline-1", assetId: "asset-1" }, scopeContext), { companyId: "company-1", pipelineId: "pipeline-1", assetId: "asset-1" });
   assert.throws(() => validateConnectorScope({ pipelineId: "pipeline-1", assetId: "asset-other" }, scopeContext));
   assert.throws(() => validateConnectorScope({ pipelineId: "pipeline-other" }, scopeContext));

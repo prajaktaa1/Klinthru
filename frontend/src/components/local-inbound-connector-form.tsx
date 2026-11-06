@@ -1,0 +1,26 @@
+"use client";
+import {useEffect,useRef,useState} from "react";
+import {ApiError,fetchPipelines,fetchSensorRegistrationOptions,createIntegrationConnector,getLocalSensorIngestionUrl,isUnauthorizedError,type SensorRegistrationOption,type IntegrationConnectorRecord} from "@/lib/apiClient";
+import type {PipelineRecord} from "@/lib/types";
+export function LocalInboundConnectorForm({canEdit,onCreated,onCancel}:{canEdit:boolean;onCreated:(record:IntegrationConnectorRecord)=>void;onCancel:()=>void}){
+ const [name,setName]=useState(""),[pipelineId,setPipelineId]=useState(""),[assetId,setAssetId]=useState(""),[pipelines,setPipelines]=useState<PipelineRecord[]>([]),[options,setOptions]=useState<SensorRegistrationOption[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState(""),[created,setCreated]=useState<IntegrationConnectorRecord|null>(null);
+ const pending=useRef(false);
+ useEffect(()=>{let active=true;void fetchPipelines().then(rows=>{if(active){setPipelines(rows);setPipelineId(rows.find(row=>row.pipelineCode==="PL-002")?.id??"");}}).catch(()=>{if(active)setError("Authorized pipelines could not be loaded.");}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
+ useEffect(()=>{let active=true;setOptions([]);setAssetId("");if(!pipelineId)return;setLoading(true);setError("");void fetchSensorRegistrationOptions(pipelineId).then(rows=>{if(active){const eligible=rows.filter(row=>row.pipelineId===pipelineId&&row.registrationClassification==="REAL"&&row.existingDevice&&!row.existingDevice.isDemoData&&row.assetCode!=="SNS-DEMO-001"&&row.existingDevice.deviceId===row.assetCode&&row.existingDevice.deviceType===row.deviceType&&row.existingDevice.pipelineOrLocation===row.location);setOptions(eligible);setAssetId(eligible.find(row=>row.assetCode==="SNS-001")?.assetRecordId??"");}}).catch(()=>{if(active)setError("Saved REAL sensor identities could not be loaded.");}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[pipelineId]);
+ const selected=options.find(row=>row.assetRecordId===assetId),device=selected?.existingDevice;
+ const url=created?getLocalSensorIngestionUrl(created):null;
+ async function save(){if(pending.current||!canEdit||loading||!name.trim()||!device||!selected)return;pending.current=true;setBusy(true);setError("");try{const record=await createIntegrationConnector({name:name.trim(),mode:"LOCAL_INBOUND_SENSOR_API",deviceRecordId:device.id,scope:{pipelineId,assetId:selected.assetRecordId}});setCreated(record);onCreated(record);}catch(reason){setError(isUnauthorizedError(reason)?"Your authorized application session is required.":reason instanceof ApiError?Object.values(reason.fields??{}).join(" ")||reason.message:"Connector could not be saved.");}finally{pending.current=false;setBusy(false);}}
+ return <form aria-label="Local Inbound Sensor API" className="space-y-4 rounded-xl border border-slate-200 p-4" onSubmit={event=>{event.preventDefault();void save();}}>
+ <p className="text-sm">Existing authenticated sensor ingestion. No external endpoint is required.</p>
+ <fieldset disabled={busy||Boolean(created)} className="grid gap-3 sm:grid-cols-2">
+ <label className="text-xs">Connector Name<input aria-label="Inbound connector name" required value={name} maxLength={120} className="mt-1 w-full rounded border p-2" onChange={event=>setName(event.target.value)}/></label>
+ <label className="text-xs">Pipeline<select aria-label="Inbound pipeline" required disabled={loading} value={pipelineId} className="mt-1 w-full rounded border p-2" onChange={event=>setPipelineId(event.target.value)}><option value="">Select pipeline</option>{pipelines.map(row=><option key={row.id} value={row.id}>{row.pipelineCode}</option>)}</select></label>
+ <label className="text-xs">Registered REAL Sensor<select aria-label="Inbound sensor" required disabled={loading||!pipelineId} value={assetId} className="mt-1 w-full rounded border p-2" onChange={event=>setAssetId(event.target.value)}><option value="">Select saved sensor</option>{options.map(row=><option key={row.assetRecordId} value={row.assetRecordId}>{row.assetCode} - {row.deviceType}</option>)}</select></label>
+ </fieldset>
+ {device?<p className="text-xs">{device.deviceType} / {device.pipelineOrLocation} / {device.unit||"Not Available"}</p>:null}
+ <p role="status" className="text-sm font-semibold">{created?.connectivityStatus??"Not Connected"}</p>
+ {url?<section aria-label="Saved inbound ingestion endpoint"><p className="break-all text-sm">POST {url}</p><p className="text-xs">Admin Bearer JWT required. Configure an actual active SCADA tag for this connector and sensor before sending real readings. No tag, reading or connection test was created.</p></section>:null}
+ {error?<p role="alert" className="text-xs text-rose-700">{error}</p>:null}
+ <div className="flex gap-2">{!created?<button type="submit" disabled={!canEdit||loading||busy||!name.trim()||!device||!selected} className="rounded bg-cyan-600 px-4 py-2 text-sm text-white disabled:opacity-50">{busy?"Saving...":"Save Connector"}</button>:null}<button type="button" disabled={busy} onClick={onCancel} className="rounded border px-4 py-2 text-sm">{created?"Done":"Cancel"}</button></div>
+ </form>;
+}

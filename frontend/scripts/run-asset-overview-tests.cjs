@@ -7,7 +7,7 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
 const filename = path.resolve(__dirname, "../src/app/asset-master/page.tsx");
-const source = fs.readFileSync(filename, "utf8") + "\nexport { OverviewRouteMap, SegmentsPreview, AssetTypeSummary, summarizeAssetTypes };";
+const source = fs.readFileSync(filename, "utf8") + "\nexport { OverviewRouteMap, SegmentsPreview, AssetTypeSummary, summarizeAssetTypes, PipelineModal, formFromPipeline };";
 const compiled = ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }
 }).outputText;
@@ -15,12 +15,28 @@ const loaded = new Module(filename, module);
 loaded.paths = module.paths;
 loaded.require = (name) => {
   if (name === "@/components/ui") return { Panel: ({ children, className }) => React.createElement("section", { className }, children) };
+  if (name === "@/components/saved-map-records") return { SavedMapRecords: () => null };
+  if (name === "@/components/RouteEditor") return { RouteEditor: () => null };
+  if (name === "@/lib/use-asset-map-layers") return { useAssetMapLayers: () => [{}] };
+  if (name === "@/lib/dashboard-map-data") return { savedMapEndpoints: (geometry) => geometry?.coordinates?.length ? geometry.coordinates : undefined, savedMapCoordinate: (latitude, longitude) => Number.isFinite(latitude) && Number.isFinite(longitude), savedMapRoute: (geometry) => Boolean(geometry?.coordinates?.length), savedSegmentMapRoute: (segment) => Boolean(segment?.routeGeometry?.coordinates?.length) };
+  if (name === "@/lib/saved-pipeline-overlay") return { drawSavedPipelineOverlay: () => [], pipelineOverlayLabel: () => "Saved route" };
+  if (name === "@/lib/pl001-illustrative-route") return { PL001_ILLUSTRATIVE_ROUTE_GIS_STATUS: "GIS Route Data Required", isPl001IllustrativeRoute: (pipelineCode) => pipelineCode === "PL-001" };
+  if (name === "@/lib/chainage") return { tryKp: (value) => { const text = String(value ?? "").trim(); if (!text) return null; const parsed = Number(text.includes("+") ? text.replace("+", ".") : text); return Number.isFinite(parsed) ? parsed : null; } };
   if (name.startsWith("@/") || name === "next/link") return {};
   return require(name);
 };
 loaded._compile(compiled, filename);
-const { OverviewRouteMap, SegmentsPreview, AssetTypeSummary, summarizeAssetTypes } = loaded.exports;
+const { OverviewRouteMap, SegmentsPreview, AssetTypeSummary, summarizeAssetTypes, PipelineModal, formFromPipeline } = loaded.exports;
 const render = (component, props) => renderToStaticMarkup(React.createElement(component, props));
+const datedPipeline = { pipelineCode: "DATE-CHECK", pipelineName: "Date regression only", pipeMaterial: "Carbon Steel", pipeGrade: "X65", pipeLengthKm: 248, status: "Active", installationYear: 2015, installationDate: "2015-12-06T00:00:00.000Z" };
+const formDates = formFromPipeline(datedPipeline);
+assert.equal(formDates.installationDate, "2015-12-06");
+assert.equal(formDates.installationYear, "2015");
+assert.equal(formFromPipeline({ ...datedPipeline, installationDate: undefined }).installationDate, "", "Installation year must not invent a date");
+const editForm = render(PipelineModal, { mode: "edit", pipeline: datedPipeline, busy: false, onClose() {}, onSave() {} });
+assert.ok(editForm.includes('data-field-label="Installation Date"'));
+assert.ok(editForm.includes('data-field-label="Commissioning Date"'), "Commissioning date must remain a separate editable field");
+assert.doesNotMatch(source, /if \(routePointCount > 0 && routePointCount < 3\) throw/, "Unchanged legacy geometry must not block metadata saves; the route save helper validates changed geometry");
 const segments = Array.from({ length: 7 }, (_, i) => ({ id: `s${i}`, segmentId: `SEG-${i}`, startKp: String(i), endKp: String(i + 1), status: "Active" }));
 const assets = [
   { id: "a1", assetId: "V-1", assetType: "VALVE", physicalStatus: "Active", segmentId: "s0" },

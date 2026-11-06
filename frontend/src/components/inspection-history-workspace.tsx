@@ -1,4 +1,6 @@
 "use client";
+import { watchMapDataChanged } from "@/lib/map-sync";
+import { isSampleInspection } from "@/lib/inspection-history-data";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDownToLine, ArrowUp, BarChart3, ChevronDown, ChevronLeft, ChevronRight, Clock3, Edit3, Eye, FileText, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
@@ -27,6 +29,7 @@ export function InspectionHistoryWorkspace({ pipeline, history, error, segments,
   const dialog = useRef<HTMLDialogElement>(null);
   const [adding, setAdding] = useState(false), [editingRecord, setEditingRecord] = useState<InspectionRecord | undefined>(), [records, setRecords] = useState<InspectionRecord[]>([]), [recordsError, setRecordsError] = useState("");
   const [recordsLoading, setRecordsLoading] = useState(true), [notice, setNotice] = useState("");
+  useEffect(() => watchMapDataChanged(() => { if (!adding && !editingRecord) setRefresh(value => value + 1); }), [adding, editingRecord]);
   useEffect(() => {
     let active = true;
     setRecords([]); setAdding(false); setEditingRecord(undefined); setSelected(null); setCompare(false); setRecordsError(""); setNotice(""); setRecordsLoading(Boolean(pipeline));
@@ -60,6 +63,9 @@ export function InspectionHistoryWorkspace({ pipeline, history, error, segments,
     ...record, key: `Manual:${record.id}`, source: "Manual", reports: [], segmentId: record.segmentId || undefined,
     vendor: record.vendor || undefined, findings: record.findings || undefined, risk: record.risk || undefined, nextDue: record.nextDue || undefined
   }))] : [];
+  const verifiedRows = rows.filter(row => !isSampleInspection(row));
+  const latestEcda = verifiedRows.filter(row => row.type === "ECDA" && (row.source !== "Manual" || row.status === "Completed") && row.date).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))[0];
+  const nextSurvey = verifiedRows.filter(row => row.nextDue && !/cancel/i.test(row.status ?? "")).sort((a, b) => (a.nextDue ?? "").localeCompare(b.nextDue ?? ""))[0];
   const invalidRange = Boolean(draft.from && draft.to && draft.from > draft.to);
   const ordered = filterInspections(rows, filters).sort((a, b) => {
     const first = inspectionDate(a.date), second = inspectionDate(b.date);
@@ -68,7 +74,7 @@ export function InspectionHistoryWorkspace({ pipeline, history, error, segments,
   });
   const pages = Math.max(1, Math.ceil(ordered.length / size)), current = Math.min(page, pages), visible = ordered.slice((current - 1) * size, current * size);
   const dated = ordered.filter((row) => inspectionDate(row.date) !== na).sort((a, b) => a.date!.localeCompare(b.date!));
-  const latestIli = rows.filter((row) => row.source === "ILI" && inspectionDate(row.date) !== na).sort((a, b) => b.date!.localeCompare(a.date!))[0];
+  const latestIli = verifiedRows.filter((row) => (row.source === "ILI" || row.type === "ILI") && (row.source !== "Manual" || row.status === "Completed") && inspectionDate(row.date) !== na).sort((a, b) => b.date!.localeCompare(a.date!))[0];
   const allUnavailable = Boolean(recordsError) && !records.length && historyError && (!ili || ili.status !== "available") && (!cp || !cp.availability?.surveys?.available);
   const update = (key: keyof InspectionFilters, next: string) => { setDraft((previous) => ({ ...previous, [key]: next })); if (key !== "query") { setFilters((previous) => ({ ...previous, [key]: next })); setPage(1); } };
   function clearFilters() { setDraft({ ...emptyInspectionFilters }); setFilters({ ...emptyInspectionFilters }); setPage(1); }
@@ -94,7 +100,7 @@ export function InspectionHistoryWorkspace({ pipeline, history, error, segments,
   }
 
   return <div className="space-y-3" aria-label="Inspection history workspace" aria-busy={loading}>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[["Last ILI Run", loading ? na : inspectionDate(latestIli?.date), latestIli?.vendor], ["Last ECDA", na], ["Next Due Survey", na], ["Open Findings", na]].map(([label, metric, detail]) => <div key={label} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-panel"><span className="shrink-0 text-slateblue-600"><FileText size={22} /></span><div className="min-w-0"><p className="truncate text-xl font-semibold text-slate-900">{metric}</p><p className="truncate text-xs text-slate-500">{label}</p>{detail ? <p className="truncate text-xs text-slate-500">Vendor: {detail}</p> : null}</div></div>)}</div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[["Last ILI Run", loading ? na : inspectionDate(latestIli?.date), latestIli?.vendor], ["Last ECDA", loading ? na : inspectionDate(latestEcda?.date)], ["Next Due Survey", loading ? na : inspectionDate(nextSurvey?.nextDue)], ["Open Findings", na]].map(([label, metric, detail]) => <div key={label} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-panel"><span className="shrink-0 text-slateblue-600"><FileText size={22} /></span><div className="min-w-0"><p className="truncate text-xl font-semibold text-slate-900">{metric}</p><p className="truncate text-xs text-slate-500">{label}</p>{detail ? <p className="truncate text-xs text-slate-500">Vendor: {detail}</p> : null}</div></div>)}</div>
     <Panel>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold text-slate-900">Inspection History</h2><p className="mt-1 text-sm text-slate-600">Inspection and assessment records for {value(pipeline?.pipelineCode)} - {value(pipeline?.pipelineName)}. Segments: {segmentsError ? na : segments.length}.</p></div><div className="flex flex-wrap gap-2"><button type="button" disabled={!pipeline || !canAdd || recordsLoading} title={canAdd ? "Add an inspection record" : "Only Admin and Engineer roles may add inspection records"} onClick={() => setAdding(true)} className={primary}><Plus size={15} />Add Inspection Record</button><button type="button" disabled={loading || dated.length < 2} onClick={() => { setSelected(null); setCompare(true); }} className={secondary}><BarChart3 size={15} />Compare Timeline</button><button type="button" disabled={loading || !ordered.length} onClick={exportRows} className={secondary}><ArrowDownToLine size={15} />Export</button><button type="button" disabled={loading || !pipeline} onClick={() => setRefresh((count) => count + 1)} className={secondary}><RefreshCw size={15} />Refresh</button></div></div>
       <p className="mb-4 text-xs text-slate-500">Add an inspection record for this pipeline using the form. Required fields are marked with *.</p>

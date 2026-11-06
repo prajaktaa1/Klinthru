@@ -31,16 +31,21 @@ export const connectorMetadataSchema = z.object({
 const secretReference = z.string().trim().min(1).max(255).nullable().optional();
 const connectorScope = z.object({ pipelineId: z.string().trim().min(1).max(100), assetId: z.string().trim().min(1).max(100).nullable().optional() }).strict();
 
-const createSchema = z.object({
-  name,
-  endpoint,
-  enabled: z.boolean().optional(),
-  configuration,
-  secretReference,
-  scope: connectorScope.optional()
+const connectorFields=z.object({
+ name,endpoint:z.string().trim().max(2048).optional(),mode:z.enum(["EXTERNAL_REST","LOCAL_INBOUND_SENSOR_API"]).optional(),deviceRecordId:z.string().trim().min(1).optional(),enabled:z.boolean().optional(),configuration,secretReference,scope:connectorScope.optional()
 }).strict();
-
-const patchSchema = createSchema.partial().refine((value) => Object.keys(value).length > 0, "At least one field is required.");
+const createSchema=connectorFields.superRefine((value,context)=>{
+ if(value.mode==="LOCAL_INBOUND_SENSOR_API"){
+  if(value.endpoint)context.addIssue({code:"custom",path:["endpoint"],message:"Local inbound connectors do not accept an external endpoint."});
+  if(!value.scope?.assetId||!value.deviceRecordId)context.addIssue({code:"custom",path:["scope"],message:"Saved pipeline, sensor asset and registered device are required."});
+  if(value.secretReference)context.addIssue({code:"custom",path:["secretReference"],message:"Local inbound ingestion uses the existing JWT authorization."});
+ }else{try{validateRestUrl(value.endpoint??"");}catch{context.addIssue({code:"custom",path:["endpoint"],message:"A valid external HTTP(S) endpoint is required."});}}
+});
+const patchSchema=connectorFields.partial().superRefine((value,context)=>{
+ if(!Object.keys(value).length)context.addIssue({code:"custom",message:"At least one field is required."});
+ if(value.mode!==undefined||value.deviceRecordId!==undefined)context.addIssue({code:"custom",path:["mode"],message:"Connector mode and device identity cannot be changed through metadata edits."});
+ if(value.endpoint!==undefined){try{validateRestUrl(value.endpoint);}catch{context.addIssue({code:"custom",path:["endpoint"],message:"A valid external HTTP(S) endpoint is required."});}}
+});
 
 function assertNoConfigurationSecrets(value: unknown, path = "configuration"): void {
   if (!value || typeof value !== "object") return;
@@ -62,6 +67,8 @@ function parse<T extends { configuration?: unknown }>(schema: z.ZodType<T>, body
     if (!metadata.success) throw createValidationErrorFromZod(metadata.error);
     config.integrationMetadata = metadata.data;
   }
+  if(config&&Object.prototype.hasOwnProperty.call(config,"integrationScope"))throw createValidationError({scope:"integrationScope is server-managed; use the validated scope field."});
+  if(config&&["connectorMode","inboundSensor"].some(key=>Object.prototype.hasOwnProperty.call(config,key)))throw createValidationError({configuration:"Connector mode and inbound device identity are server-managed."});
   assertNoConfigurationSecrets(result.data.configuration);
   return result.data;
 }
@@ -78,11 +85,14 @@ export type ConnectorScopeContext = {
   userId: string;
   role: "Admin" | "Engineer" | "Viewer";
   companyId?: string;
-  pipeline: { id: string; createdById: string | null; companyId: string | null };
+  pipeline: { id: string; createdById: string | null; companyId: string | null; creatorCompanyId:string|null; companyRecordId:string|null };
   asset?: { id: string; pipelineId: string };
 };
 
 export function validateConnectorScope(scope: ConnectorScopeInput, context: ConnectorScopeContext): { companyId: string; pipelineId: string; assetId: string | null } {
+  if(!context.pipeline.companyId||context.pipeline.companyRecordId!==context.pipeline.companyId||!context.pipeline.createdById||!context.pipeline.creatorCompanyId||context.pipeline.creatorCompanyId!==context.pipeline.companyId){
+    throw createValidationError({scope:"Pipeline company ownership is missing or inconsistent; authorized ownership review is required."});
+  }
   if (!context.companyId || context.pipeline.companyId !== context.companyId) {
     throw createValidationError({ scope: "Pipeline is not available in the authenticated company." });
   }
@@ -92,7 +102,7 @@ export function validateConnectorScope(scope: ConnectorScopeInput, context: Conn
   if (scope.assetId && (!context.asset || context.asset.id !== scope.assetId || context.asset.pipelineId !== scope.pipelineId)) {
     throw createValidationError({ scope: "Asset must belong to the selected pipeline." });
   }
-  return { companyId: context.companyId, pipelineId: scope.pipelineId, assetId: scope.assetId ?? null };
+  return { companyId: context.pipeline.companyId, pipelineId: context.pipeline.id, assetId: scope.assetId ?? null };
 }
 
 export function mergeConnectorConfiguration(existing: unknown, input: Record<string, unknown> | null | undefined): Record<string, unknown> | null | undefined {

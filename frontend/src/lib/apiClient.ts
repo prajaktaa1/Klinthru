@@ -71,6 +71,10 @@ export type CorrosionGrowthEndpointResponse = {
 };
 
 export type IntegrationConnectorRecord = {
+  mode?:"LOCAL_INBOUND_SENSOR_API";
+  ingestionPath?:string;
+  ingestionMethod?:"POST";
+  connectivityStatus?:"Not Connected"|"Receiving Data";
   id: string;
   name: string;
   connectorType: "REST";
@@ -89,6 +93,7 @@ export type IntegrationConnectorRecord = {
 };
 
 export type ScadaReading = {
+  sourceChannel?: "API" | "MQTT" | "TCP" | null; deviceId?:string|null;pipelineId?:string|null; dataMode?: "REAL" | null;
   id: string; tagId: string; sourceTimestamp: string; sourceTimezone: string;
   normalizedUtcTimestamp: string; receiveTimestamp: string; value: number | null;
   state: string | null; engineeringUnit: string; quality: string;
@@ -767,7 +772,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       throw new ApiError(message, response.status, fields);
     }
 
-    if (init?.method && !["GET", "HEAD"].includes(init.method.toUpperCase()) && /^\/api\/(pipelines|asset-master)(\/|$)/.test(path)) {
+    if (init?.method && !["GET", "HEAD"].includes(init.method.toUpperCase()) && /^\/api\/(pipelines|asset-master|documents|inspection-records)(\/|$)/.test(path)) {
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("klinthru-master-map-data-changed"));
         try { window.localStorage.setItem("klinthru-master-map-revision", String(Date.now())); } catch { /* Storage may be unavailable. */ }
@@ -820,6 +825,10 @@ async function requestUpload<T>(path: string, input: Record<string, unknown>, on
         if (bodyData?.fields && Object.keys(bodyData.fields).length) message = `${message} (${Object.entries(bodyData.fields).map(([field, detail]) => `${field}: ${detail}`).join("; ")})`;
         reject(new ApiError(message, xhr.status, bodyData?.fields));
         return;
+      }
+      if (/^\/api\/documents(\/|$)/.test(path) && typeof window !== "undefined") {
+        window.dispatchEvent(new Event("klinthru-master-map-data-changed"));
+        try { window.localStorage.setItem("klinthru-master-map-revision", String(Date.now())); } catch { /* Storage may be unavailable. */ }
       }
       onProgress?.(100);
       resolve(parsed as T);
@@ -1095,7 +1104,9 @@ export function fetchCpRectifiers(pipelineId: string): Promise<CpLinkedRectifier
   const params = new URLSearchParams({ pipelineId });
   return request<CpLinkedRectifierRecord[]>(`/api/cp-monitoring/rectifiers?${params.toString()}`);
 }
-export function createDeviceRecord(device: DeviceInput): Promise<DeviceRecord> {
+export type SensorRegistrationOption={assetRecordId:string;assetCode:string;pipelineId:string;segmentRecordId:string|null;segmentCode:string|null;equipmentType:string|null;deviceType:import("./types").DeviceType|null;kp:string|null;location:string|null;latitude:number|null;longitude:number|null;manufacturer:string|null;model:string|null;serialNumber:string|null;unit:null;existingDevice?:DeviceRecord|null;blockers:string[];demoBlockers?:string[];registrationClassification?:"REAL"|"DEMO"|"REVIEW";registrationBlockers?:string[]};
+export function fetchSensorRegistrationOptions(pipelineId:string):Promise<SensorRegistrationOption[]>{return request(`/api/devices/registration-options?pipelineId=${encodeURIComponent(pipelineId)}`);}
+export function createDeviceRecord(device: DeviceInput & {assetRecordId?:string;pipelineId?:string;segmentRecordId?:string;identityConfirmed?:boolean;isDemoData?:boolean;demoConfirmed?:boolean}): Promise<DeviceRecord> {
   return request<DeviceRecord>("/api/devices", {
     method: "POST",
     body: JSON.stringify(device)
@@ -1236,19 +1247,28 @@ export function fetchRiskTreatmentActionReferences(treatmentId: string, revision
   return request(`/api/risk-assessments/treatments/${encodeURIComponent(treatmentId)}/action-references?${params.toString()}`);
 }
 
-export function fetchPipelines(search?: string): Promise<PipelineRecord[]> {
+export function fetchPipelines(search?: string, options: { archivedOnly?: boolean } = {}): Promise<PipelineRecord[]> {
   const params = new URLSearchParams();
   if (search?.trim()) {
     params.set("search", search.trim());
   }
+  if (options.archivedOnly) params.set("archived", "true");
 
   const query = params.toString();
   return request<PipelineRecord[]>(`/api/pipelines${query ? `?${query}` : ""}`);
 }
 
+export function archivePipeline(id: string): Promise<PipelineRecord> { return request(`/api/pipelines/${encodeURIComponent(id)}/archive`, { method: "POST" }); }
+export function restorePipeline(id: string): Promise<PipelineRecord> { return request(`/api/pipelines/${encodeURIComponent(id)}/restore`, { method: "POST" }); }
+
 export function fetchPipelineById(id: string): Promise<PipelineRecord> {
   return request<PipelineRecord>(`/api/pipelines/${id}`);
 }
+
+export type ProposedPipelineRoute = { id: string; pipelineId: string; geometry: { type: "LineString"; coordinates: [number, number][] }; provenance: string; status: string; sourceMetadata: Record<string, unknown> | null; createdAt: string; updatedAt: string };
+export function fetchProposedPipelineRoute(pipelineId: string): Promise<ProposedPipelineRoute | null> { return request(`/api/pipelines/${encodeURIComponent(pipelineId)}/proposed-route`); }
+export function saveProposedPipelineRoute(pipelineId: string, input: Pick<ProposedPipelineRoute, "geometry" | "provenance"> & { sourceMetadata?: Record<string, unknown> }): Promise<ProposedPipelineRoute> { return request(`/api/pipelines/${encodeURIComponent(pipelineId)}/proposed-route`, { method: "PUT", body: JSON.stringify(input) }); }
+export function removeProposedPipelineRoute(pipelineId: string): Promise<void> { return request(`/api/pipelines/${encodeURIComponent(pipelineId)}/proposed-route`, { method: "DELETE" }); }
 
 export function createPipeline(pipeline: PipelineInput): Promise<PipelineRecord> {
   return request<PipelineRecord>("/api/pipelines", {
@@ -1276,11 +1296,22 @@ export type InspectionRecord = InspectionRecordInput & { id: string; createdBy: 
 export function fetchInspectionRecords(pipelineId: string): Promise<InspectionRecord[]> {
   return request(`/api/inspection-records?pipelineId=${encodeURIComponent(pipelineId)}`);
 }
-export function createInspectionRecord(input: InspectionRecordInput): Promise<InspectionRecord> {
-  return request("/api/inspection-records", { method: "POST", body: JSON.stringify(input) });
+async function verifyInspectionSave(saved: InspectionRecord, input: InspectionRecordInput): Promise<InspectionRecord> {
+  const records = await fetchInspectionRecords(input.pipelineId);
+  const record = records.find(item => item.id === saved.id);
+  if (!record || Object.entries(input).some(([key, value]) => String(record[key as keyof InspectionRecordInput] ?? "") !== String(value ?? "").trim())) {
+    throw new Error("Inspection save could not be verified after reload. Refresh before retrying; do not create another record.");
+  }
+  return record;
 }
-export function updateInspectionRecord(id: string, input: InspectionRecordInput): Promise<InspectionRecord> {
-  return request<InspectionRecord>(`/api/inspection-records/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(input) });
+export async function createInspectionRecord(input: InspectionRecordInput): Promise<InspectionRecord> {
+  const saved = await request<InspectionRecord>("/api/inspection-records", { method: "POST", body: JSON.stringify(input) });
+  return verifyInspectionSave(saved, input);
+}
+export async function updateInspectionRecord(id: string, input: InspectionRecordInput, original?: InspectionRecordInput): Promise<InspectionRecord> {
+  const expected = original ? Object.fromEntries(Object.keys(input).map(key => [key, original[key as keyof InspectionRecordInput]])) : undefined;
+  const saved = await request<InspectionRecord>(`/api/inspection-records/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify({ ...input, ...(expected ? { expected } : {}) }) });
+  return verifyInspectionSave(saved, input);
 }
 export function deleteInspectionRecord(id: string): Promise<void> {
   return request<void>(`/api/inspection-records/${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -1463,7 +1494,7 @@ export function fetchIntegrationConnector(id: string): Promise<IntegrationConnec
   return request(`/api/integrations/connectors/${encodeURIComponent(id)}`);
 }
 
-export function createIntegrationConnector(input: { name: string; endpoint: string; configuration?: Record<string, unknown>; secretReference?: string | null; scope?: { pipelineId: string; assetId?: string | null } }): Promise<IntegrationConnectorRecord> {
+export function createIntegrationConnector(input: { name: string; endpoint?: string;mode?:"EXTERNAL_REST"|"LOCAL_INBOUND_SENSOR_API";deviceRecordId?:string; configuration?: Record<string, unknown>; secretReference?: string | null; scope?: { pipelineId: string; assetId?: string | null } }): Promise<IntegrationConnectorRecord> {
   return request("/api/integrations/connectors", { method: "POST", body: JSON.stringify(input) });
 }
 
@@ -1590,4 +1621,12 @@ export function updateSensorLifecycleRecord(resource: "calibrations" | "maintena
 }
 export function deleteSensorLifecycleRecord(resource: "calibrations" | "maintenance" | "events" | "configuration", id: string): Promise<void> {
   return request(`${sensorLifecyclePath}/${resource}/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function updateDeviceDetails(id:string,input:{unit:string}):Promise<DeviceRecord>{
+ return request<DeviceRecord>(`/api/devices/${encodeURIComponent(id)}/details`,{method:"PATCH",body:JSON.stringify(input)});
+}
+
+export function getLocalSensorIngestionUrl(connector:IntegrationConnectorRecord):string|null{
+ return connector.mode==="LOCAL_INBOUND_SENSOR_API"&&connector.id&&connector.ingestionPath===`/api/integrations/connectors/${encodeURIComponent(connector.id)}/sensor-ingestion`?`${API_BASE_URL}${connector.ingestionPath}`:null;
 }

@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "dataMode": "DEMO",
+  "pipeline": {
+    "id": "demo:pl-002",
+    "label": "PL-002 (DEMO fixture)"
+  },
+  "sensors": [
+    {
+      "id": "demo:pl-002:pressure",
+      "label": "DEMO pressure fixture",
+      "tagId": "demo:pl-002:pressure:pv",
+      "unit": "kPa"
+    },
+    {
+      "id": "demo:pl-002:temperature",
+      "label": "DEMO temperature fixture",
+      "tagId": "demo:pl-002:temperature:pv",
+      "unit": "degC"
+    }
+  ],
+  "samples": [
+    {
+      "fixtureChannel": "MQTT",
+      "dataMode": "DEMO",
+      "pipelineId": "demo:pl-002",
+      "deviceId": "demo:pl-002:pressure",
+      "tagId": "demo:pl-002:pressure:pv",
+      "reading": {
+        "tagId": "demo:pl-002:pressure:pv",
+        "sourceTimestamp": "2026-11-05T00:00:00Z",
+        "sourceTimezone": "UTC",
+        "sequence": "demo-mqtt-pressure",
+        "value": 120,
+        "engineeringUnit": "kPa",
+        "quality": "Good"
+      }
+    },
+    {
+      "fixtureChannel": "MQTT",
+      "dataMode": "DEMO",
+      "pipelineId": "demo:pl-002",
+      "deviceId": "demo:pl-002:temperature",
+      "tagId": "demo:pl-002:temperature:pv",
+      "reading": {
+        "tagId": "demo:pl-002:temperature:pv",
+        "sourceTimestamp": "2026-11-05T00:00:00Z",
+        "sourceTimezone": "UTC",
+        "sequence": "demo-mqtt-temperature",
+        "value": 20,
+        "engineeringUnit": "degC",
+        "quality": "Good"
+      }
+    },
+    {
+      "fixtureChannel": "TCP",
+      "dataMode": "DEMO",
+      "pipelineId": "demo:pl-002",
+      "deviceId": "demo:pl-002:pressure",
+      "tagId": "demo:pl-002:pressure:pv",
+      "reading": {
+        "tagId": "demo:pl-002:pressure:pv",
+        "sourceTimestamp": "2026-11-05T00:00:01Z",
+        "sourceTimezone": "UTC",
+        "sequence": "demo-tcp-pressure",
+        "value": 121,
+        "engineeringUnit": "kPa",
+        "quality": "Good"
+      }
+    },
+    {
+      "fixtureChannel": "TCP",
+      "dataMode": "DEMO",
+      "pipelineId": "demo:pl-002",
+      "deviceId": "demo:pl-002:temperature",
+      "tagId": "demo:pl-002:temperature:pv",
+      "reading": {
+        "tagId": "demo:pl-002:temperature:pv",
+        "sourceTimestamp": "2026-11-05T00:00:01Z",
+        "sourceTimezone": "UTC",
+        "sequence": "demo-tcp-temperature",
+        "value": 21,
+        "engineeringUnit": "degC",
+        "quality": "Good"
+      }
+    },
+    {
+      "fixtureChannel": "API",
+      "dataMode": "DEMO",
+      "pipelineId": "demo:pl-002",
+      "deviceId": "demo:pl-002:pressure",
+      "tagId": "demo:pl-002:pressure:pv",
+      "reading": {
+        "tagId": "demo:pl-002:pressure:pv",
+        "sourceTimestamp": "2026-11-05T00:00:02Z",
+        "sourceTimezone": "UTC",
+        "sequence": "demo-api-pressure",
+        "value": 122,
+        "engineeringUnit": "kPa",
+        "quality": "Good"
+      }
+    },
+    {
+      "fixtureChannel": "API",
+      "dataMode": "DEMO",
+      "pipelineId": "demo:pl-002",
+      "deviceId": "demo:pl-002:temperature",
+      "tagId": "demo:pl-002:temperature:pv",
+      "reading": {
+        "tagId": "demo:pl-002:temperature:pv",
+        "sourceTimestamp": "2026-11-05T00:00:02Z",
+        "sourceTimezone": "UTC",
+        "sequence": "demo-api-temperature",
+        "value": 22,
+        "engineeringUnit": "degC",
+        "quality": "Good"
+      }
+    }
+  ]
+}

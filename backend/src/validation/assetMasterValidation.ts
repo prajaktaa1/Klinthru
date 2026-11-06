@@ -85,6 +85,10 @@ export const assetSchema = z
     installationDate: optionalDateOnly,
     manufacturer: optionalTrimmedString(MAX_TEXT_LENGTH),
     model: optionalTrimmedString(MAX_TEXT_LENGTH),
+    serialNumber: optionalTrimmedString(MAX_IDENTIFIER_LENGTH),
+    condition: optionalTrimmedString(MAX_IDENTIFIER_LENGTH),
+    description: optionalTrimmedString(1000),
+    pressureRatingBar: z.number().finite().nonnegative().nullable().optional(),
     physicalStatus: z.enum(physicalStatuses).default("Unknown"),
     parentAssetId: optionalTrimmedString(MAX_IDENTIFIER_LENGTH)
   })

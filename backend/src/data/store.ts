@@ -1,3 +1,6 @@
+import { masterSnapshot, recordMasterChange } from "./masterChangeEvents";
+import { readAssetMetadata, saveAssetMetadata } from "./assetMetadataPersistence";
+import { readCommissioningDate, saveCommissioningDate } from "./pipelineDatesPersistence";
 import { validateSegmentOverlap } from "../validation/segmentOverlapValidation";
 import { readChainageSettings, saveChainageSettings, saveNumericChainage } from "./chainagePersistence";
 import bcrypt from "bcrypt";
@@ -58,8 +61,10 @@ type OwnershipScope = {
 };
 type PipelineSearch = OwnershipScope & {
   search?: string;
+  archivedOnly?: boolean;
 };
 type SavePipelineInput = {
+  auditUserId?: string;
   pipeline: PipelineInput;
   createdById?: string;
 };
@@ -67,6 +72,7 @@ type SegmentSearch = OwnershipScope & {
   pipelineId?: string;
 };
 type SaveSegmentInput = {
+  auditUserId?: string;
   id?: string;
   segment: SegmentInput;
 };
@@ -77,6 +83,7 @@ type AssetSearch = OwnershipScope & {
   physicalStatus?: AssetRecord["physicalStatus"];
 };
 type SaveAssetInput = {
+  auditUserId?: string;
   id?: string;
   asset: AssetInput;
 };
@@ -122,7 +129,11 @@ type DeviceSearch = {
 };
 type CreateDeviceInput = {
   device: Omit<DeviceRecord, "id" | "lastUpdatedAt" | "isDemoData" | "authorId">;
+  isDemoData?: boolean;
   authorId?: string;
+};
+type UpdateDeviceLocationInput = {
+  pipelineOrLocation: string;
 };
 type SensorAssignmentSearch = {
   search?: string;
@@ -241,6 +252,7 @@ class MemoryStore {
     const query = search.search?.trim().toLowerCase();
     return this.pipelines
       .filter((pipeline) => matchesOwnerScope(pipeline.createdById, search))
+      .filter((pipeline) => search.archivedOnly ? pipeline.status === "Inactive" : pipeline.status !== "Inactive")
       .filter((pipeline) =>
         query
           ? [pipeline.pipelineCode, pipeline.pipelineName, pipeline.location ?? ""].some((value) =>
@@ -909,7 +921,7 @@ class MemoryStore {
       id: createId("device"),
       ...input.device,
       lastUpdatedAt: new Date().toISOString(),
-      isDemoData: false,
+      isDemoData: input.isDemoData === true,
       authorId: input.authorId
     };
     this.devices.unshift(record);
@@ -919,6 +931,19 @@ class MemoryStore {
   async findDeviceById(id: string, search: OwnershipScope = {}): Promise<DeviceRecord | null> {
     const device = this.devices.find((candidate) => candidate.id === id) ?? null;
     return device && matchesOwnerScope(device.authorId, search) ? device : null;
+  }
+
+  async updateDeviceUnit(id:string,unit:string,search:OwnershipScope={}):Promise<DeviceRecord|null>{
+    const device=await this.findDeviceById(id,search);if(!device)return null;
+    device.unit=unit;device.lastUpdatedAt=new Date().toISOString();return device;
+  }
+
+  async updateDeviceLocation(id: string, input: UpdateDeviceLocationInput, search: OwnershipScope = {}): Promise<DeviceRecord | null> {
+    const device = await this.findDeviceById(id, search);
+    if (!device) return null;
+    device.pipelineOrLocation = input.pipelineOrLocation;
+    device.lastUpdatedAt = new Date().toISOString();
+    return device;
   }
 
   async deleteDevice(id: string, search: OwnershipScope = {}): Promise<boolean> {
@@ -1901,6 +1926,7 @@ class PrismaStore {
     const query = search.search?.trim();
     const records = await prisma.pipeline.findMany({
       where: {
+        status: search.archivedOnly ? "Inactive" : { not: "Inactive" },
         createdById:
           search.viewerUserId && search.viewerRole !== "Admin"
             ? search.viewerUserId
@@ -1916,7 +1942,7 @@ class PrismaStore {
       include: { createdBy: true },
       orderBy: { updatedAt: "desc" }
     });
-    return Promise.all(records.map(async record => ({ ...toPipelineRecord(record), ...await readChainageSettings(prisma, record.id) })));
+    return Promise.all(records.map(async record => ({ ...toPipelineRecord(record), ...await readChainageSettings(prisma, record.id), ...await readCommissioningDate(prisma, record.id) })));
   }
 
   async createPipeline(input: SavePipelineInput): Promise<PipelineRecord> {
@@ -1928,7 +1954,9 @@ class PrismaStore {
     return prisma.$transaction(async tx => {
       const record = await tx.pipeline.create({ data: toPipelineData(input), include: { createdBy: true } });
       await saveChainageSettings(tx, record.id, input.pipeline, input.createdById);
-      return { ...toPipelineRecord(record), ...await readChainageSettings(tx, record.id) };
+      await saveCommissioningDate(tx, record.id, input.pipeline.commissioningDate);
+      await recordMasterChange(tx, record.id, "Pipeline", record.id, input.auditUserId ?? input.createdById, null);
+      return { ...toPipelineRecord(record), ...await readChainageSettings(tx, record.id), ...await readCommissioningDate(tx, record.id) };
     });
   }
 
@@ -1940,9 +1968,12 @@ class PrismaStore {
 
     return prisma.$transaction(async tx => {
       await tx.$queryRawUnsafe('SELECT id FROM public."Pipeline" WHERE id=$1 FOR UPDATE', id);
+      const before = input.auditUserId ? await masterSnapshot(tx, "Pipeline", id) : null;
       const record = await tx.pipeline.update({ where: { id }, data: toPipelineData(input), include: { createdBy: true } });
       await saveChainageSettings(tx, id, input.pipeline, input.createdById);
-      return { ...toPipelineRecord(record), ...await readChainageSettings(tx, id) };
+      await saveCommissioningDate(tx, id, input.pipeline.commissioningDate);
+      await recordMasterChange(tx, id, "Pipeline", id, input.auditUserId, before);
+      return { ...toPipelineRecord(record), ...await readChainageSettings(tx, id), ...await readCommissioningDate(tx, id) };
     });
   }
 
@@ -2019,7 +2050,7 @@ class PrismaStore {
       return null;
     }
 
-    return { ...toPipelineRecord(record), ...await readChainageSettings(prisma, record.id) };
+    return { ...toPipelineRecord(record), ...await readChainageSettings(prisma, record.id), ...await readCommissioningDate(prisma, record.id) };
   }
 
   async listSegments(search: SegmentSearch = {}): Promise<SegmentRecord[]> {
@@ -2078,12 +2109,14 @@ class PrismaStore {
         error.code = "SEGMENT_DUPLICATE";
         throw error;
       }
+      const before = input.auditUserId && input.id ? await masterSnapshot(tx, "Segment", input.id) : null;
       const peers = await tx.segment.findMany({ where: { pipelineId: input.segment.pipelineId } });
       validateSegmentOverlap(input.segment, peers, input.id);
       const record = input.id
         ? await tx.segment.update({ where: { id: input.id }, data: toSegmentData(input.segment) })
         : await tx.segment.create({ data: toSegmentData(input.segment) });
       await saveNumericChainage(tx, "Segment", record);
+      await recordMasterChange(tx, input.segment.pipelineId, "Segment", record.id, input.auditUserId, before);
       return toSegmentRecord(record);
     });
   }
@@ -2108,7 +2141,7 @@ class PrismaStore {
       orderBy: { assetId: "asc" }
     });
 
-    return records.map(toAssetRecord);
+    return Promise.all(records.map(async record => ({ ...toAssetRecord(record), ...await readAssetMetadata(prisma, record.id) })));
   }
 
   async findAssetById(id: string, search: OwnershipScope = {}): Promise<AssetRecord | null> {
@@ -2126,7 +2159,7 @@ class PrismaStore {
       return null;
     }
 
-    return toAssetRecord(record);
+    return { ...toAssetRecord(record), ...await readAssetMetadata(prisma, record.id) };
   }
 
   async saveAsset(input: SaveAssetInput): Promise<AssetRecord> {
@@ -2169,6 +2202,11 @@ class PrismaStore {
     }
 
     return prisma.$transaction(async tx => {
+      await tx.$queryRawUnsafe('SELECT id FROM "Pipeline" WHERE id=$1 FOR UPDATE', input.asset.pipelineId);
+      const concurrentDuplicate = await tx.asset.findFirst({ where: { pipelineId: input.asset.pipelineId, assetId: input.asset.assetId, id: input.id ? { not: input.id } : undefined } });
+      if (concurrentDuplicate) throw Object.assign(new Error("Asset ID already exists for this pipeline."), { code: "ASSET_DUPLICATE" });
+      const before = input.auditUserId && input.id ? await masterSnapshot(tx, "Asset", input.id) : null;
+
       const record = input.id
         ? await tx.asset.update({
           where: { id: input.id },
@@ -2179,7 +2217,9 @@ class PrismaStore {
         });
 
       await saveNumericChainage(tx, "Asset", record);
-      return toAssetRecord(record);
+      await saveAssetMetadata(tx, record.id, input.asset);
+      await recordMasterChange(tx, input.asset.pipelineId, "Asset", record.id, input.auditUserId, before);
+      return { ...toAssetRecord(record), ...await readAssetMetadata(tx, record.id) };
     });
   }
 
@@ -2962,7 +3002,7 @@ class PrismaStore {
       data: {
         ...input.device,
         lastUpdatedAt: new Date(),
-        isDemoData: false,
+        isDemoData: input.isDemoData === true,
         authorId: input.authorId
       }
     });
@@ -2991,6 +3031,37 @@ class PrismaStore {
       return null;
     }
 
+    return {
+      id: record.id,
+      deviceId: record.deviceId,
+      deviceType: record.deviceType as DeviceRecord["deviceType"],
+      pipelineOrLocation: record.pipelineOrLocation,
+      status: record.status as DeviceRecord["status"],
+      latestReadingOrState: record.latestReadingOrState,
+      unit: record.unit ?? undefined,
+      lastUpdatedAt: record.lastUpdatedAt.toISOString(),
+      isDemoData: Boolean(record.isDemoData),
+      authorId: record.authorId ?? undefined
+    };
+  }
+
+  async updateDeviceUnit(id:string,unit:string,search:OwnershipScope={}):Promise<DeviceRecord|null>{
+    const existing=await this.findDeviceById(id,search);if(!existing)return null;
+    const prisma=getPrismaClient();if(!prisma)throw new DatabaseUnavailableError();
+    const result=await prisma.deviceRecord.updateMany({where:{id,authorId:existing.authorId??null,deviceType:existing.deviceType},data:{unit,lastUpdatedAt:new Date()}});
+    return result.count?this.findDeviceById(id,search):null;
+  }
+
+  async updateDeviceLocation(id: string, input: UpdateDeviceLocationInput, search: OwnershipScope = {}): Promise<DeviceRecord | null> {
+    const existing = await this.findDeviceById(id, search);
+    if (!existing) return null;
+
+    const prisma = getPrismaClient();
+    if (!prisma) return null;
+    const record = await prisma.deviceRecord.update({
+      where: { id },
+      data: { pipelineOrLocation: input.pipelineOrLocation, lastUpdatedAt: new Date() }
+    });
     return {
       id: record.id,
       deviceId: record.deviceId,
@@ -3566,6 +3637,16 @@ export const store = {
     }
 
     return getMemoryStore().findDeviceById(id, search);
+  },
+  async updateDeviceUnit(id:string,unit:string,search:OwnershipScope={}):Promise<DeviceRecord|null>{
+    if(await usePrisma())return prismaStore!.updateDeviceUnit(id,unit,search);
+    return getMemoryStore().updateDeviceUnit(id,unit,search);
+  },
+  async updateDeviceLocation(id: string, input: UpdateDeviceLocationInput, search: OwnershipScope = {}): Promise<DeviceRecord | null> {
+    if (await usePrisma()) {
+      return prismaStore!.updateDeviceLocation(id, input, search);
+    }
+    return getMemoryStore().updateDeviceLocation(id, input, search);
   },
   async deleteDevice(id: string, search: OwnershipScope = {}): Promise<boolean> {
     if (await usePrisma()) {

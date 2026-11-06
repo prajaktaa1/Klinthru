@@ -2,6 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Leaflet's permanent tooltips were creating overlapping, duplicated map labels.
+   Route/asset detail remains available through normal hover and click interactions. */
+.leaflet-tooltip.leaflet-tooltip-permanent {
+  display: none;
+}
+
+/* Compact segment IDs are map annotations, not Leaflet tooltips. */
+.leaflet-marker-icon.saved-segment-label,
+.leaflet-marker-icon.compact-segment-label {
+  background: transparent;
+  border: 0;
+}
+
 :root {
   color-scheme: light;
   --font-size-heading: 14px;

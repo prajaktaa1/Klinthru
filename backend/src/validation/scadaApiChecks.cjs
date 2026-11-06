@@ -5,7 +5,7 @@ const { resolve, dirname } = require("node:path");
 process.env.DATABASE_URL = "";
 process.env.NODE_ENV = "test";
 let engine;
-try { engine = require("@electric-sql/pglite"); }
+try { engine = require(process.env.SCADA_PGLITE_DIR || "@electric-sql/pglite"); }
 catch {
   for (const entry of process.env.PATH.split(require("node:path").delimiter)) {
     try { engine = require(resolve(entry, "../@electric-sql/pglite")); break; } catch {}
@@ -66,6 +66,20 @@ async function run() {
     assert.equal((await call("/api/scada/tags", "test-admin", "POST", tag)).status, 409);
     const empty = await (await call("/api/scada/overview?pipelineId=test-pipeline")).json();
     assert.equal(empty.status, "Not Connected", JSON.stringify(empty)); assert.equal(empty.tags[0].processStatus, "Unknown"); assert.equal(empty.kpis.equipmentIssues, null);
+    await db.query(`UPDATE "IntegrationConnector" SET configuration='{"dataMode":"DEMO"}' WHERE id='test-connector'`);
+    assert.equal((await call("/api/integrations/connectors/test-connector/scada-ingestion","test-admin","POST",{readings:[{tagId:"test-tag",sourceTimestamp:new Date().toISOString(),sourceTimezone:"UTC",engineeringUnit:"barg",value:1,quality:"Good"}]})).status,400);
+    await db.query(`UPDATE "IntegrationConnector" SET configuration='{"integrationScope":{"pipelineId":"foreign-pipeline"}}' WHERE id='test-connector'`);
+    assert.equal((await call("/api/integrations/connectors/test-connector/scada-ingestion","test-admin","POST",{readings:[{tagId:"test-tag",sourceTimestamp:new Date().toISOString(),sourceTimezone:"UTC",engineeringUnit:"barg",value:1,quality:"Good"}]})).status,400);
+    await db.query(`UPDATE "IntegrationConnector" SET configuration='{}' WHERE id='test-connector'`);
+    const originalDeviceList=store.listDevices,originalAssignment=store.findSensorAssignmentById,originalAsset=store.findAssetById;
+    store.findSensorAssignmentById=async()=>({id:"isolated-assignment",sensorId:"TEST-ASSET"});
+    store.findAssetById=async()=>({id:"test-asset",pipelineId:"test-pipeline",assetType:"SENSOR",assetId:"TEST-ASSET"});
+    store.listDevices=async()=>[{deviceId:"TEST-ASSET",isDemoData:true}];
+    assert.equal((await call("/api/scada/tags","test-admin","POST",{...tag,id:"demo-link",sourceTagName:"demo-link",sensorAssignmentId:"isolated-assignment"})).status,400,"Demo devices cannot link to REAL tags");
+    store.listDevices=async()=>[{deviceId:"TEST-ASSET",isDemoData:false}];
+    store.findAssetById=async()=>({id:"test-asset",pipelineId:"foreign",assetType:"SENSOR",assetId:"TEST-ASSET"});
+    assert.equal((await call("/api/scada/tags","test-admin","POST",{...tag,id:"foreign-link",sourceTagName:"foreign-link",sensorAssignmentId:"isolated-assignment"})).status,400,"Foreign pipeline cannot link");
+    store.listDevices=originalDeviceList;store.findSensorAssignmentById=originalAssignment;store.findAssetById=originalAsset;
     const now = new Date().toISOString();
     failQualityWrite = true;
     const failedBatch = { readings: [{ tagId: "test-tag", sourceTimestamp: now, sourceTimezone: "UTC", engineeringUnit: "barg", value: 12, quality: "Good", sequence: "rollback" }], alarms: [{ tagId: "test-tag", sourceAlarmId: "rollback-alarm", description: "Rollback alarm", sourcePriority: "Minor", severity: "Medium", raisedAt: now, sourceStatus: "Active" }], events: [{ eventId: "rollback-event", pipelineId: "test-pipeline", tagId: "test-tag", eventType: "Test", severity: "Info", description: "Rollback event", occurredAt: now, sourceSystemId: "test-source" }] };
@@ -78,7 +92,7 @@ async function run() {
     assert.equal(result.status, 200); const ingestionResult = await result.json(); assert.equal(ingestionResult.accepted, 1); assert.equal(ingestionResult.duplicate, 0); assert.equal(ingestionResult.alarmsProcessed, 1); assert.equal(ingestionResult.qualityRecordsProcessed, 1);
     assert.equal((await (await call("/api/integrations/connectors/test-connector/scada-ingestion", "test-admin", "POST", batch)).json()).duplicate, 1);
     const current = await (await call("/api/scada/overview?pipelineId=test-pipeline")).json();
-    assert.equal(current.status, "Live", JSON.stringify({ status: current.status, tags: current.tags, sources: current.sources })); assert.equal(current.tags[0].reading.value, 70); assert.equal(current.kpis.activeAlarms, 1);
+    assert.equal(current.status, "Live", JSON.stringify({ status: current.status, tags: current.tags, sources: current.sources })); assert.equal(current.tags[0].reading.value, 70); assert.equal(current.tags[0].reading.sourceChannel,"API"); assert.equal(current.tags[0].reading.dataMode,"REAL"); assert.equal(current.kpis.activeAlarms, 1);
     assert.equal(current.tags[0].reading.sourceTimestamp, now); assert.equal(current.alarms[0].sourcePriority, "Minor"); assert.equal(current.alarms[0].severity, "Medium");
     const config = await (await call("/api/scada/configuration?pipelineId=test-pipeline")).json();
     assert.equal(config.polling,null); assert.equal(config.routing,null); assert.deepEqual(config.units,[]);
@@ -185,8 +199,8 @@ async function run() {
     assert.equal(exportResponse.status, 200); assert.match(exportResponse.headers.get("content-disposition"), /attachment/);
     const bad = { readings: [{ ...batch.readings[0], sourceTimestamp: new Date(Date.now() + 1).toISOString(), value: "NaN", quality: "Good" }] };
     assert.equal((await call("/api/integrations/connectors/test-connector/scada-ingestion", "test-admin", "POST", bad)).status, 200);
-    const stored = (await db.query('SELECT * FROM "SharedTimeSeriesReading" WHERE "rawValue"=$1::jsonb', [JSON.stringify("NaN")])).rows[0];
-    assert.equal(stored.quality, "Bad"); assert.equal(stored.value, null); assert.equal(stored.rawValue, "NaN");
+    const stored = (await db.query(`SELECT * FROM "SharedTimeSeriesReading" WHERE "rawValue"->'value'=$1::jsonb`, [JSON.stringify("NaN")])).rows[0];
+    assert.equal(stored.quality, "Bad"); assert.equal(stored.value, null); assert.equal(stored.rawValue.value, "NaN"); assert.equal(stored.rawValue.provenance.sourceChannel,"API"); assert.equal(stored.rawValue.provenance.dataMode,"REAL");
     const storedQuality = (await db.query('SELECT quality FROM "DataQualityRecord" WHERE "tagId"=$1 AND "recordedAt"=$2::timestamp', [stored.tagId, stored.sourceTimestamp.toISOString()])).rows[0];
     assert.equal(storedQuality.quality, stored.quality, "Quality records must match validated reading quality");
     const qualityAt = new Date(Date.now() - 2 * 3600000).toISOString();
@@ -449,6 +463,7 @@ async function run() {
         console.log("SCADA browser checks passed: desktop/tablet/mobile, all eight tabs, tag drawer tabs, filters, selection, chart SVG, logo, Configure View, notes/follow-up, JSON/CSV downloads, no horizontal overflow or runtime errors.");
       } finally { await browser.close(); }
     }
+    await require("./sensorIngestionChecks.cjs")(db,call,store);
     console.log("SCADA PostgreSQL/API checks passed: migration SQL, ownership/auth, registration, deduplication, alarms, live/stale states, invalid-value retention, replay, history, Reports export and no PLC route.");
   } finally { await new Promise(resolve => server.close(resolve)); await db.close(); }
 }

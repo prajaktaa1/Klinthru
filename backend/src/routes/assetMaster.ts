@@ -1,3 +1,4 @@
+import { auditStoreAvailable } from "../data/masterChangeEvents";
 import { parseKp, validateAgainstPipelineLength } from "../coreEngine/chainage/ChainageAgent";
 import { NextFunction, Router } from "express";
 
@@ -21,10 +22,11 @@ assetMasterRouter.get("/change-log", async (request, response, next) => {
     const db = getPrismaClient();
     if (!db) { response.json({ events: [], contractStatus: "missing", missingFields: ["settings_audit_events"] }); return; }
     const ids = [pipelineId, ...(await store.listSegments({ pipelineId, ...ownerScope(request.user!) })).map((item) => item.id), ...(await store.listAssets({ pipelineId, ...ownerScope(request.user!) })).map((item) => item.id)];
-    const events = await db.$queryRawUnsafe<Array<Record<string, unknown>>>(
-      `SELECT "Audit_Event_ID" AS "id", "User_ID" AS "userId", "Timestamp" AS "occurredAt", "Module" AS "sourceModule", "action", "Object_Type" AS "objectType", "Object_ID" AS "objectId", "result", "severity", "details", "Before_Values" AS "beforeValues", "After_Values" AS "afterValues" FROM "settings_audit_events" WHERE "Object_ID" = ANY($1::text[]) ORDER BY "Timestamp" DESC LIMIT 1000`, ids
-    );
-    response.json({ events, contractStatus: "complete", missingFields: [] });
+    const prospective = await auditStoreAvailable(db);
+    const [legacy] = await db.$queryRawUnsafe<Array<{ available: boolean }>>("SELECT to_regclass('public.settings_audit_events') IS NOT NULL AS available");
+    const events = prospective ? await db.$queryRawUnsafe<Array<Record<string, unknown>>>(`SELECT id,"userId","occurredAt",'Pipeline / Asset Master' AS "sourceModule",action,"objectType","objectId",'Success' AS result,'Info' AS severity,NULL AS details,"beforeValues","afterValues" FROM "MasterChangeEvent" WHERE "pipelineId"=$1 ORDER BY "occurredAt" DESC LIMIT 1000`, pipelineId) : [];
+    if (legacy?.available) events.push(...await db.$queryRawUnsafe<Array<Record<string, unknown>>>(`SELECT "Audit_Event_ID" AS id,"User_ID" AS "userId","Timestamp" AS "occurredAt","Module" AS "sourceModule",action,"Object_Type" AS "objectType","Object_ID" AS "objectId",result,severity,details,"Before_Values" AS "beforeValues","After_Values" AS "afterValues" FROM "settings_audit_events" WHERE "Object_ID"=ANY($1::text[]) ORDER BY "Timestamp" DESC LIMIT 1000`, ids));
+    response.json({ events: events.sort((a,b) => Date.parse(String(b.occurredAt))-Date.parse(String(a.occurredAt))), contractStatus: prospective || legacy?.available ? "partial" : "missing", missingFields: ["Historical approval and evidence fields are unavailable; new master changes are recorded prospectively."] });
   } catch (error) {
     if (error instanceof Error && /settings_audit_events|relation .* does not exist/i.test(error.message)) { response.json({ events: [], contractStatus: "missing", missingFields: ["settings_audit_events"] }); return; }
     next(error);
@@ -88,7 +90,7 @@ assetMasterRouter.post("/segments", async (request, response, next: NextFunction
     }
     validateSegmentKpRange(segment, pipeline.pipeLengthKm);
 
-    const created = await store.saveSegment({ segment });
+    const created = await store.saveSegment({ segment, auditUserId: request.user!.id });
     response.status(201).json(created);
   } catch (error) {
     handleAssetMasterError(error, response, next);
@@ -116,7 +118,7 @@ assetMasterRouter.put("/segments/:id", async (request, response, next: NextFunct
     }
     validateSegmentKpRange(segment, pipeline.pipeLengthKm);
 
-    const updated = await store.saveSegment({ id: request.params.id, segment });
+    const updated = await store.saveSegment({ id: request.params.id, segment, auditUserId: request.user!.id });
     response.json(updated);
   } catch (error) {
     handleAssetMasterError(error, response, next);
@@ -190,7 +192,7 @@ assetMasterRouter.post("/assets", async (request, response, next: NextFunction) 
     }
 
     await validateAssetLocation(asset, pipeline.pipeLengthKm, ownerScope(request.user!));
-    const created = await store.saveAsset({ asset });
+    const created = await store.saveAsset({ asset, auditUserId: request.user!.id });
     response.status(201).json(created);
   } catch (error) {
     handleAssetMasterError(error, response, next);
@@ -218,7 +220,7 @@ assetMasterRouter.put("/assets/:id", async (request, response, next: NextFunctio
     }
 
     await validateAssetLocation(asset, pipeline.pipeLengthKm, ownerScope(request.user!));
-    const updated = await store.saveAsset({ id: request.params.id, asset });
+    const updated = await store.saveAsset({ id: request.params.id, asset, auditUserId: request.user!.id });
     response.json(updated);
   } catch (error) {
     handleAssetMasterError(error, response, next);
@@ -274,7 +276,7 @@ function handleAssetMasterError(error: unknown, response: { status: (code: numbe
   next(error);
 }
 
-async function validateAssetLocation(asset: { pipelineId: string; segmentId?: string; kp?: string }, length: number | undefined, scope: ReturnType<typeof ownerScope>) {
+export async function validateAssetLocation(asset: { pipelineId: string; segmentId?: string; kp?: string }, length: number | undefined, scope: ReturnType<typeof ownerScope>) {
   const meters = asset.kp ? parseKp(asset.kp).meters : undefined;
   if (meters !== undefined) {
     try { validateAgainstPipelineLength(meters, { pipelineId: asset.pipelineId, lengthMeters: length === undefined ? undefined : length * 1000 }); }

@@ -1,3 +1,7 @@
+import {env} from "../config/env";
+import {prepareLocalInbound,isLocalInbound,inboundHasRecentValidReading,localInboundPresentation} from "../integrations/localInbound";
+import {scopedConnectorConfiguration} from "../integrations/scope";
+import {ingestSensorMessage,sensorMessageSchema} from "../sensorIngestion/service";
 import { NextFunction, Request, Response, Router } from "express";
 
 import { DatabaseUnavailableError } from "../data/store";
@@ -6,9 +10,9 @@ import { requireAuth } from "../middleware/auth";
 import { calculateIntegrationSummary, canManageIntegrations, canTestIntegrations, sanitizeEvent, serializeConnector } from "../integrations/service";
 import { RestConnectorAdapter } from "../integrations/connectorAdapter";
 import { redactText } from "../integrations/security";
-import { mergeConnectorConfiguration, validateConnectorInput, validateConnectorPatch, validateConnectorScope } from "../integrations/validation";
+import { mergeConnectorConfiguration, validateConnectorInput, validateConnectorPatch } from "../integrations/validation";
 import { AuthUser } from "../types/domain";
-import { ingestScadaBatch } from "../utils/scadaData";
+import { parseScada, ingestScadaBatch } from "../utils/scadaData";
 import { manualModules, validateManualRecord } from "../integrations/manualRecords";
 import { createValidationError } from "../validation/validationErrors";
 
@@ -16,6 +20,10 @@ export const integrationsRouter = Router();
 const restConnectorAdapter = new RestConnectorAdapter();
 
 integrationsRouter.use(requireAuth);
+
+integrationsRouter.post("/connectors/:id/sensor-ingestion",async(request,response,next)=>{
+ try{if(!requireManager(request,response))return;const message=parseScada(sensorMessageSchema,request.body);const result=await ingestSensorMessage("API",{connectorId:request.params.id,pipelineId:message.pipelineId,deviceId:message.deviceId,tagId:message.tagId},message,request.user!);response.status(result.rejectedReplay?409:200).json(result);}catch(error){next(error);}
+});
 
 integrationsRouter.post("/connectors/:id/scada-ingestion", async (request, response, next) => {
   try {
@@ -28,6 +36,11 @@ function getDatabase() {
   const prisma = getPrismaClient();
   if (!prisma) throw new DatabaseUnavailableError();
   return prisma;
+}
+
+async function serializeConnectorForRead(connector:Parameters<typeof serializeConnector>[0]){
+ const view=serializeConnector(connector);
+ return isLocalInbound(connector)?{...view,...localInboundPresentation(connector,await inboundHasRecentValidReading(getDatabase(),connector))}:view;
 }
 
 function ownerWhere(user: AuthUser) {
@@ -60,20 +73,13 @@ function respondToError(error: unknown, response: Response, next: NextFunction) 
 }
 
 async function scopedConfiguration(input: { configuration?: Record<string, unknown> | null; scope?: { pipelineId: string; assetId?: string | null } }, user: AuthUser, existing: unknown = null) {
-  if (!input.scope) return mergeConnectorConfiguration(existing, input.configuration);
-  if (!user.companyId) throw createValidationError({ scope: "A company-scoped account is required to link a connector." });
-  const db = getDatabase();
-  const pipeline = await db.pipeline.findFirst({ where: { id: input.scope.pipelineId }, select: { id: true, createdById: true, createdBy: { select: { companyId: true } } } });
-  if (!pipeline) throw createValidationError({ scope: "Pipeline not found." });
-  const asset = input.scope.assetId ? await db.asset.findFirst({ where: { id: input.scope.assetId, pipelineId: input.scope.pipelineId }, select: { id: true, pipelineId: true } }) : undefined;
-  const scope = validateConnectorScope(input.scope, { userId: user.id, role: user.role, companyId: user.companyId, pipeline: { id: pipeline.id, createdById: pipeline.createdById, companyId: pipeline.createdBy?.companyId ?? null }, asset });
-  return mergeConnectorConfiguration(existing, { ...(input.configuration ?? {}), integrationScope: scope });
+  return scopedConnectorConfiguration(getDatabase(),input,user,existing);
 }
 
 integrationsRouter.get("/connectors", async (request, response, next) => {
   try {
     const connectors = await getDatabase().integrationConnector.findMany({ where: ownerWhere(request.user!), orderBy: { createdAt: "desc" } });
-    response.json(connectors.map(serializeConnector));
+    response.json(await Promise.all(connectors.map(serializeConnectorForRead)));
   } catch (error) {
     respondToError(error, response, next);
   }
@@ -83,9 +89,11 @@ integrationsRouter.post("/connectors", async (request, response, next) => {
   try {
     if (!requireManager(request, response)) return;
     const input = validateConnectorInput(request.body);
-    const { scope, ...connectorInput } = input;
+    const { scope,mode,deviceRecordId, ...connectorInput } = input;
+    const configuration=await scopedConfiguration({configuration:connectorInput.configuration,scope},request.user!);
+    const data=mode==="LOCAL_INBOUND_SENSOR_API"?await prepareLocalInbound(input,request.user!,configuration,env.nodeEnv):{...connectorInput,configuration:configuration??undefined,secretConfigured:Boolean(input.secretReference),authorId:request.user!.id};
     const created = await getDatabase().integrationConnector.create({
-      data: { ...connectorInput, configuration: await scopedConfiguration({ configuration: connectorInput.configuration, scope }, request.user!) ?? undefined, secretConfigured: Boolean(input.secretReference), authorId: request.user!.id }
+      data
     });
     response.status(201).json(serializeConnector(created));
   } catch (error) {
@@ -97,7 +105,7 @@ integrationsRouter.get("/connectors/:id", async (request, response, next) => {
   try {
     const connector = await findConnector(request.params.id, request.user!);
     if (!connector) return response.status(404).json({ message: "Connector not found." });
-    response.json(serializeConnector(connector));
+    response.json(await serializeConnectorForRead(connector));
   } catch (error) {
     respondToError(error, response, next);
   }
@@ -109,12 +117,13 @@ integrationsRouter.patch("/connectors/:id", async (request, response, next) => {
     const existing = await findConnector(request.params.id, request.user!);
     if (!existing) return response.status(404).json({ message: "Connector not found." });
     const input = validateConnectorPatch(request.body);
+    if(isLocalInbound(existing)&&(input.endpoint!==undefined||input.scope!==undefined||input.secretReference!==undefined))throw createValidationError({mode:"Local inbound endpoint and device scope cannot be changed through connector edits."});
     const { scope, ...connectorInput } = input;
     const updated = await getDatabase().integrationConnector.update({
       where: { id: existing.id, ...(input.configuration !== undefined ? { updatedAt: existing.updatedAt } : {}) },
-      data: { ...connectorInput, configuration: scope ? await scopedConfiguration({ configuration: connectorInput.configuration, scope }, request.user!, existing.configuration) : mergeConnectorConfiguration(existing.configuration, connectorInput.configuration), ...(input.configuration !== undefined || scope ? { updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)) } : {}), secretConfigured: input.secretReference === undefined ? undefined : Boolean(input.secretReference) }
+      data: { ...connectorInput, configuration: await scopedConfiguration({ configuration: connectorInput.configuration, scope }, request.user!, existing.configuration), ...(input.configuration !== undefined || scope ? { updatedAt: new Date(Math.max(Date.now(), existing.updatedAt.getTime() + 1)) } : {}), secretConfigured: input.secretReference === undefined ? undefined : Boolean(input.secretReference) }
     });
-    response.json(serializeConnector(updated));
+    response.json(await serializeConnectorForRead(updated));
   } catch (error) {
     if ((error as { code?: string }).code === "P2025") { response.status(409).json({ message: "Connector configuration changed; refresh before editing again." }); return; }
     respondToError(error, response, next);
@@ -140,6 +149,7 @@ integrationsRouter.post("/connectors/:id/test", async (request, response, next) 
     if (!connector) return response.status(404).json({ message: "Connector not found." });
     if (!connector.enabled) return response.status(409).json({ message: "Disabled connectors cannot be tested." });
 
+    if(isLocalInbound(connector))return response.status(409).json({message:"Inbound connectors do not perform external URL tests. Connectivity requires actual valid received readings."});
     const result = await restConnectorAdapter.test({ connectorType: "REST", endpoint: connector.endpoint });
     const testedAt = new Date();
     const event = sanitizeEvent({

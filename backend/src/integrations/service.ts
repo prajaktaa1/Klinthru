@@ -1,3 +1,4 @@
+import {localInboundPresentation} from "./localInbound";
 import { ConnectorRecord, IntegrationEventRecord, IntegrationSummary, SanitizedEventInput } from "./types";
 import { redactSensitive, redactText, redactUrl } from "./security";
 
@@ -29,6 +30,7 @@ export function serializeConnector(connector: ConnectorRecord) {
     lastFailureCode: connector.lastFailureCode,
     lastFailureMessage: connector.lastFailureMessage ? redactText(connector.lastFailureMessage) : null,
     createdAt: connector.createdAt.toISOString(),
+    ...localInboundPresentation(connector),
     updatedAt: connector.updatedAt.toISOString()
   };
 }

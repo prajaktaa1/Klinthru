@@ -1,0 +1,30 @@
+"use client";
+import {useEffect,useState,useRef} from "react";
+import {fetchPipelines,fetchSensorMasterLinks,isUnauthorizedError} from "@/lib/apiClient";
+import {assignmentMetadata,validAssignmentDate} from "@/lib/compact-assignment";
+import {installationTypes,assignmentStatuses} from "@/lib/sensor-assignment-options";
+import type {DeviceRecord,PipelineRecord,SensorMasterLink,SensorAssignmentInput,SensorAssignmentStatus} from "@/lib/types";
+const control="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
+export function CompactSensorAssignmentForm({devices,devicesError,isDevicesLoading,isSaving,onSubmit,onCancel,onUnauthorized}:{devices:DeviceRecord[];devicesError:string|null;isDevicesLoading:boolean;isSaving:boolean;onSubmit:(input:SensorAssignmentInput)=>Promise<void>;onCancel:()=>void;onUnauthorized:()=>void}){
+ const [pipelines,setPipelines]=useState<PipelineRecord[]>([]),[links,setLinks]=useState<SensorMasterLink[]>([]),[pipelineId,setPipelineId]=useState(""),[deviceId,setDeviceId]=useState(""),[installationType,setInstallationType]=useState(""),[installationDate,setInstallationDate]=useState(""),[status,setStatus]=useState<SensorAssignmentStatus>("Inactive"),[loading,setLoading]=useState(true),[error,setError]=useState(""),[loadFailed,setLoadFailed]=useState(false),[submitting,setSubmitting]=useState(false);
+ const unauthorized=useRef(onUnauthorized);unauthorized.current=onUnauthorized;
+ const pending=useRef(false),busy=isSaving||submitting;
+ useEffect(()=>{let active=true;void Promise.all([fetchPipelines(),fetchSensorMasterLinks()]).then(([rows,relationships])=>{if(active){setPipelines(rows.filter(row=>row.status==="Active"));setLinks(relationships);}}).catch(reason=>{if(active){setLoadFailed(true);setError("Saved pipeline and sensor relationships could not be loaded.");if(isUnauthorizedError(reason))unauthorized.current();}}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
+ const pipeline=pipelines.find(row=>row.id===pipelineId);
+ const eligible=pipeline?devices.filter(device=>Boolean(assignmentMetadata(device,links,pipelineId))):[];
+ const device=eligible.find(row=>row.id===deviceId),metadata=device?assignmentMetadata(device,links,pipelineId):null;
+ const ready=Boolean(metadata&&validAssignmentDate(installationDate)&&installationTypes.filter(type=>type!=="Other").includes(installationType)&&assignmentStatuses.includes(status)&&!loading&&!isDevicesLoading&&!devicesError&&!loadFailed);
+ async function save(){if(pending.current||busy||!ready||!metadata)return;pending.current=true;setSubmitting(true);setError("");try{await onSubmit({...metadata.snapshot,installationType,installationDate,assignmentStatus:status});}catch{setError("Assignment could not be saved. Review the details and retry.");}finally{pending.current=false;setSubmitting(false);}}
+ return <form aria-label="Create Sensor Assignment" aria-busy={busy} onSubmit={event=>{event.preventDefault();void save();}} className="space-y-4">
+ <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-2">
+ <label className="text-xs">Pipeline<select aria-label="Assignment pipeline" className={control} value={pipelineId} disabled={loading||isDevicesLoading} required onChange={event=>{setPipelineId(event.target.value);setDeviceId("");}}><option value="">Select pipeline</option>{pipelines.map(row=><option key={row.id} value={row.id}>{row.pipelineCode}</option>)}</select></label>
+ <label className="text-xs">Registered Sensor<select aria-label="Assignment registered sensor" className={control} value={deviceId} disabled={!pipeline||loading||isDevicesLoading||Boolean(devicesError)} required onChange={event=>setDeviceId(event.target.value)}><option value="">{pipeline&&!eligible.length?"No eligible registered sensors":"Select sensor"}</option>{eligible.map(row=><option key={row.id} value={row.id}>{row.deviceId} - {row.deviceType}</option>)}</select></label>
+ <label className="text-xs">Installation Type<select aria-label="Assignment installation type" className={control} value={installationType} required onChange={event=>setInstallationType(event.target.value)}><option value="">Select type</option>{installationTypes.filter(type=>type!=="Other").map(type=><option key={type}>{type}</option>)}</select></label>
+ <label className="text-xs">Installation Date<input aria-label="Assignment installation date" className={control} type="date" value={installationDate} required onChange={event=>setInstallationDate(event.target.value)}/></label>
+ <label className="text-xs">Assignment Status<select aria-label="Assignment status" className={control} value={status} onChange={event=>setStatus(event.target.value as SensorAssignmentStatus)}>{assignmentStatuses.map(value=><option key={value}>{value}</option>)}</select></label>
+ </fieldset>
+ {metadata?<dl aria-label="Saved sensor assignment details" className="grid gap-3 rounded-lg border border-slate-200 p-3 text-xs sm:grid-cols-2">{[["Sensor ID",metadata.snapshot.sensorId],["Sensor Type",metadata.snapshot.sensorDeviceType],["Sensor Category",metadata.snapshot.sensorCategory],["Sensor Name",metadata.snapshot.sensorName],["Pipeline / Asset",`${metadata.link.pipelineCode} / ${metadata.link.assetId}`],["Segment / KP",`${metadata.link.segmentId} / KP ${metadata.link.kp}`],["Measurement Parameter",metadata.snapshot.valuesMeasured],["Engineering Unit",metadata.snapshot.measurementUnit],["Saved Location",metadata.snapshot.installationLocation]].map(([label,value])=><div key={label}><dt className="text-slate-500">{label}</dt><dd className="font-medium">{value}</dd></div>)}</dl>:null}
+ {error||devicesError?<p role="alert" className="text-xs text-rose-700">{error||devicesError}</p>:null}
+ <div className="flex gap-2"><button type="submit" disabled={busy||!ready} className="rounded-lg bg-slateblue-600 px-4 py-2 text-sm text-white disabled:opacity-50">{busy?"Saving...":"Create Assignment"}</button><button type="button" disabled={busy} onClick={onCancel} className="rounded-lg border px-4 py-2 text-sm">Cancel</button></div>
+ </form>;
+}

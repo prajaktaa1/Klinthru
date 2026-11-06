@@ -1,4 +1,8 @@
 "use client";
+import { assetMapColor, assetMapLabel, assetMapLayer } from "@/lib/asset-map-layers";
+import { useAssetMapLayers } from "@/lib/use-asset-map-layers";
+
+import { SavedMapRecords } from "@/components/saved-map-records";
 import { drawSavedPipelineOverlay, pipelineOverlayLabel } from "@/lib/saved-pipeline-overlay";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -9,6 +13,7 @@ import { loadLeaflet } from "@/components/segment-map-card";
 import type { AssetMasterAssetRecord, AssetMasterSegmentRecord, GeoJsonLineString, PipelineRecord } from "@/lib/types";
 
 export function AssetLocationMap({ asset, assets, pipeline, segments }: { asset: AssetMasterAssetRecord; assets: AssetMasterAssetRecord[]; pipeline: PipelineRecord | null; segments: AssetMasterSegmentRecord[] }) {
+  const [assetLayers] = useAssetMapLayers(pipeline?.id);
   const element = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
@@ -25,7 +30,7 @@ export function AssetLocationMap({ asset, assets, pipeline, segments }: { asset:
     setState("loading");
     void loadLeaflet().then((L) => {
       if (cancelled || !element.current) return;
-      map = L.map(element.current, { ...GEOGRAPHIC_MAP_OPTIONS, scrollWheelZoom: false }).setView(UAE_VIEW, 7);
+      map = L.map(element.current, { ...GEOGRAPHIC_MAP_OPTIONS, scrollWheelZoom: false, zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false }).setView(UAE_VIEW, 7);
       base = attachBasemap(map, L, "hybrid");
       L.control.scale({ imperial: false }).addTo(map);
       const primary = getComputedStyle(element.current).getPropertyValue("--app-primary").trim() || "#0891b2";
@@ -40,19 +45,19 @@ export function AssetLocationMap({ asset, assets, pipeline, segments }: { asset:
       };
       drawSavedPipelineOverlay(L, map, pipeline).forEach(point => bounds.extend(point));
       segments.filter(segment => segment.pipelineId === pipeline?.id).forEach((segment) => draw(segment.routeGeometry, segment.id === asset.segmentId || segment.segmentId === asset.segmentId, segment.segmentId));
-      assets.filter((item) => item.pipelineId === pipeline?.id && savedMapCoordinate(item.latitude, item.longitude)).forEach((item) => {
+      assets.filter((item) => item.pipelineId === pipeline?.id && savedMapCoordinate(item.latitude, item.longitude) && assetLayers[assetMapLayer(item)]).forEach((item) => {
         const selected = item.id === asset.id;
-        const marker = L.circleMarker([item.latitude, item.longitude], { radius: selected ? 9 : 5, color: "#ffffff", weight: selected ? 3 : 2, fillColor: selected ? primary : "#16a34a", fillOpacity: 1 }).addTo(map);
-        marker.bindTooltip(text(`${item.assetId}${item.kp ? ` · KP ${item.kp}` : ""}`), { permanent: true, direction: "left", offset: [-8, 0] });
+        const marker = L.circleMarker([item.latitude, item.longitude], { radius: selected ? 9 : 5, color: "#ffffff", weight: selected ? 3 : 2, fillColor: selected ? primary : assetMapColor(item), fillOpacity: 1 }).addTo(map);
+        marker.bindTooltip(text(assetMapLabel(item)));
         bounds.extend([item.latitude, item.longitude]);
       });
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14 });
       resize = new ResizeObserver(() => map?.invalidateSize());
       resize.observe(element.current);
       setState("ready");
     }).catch(() => { if (!cancelled) setState("error"); });
-    return () => { cancelled = true; resize?.disconnect(); base?.remove(); map?.remove(); };
-  }, [asset, assets, pipeline, segments, located, hasRoute, attempt]);
+    return () => { cancelled = true; resize?.disconnect(); map?.stop(); base?.remove(); map?.remove(); };
+  }, [asset, assets, pipeline, segments, located, hasRoute, attempt, assetLayers]);
   if (!located && !hasRoute) return <div className="flex min-h-[240px] flex-col items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-5 text-center text-xs text-slate-500"><MapPin size={30} className="text-slateblue-600" /><p className="font-semibold text-slate-800">Location not recorded</p><p>Add coordinates in Edit Asset to show this asset on the map.</p>{asset.kp ? <p>KP {asset.kp}</p> : null}</div>;
   return <div>
     <p className="mb-1 text-xs font-semibold text-slate-700">{pipeline?.pipelineCode} / {pipelineOverlayLabel(pipeline)}</p>
@@ -62,6 +67,7 @@ export function AssetLocationMap({ asset, assets, pipeline, segments }: { asset:
       {state === "loading" ? <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-slate-50/80 text-xs text-slate-600">Loading asset map...</div> : null}
       {state === "error" ? <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-slate-50 p-4 text-xs text-slate-600"><p>Map could not be loaded.</p><button type="button" onClick={() => setAttempt((value) => value + 1)} className="inline-flex items-center gap-1 font-semibold text-slateblue-700"><RefreshCw size={14} />Retry map</button></div> : null}
     </div>
-    <p className="mt-2 text-xs text-slate-500">{located ? `${asset.latitude}, ${asset.longitude}${asset.kp ? ` · KP ${asset.kp}` : ""}` : "Pipeline route shown; asset coordinates are not recorded."}</p>
+    <SavedMapRecords pipeline={pipeline} segments={sourceSegments} assets={assets} />
+    <p className="mt-2 text-xs text-slate-500">{located ? `${asset.latitude}, ${asset.longitude}${asset.kp ? ` · KP ${asset.kp}` : ""}` : "GPS Required. Pipeline route shown; asset coordinates are not recorded."}</p>
   </div>;
 }

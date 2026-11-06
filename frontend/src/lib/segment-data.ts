@@ -1,4 +1,5 @@
 import { tryKp } from "./chainage";
+import { savedMapRoute, savedSegmentMapRoute } from "./dashboard-map-data";
 import type { DocumentRepositoryItem } from "./apiClient";
 import type { AssetMasterSegmentRecord, PipelineRecord } from "./types";
 
@@ -6,12 +7,17 @@ export function segmentKp(value: string | undefined): number | null {
   return tryKp(value);
 }
 
-type CheckResult = "Passed" | "Failed" | "UNKNOWN";
+type CheckResult = "Passed" | "Failed" | "UNKNOWN" | "GIS Route Data Required";
 export function segmentChecks(pipeline: PipelineRecord | null, segment: AssetMasterSegmentRecord | null, segments: AssetMasterSegmentRecord[], documents: DocumentRepositoryItem[], documentsError: boolean): Array<[string, CheckResult]> {
   const start = segmentKp(segment?.startKp);
   const end = segmentKp(segment?.endKp);
   const rangeValid = start !== null && end !== null && end > start && (pipeline?.pipeLengthKm === undefined || end <= pipeline.pipeLengthKm);
   const peers = segments.filter((item) => item.id !== segment?.id);
+  const hasVerifiedRoute = Boolean(
+    segment &&
+    savedMapRoute(pipeline?.routeGeometry, pipeline?.pipeLengthKm) &&
+    savedSegmentMapRoute(segment)
+  );
   const peersKnown = peers.every((item) => { const a = segmentKp(item.startKp); const b = segmentKp(item.endKp); return a !== null && b !== null && b > a; });
   let overlap: CheckResult = "UNKNOWN";
   let gap: CheckResult = "UNKNOWN";
@@ -28,7 +34,7 @@ export function segmentChecks(pipeline: PipelineRecord | null, segment: AssetMas
     ["No overlap with adjacent segments", overlap],
     ["No gap in KP range", gap],
     ["KP sequence is valid", !segment || start === null || end === null ? "UNKNOWN" : rangeValid ? "Passed" : "Failed"],
-    ["Geometry linked to pipeline route", segment?.routeGeometry && pipeline?.routeGeometry ? "Passed" : "UNKNOWN"],
+    ["Geometry linked to pipeline route", hasVerifiedRoute ? "Passed" : "GIS Route Data Required"],
     ["Source documents linked", !segment || documentsError ? "UNKNOWN" : documents.some((item) => item.links.some((link) => link.segment?.id === segment.id)) ? "Passed" : "UNKNOWN"]
   ];
 }

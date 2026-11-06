@@ -346,12 +346,16 @@ documentsRouter.post("/:documentId/links", async (request, response, next) => {
     if (!document || (request.user!.role !== "Admin" && document.ownerId !== request.user!.id)) { response.status(404).json({ message: "Document not found." }); return; }
     const { links } = await verifiedLinks(request.body ?? {}, request.user!);
     if (!links.length) throw new Error("At least one verified Pipeline, Segment, or Asset is required.");
-    const created = [];
-    for (const link of links) {
-      const existing = await database().documentLink.findFirst({ where: { documentId: document.documentId, ...link } });
-      if (!existing) created.push(await database().documentLink.create({ data: { documentId: document.documentId, ...link, createdById: request.user!.id } }));
-    }
-    await database().managedDocument.update({ where: { documentId: document.documentId }, data: { isGlobal: false, updatedAt: new Date() } });
+    const created = await database().$transaction(async tx => {
+      await tx.$queryRawUnsafe('SELECT "Document_ID" FROM "Managed_Document" WHERE "Document_ID"=$1 FOR UPDATE', document.documentId);
+      const result = [];
+      for (const link of links) {
+        const existing = await tx.documentLink.findFirst({ where: { documentId: document.documentId, ...link } });
+        if (!existing) result.push(await tx.documentLink.create({ data: { documentId: document.documentId, ...link, createdById: request.user!.id } }));
+      }
+      if (result.length || document.isGlobal) await tx.managedDocument.update({ where: { documentId: document.documentId }, data: { isGlobal: false, updatedAt: new Date() } });
+      return result;
+    });
     response.status(201).json({ items: created });
   } catch (error) { replyError(response, error); }
 });

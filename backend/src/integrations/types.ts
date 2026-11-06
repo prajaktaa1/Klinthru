@@ -38,7 +38,9 @@ export type IntegrationEventRecord = {
 
 export type ConnectorInput = {
   name: string;
-  endpoint: string;
+  endpoint?: string;
+  mode?: "EXTERNAL_REST"|"LOCAL_INBOUND_SENSOR_API";
+  deviceRecordId?:string;
   enabled?: boolean;
   configuration?: Record<string, unknown> | null;
   secretReference?: string | null;

@@ -39,6 +39,12 @@ const deviceRecordSchema = deviceInputSchema
 
 const deviceRecordListSchema = z.array(deviceRecordSchema);
 
+const deviceLocationUpdateSchema = z
+  .object({
+    pipelineOrLocation: z.string().trim().min(1).max(200)
+  })
+  .strict();
+
 export function validateDeviceRecord(value: unknown) {
   const result = deviceRecordSchema.safeParse(value);
   if (!result.success) {
@@ -65,5 +71,22 @@ export function validateDeviceRecordList(value: unknown) {
   return result.data;
 }
 
+export function validateDeviceLocationUpdate(value: unknown) {
+  const result = deviceLocationUpdateSchema.safeParse(value);
+  if (!result.success) {
+    throw createValidationErrorFromZod(result.error);
+  }
+
+  return result.data;
+}
+
 export const allowedDeviceTypes = deviceTypes;
 export const allowedDeviceStatuses = deviceStatuses;
+
+const deviceRegistrationSchema=deviceInputSchema.extend({isDemoData:z.boolean().optional(),demoConfirmed:z.boolean().optional(),assetRecordId:z.string().trim().min(1).optional(),pipelineId:z.string().trim().min(1).optional(),segmentRecordId:z.string().trim().min(1).optional(),identityConfirmed:z.boolean().optional()}).superRefine((value,context)=>{
+ if(value.assetRecordId||value.pipelineId||value.segmentRecordId){
+  for(const field of ["assetRecordId","pipelineId","segmentRecordId"] as const)if(!value[field])context.addIssue({code:"custom",path:[field],message:"All saved identity IDs are required."});
+  if(!value.unit?.trim())context.addIssue({code:"custom",path:["unit"],message:"Confirmed engineering unit is required for saved sensor registration."});
+ }
+});
+export function validateDeviceRegistrationInput(value:unknown){const result=deviceRegistrationSchema.safeParse(value);if(!result.success)throw createValidationErrorFromZod(result.error);return result.data;}

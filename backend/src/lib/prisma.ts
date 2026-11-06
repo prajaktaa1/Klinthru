@@ -104,6 +104,7 @@ type PrismaClientLike = {
     findMany(args: unknown): Promise<any[]>;
     findUnique(args: unknown): Promise<any>;
     create(args: unknown): Promise<any>;
+    updateMany(args: unknown): Promise<{count:number}>;
     update(args: unknown): Promise<any>;
     delete(args: unknown): Promise<any>;
   };

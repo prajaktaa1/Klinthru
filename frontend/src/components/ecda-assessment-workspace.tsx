@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { downloadDocumentVersion, fetchAssessments, fetchCpMonitoringData, fetchCpTestPoints, fetchDocuments, fetchIliReadiness, fetchMasterSegments, fetchPipelines, type CpLinkedTestPointRecord, type CpMonitoringRealData, type DocumentRepositoryItem, type IliReadiness } from "@/lib/apiClient";
 import { getStoredAuthToken } from "@/lib/authStorage";
+import { chainageSummary } from "@/lib/chainage";
 import { type AssetMasterSegmentRecord, type ExternalCorrosionInput, type PipelineRecord, type StoredAssessment } from "@/lib/types";
 
 type DataMode = "real" | "demo";
@@ -268,12 +269,7 @@ function displayValue(value: string | number | null | undefined, suffix = "") {
 }
 
 function parseKp(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = Number(value.replace(/[^\d.-]+/g, ""));
-  return Number.isFinite(parsed) ? parsed : null;
+  return value ? chainageSummary(value)?.chainage_km ?? null : null;
 }
 
 function displayKp(value: string | null) {

@@ -30,6 +30,14 @@ const metadata = {
 assert.equal(routeGeometryMatchesSaved(savedInvalidRoute, savedInvalidRoute), true);
 assert.equal(routeGeometryMatchesSaved(savedInvalidRoute, { ...savedInvalidRoute, coordinates: [...savedInvalidRoute.coordinates].reverse() }), false);
 assert.doesNotThrow(() => validatePipelineInput({ ...metadata, routeGeometry: undefined }));
+assert.equal(validatePipelineInput(metadata).installationYear, 2015);
+assert.equal(validatePipelineInput(metadata).installationDate, undefined, "Installation year must not synthesize an installation or commissioning date");
+const commissioned = validatePipelineInput({ ...metadata, commissioningDate: "2014-06-15" });
+assert.equal(commissioned.commissioningDate, "2014-06-15");
+assert.equal(commissioned.installationYear, 2015);
+assert.equal(commissioned.installationDate, undefined);
+assert.equal(validatePipelineInput({ ...metadata, commissioningDate: null }).commissioningDate, null);
+assert.throws(() => validatePipelineInput({ ...metadata, commissioningDate: "2014-02-30" }), (error: any) => Boolean(error.fields?.commissioningDate));
 assert.throws(
   () => validatePipelineInput({ ...metadata, routeGeometry: savedInvalidRoute })
 );

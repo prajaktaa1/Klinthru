@@ -1,4 +1,5 @@
 "use client";
+import { watchMapDataChanged } from "@/lib/map-sync";
 
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDownToLine, ArrowRight, ArrowUpDown, CheckCircle2, ChevronLeft, ChevronRight, Clock3, FileText, Filter, MoreHorizontal, RefreshCw, Search, X, XCircle } from "lucide-react";
@@ -19,6 +20,7 @@ export function MasterChangeLogWorkspace({ pipeline, segments, segmentsError, on
   const { user } = useAuth();
   const [response, setResponse] = useState<SettingsAuditLogResponse | null>(null), [assets, setAssets] = useState<AssetMasterAssetRecord[]>([]), [users, setUsers] = useState(new Map<string, string>());
   const [loading, setLoading] = useState(true), [error, setError] = useState(""), [notes, setNotes] = useState<string[]>([]), [refresh, setRefresh] = useState(0);
+  useEffect(() => watchMapDataChanged(() => setRefresh(value => value + 1)), []);
   const [draft, setDraft] = useState({ ...emptyChangeFilters }), [filters, setFilters] = useState({ ...emptyChangeFilters });
   const [sort, setSort] = useState<{ key: SortKey; ascending: boolean }>({ key: "occurredAt", ascending: false });
   const [page, setPage] = useState(1), [size, setSize] = useState(6), [selectedKey, setSelectedKey] = useState(""), [showDetails, setShowDetails] = useState(true);

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { CpCalculationType } from "../types/domain";
-import { createValidationErrorFromZod } from "./validationErrors";
+import { createValidationError, createValidationErrorFromZod } from "./validationErrors";
 import { alignmentReadiness } from "../coreEngine/chainage/ChainageAgent";
 import { routeGeometrySchema } from "./routeGeometry";
 import { chainageSettingsShape } from "./chainageSettings";
@@ -140,6 +140,7 @@ const pipelineInputSchema = z
     operatingPressure: optionalNonNegativeNumber(),
     operatingPressureInputValue: optionalNonNegativeNumber(),
     operatingPressureUnit: z.enum(pressureUnits).optional(),
+    commissioningDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD").refine(value => { const date = new Date(`${value}T00:00:00.000Z`); return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value; }, "Must be a valid calendar date").nullable().optional(),
     installationYear: optionalReasonableYear(),
     inspectionYear: optionalReasonableYear(),
     installationDate: z

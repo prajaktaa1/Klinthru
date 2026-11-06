@@ -17,10 +17,12 @@
     "lint": "next lint",
     "test:segments": "node scripts/run-segment-data-tests.cjs",
     "test:gis-map": "node scripts/run-gis-map-tests.cjs",
+    "test:chainage-contract": "node scripts/run-chainage-contract-tests.cjs",
     "test:map-provider": "node scripts/run-map-provider-tests.cjs",
     "test:auth-session": "node scripts/run-auth-session-tests.cjs",
     "test:cp-rectifier-status": "node scripts/run-cp-rectifier-status-tests.cjs",
-    "test:cp-segment-display": "node scripts/run-cp-segment-display-tests.cjs"
+    "test:cp-segment-display": "node scripts/run-cp-segment-display-tests.cjs",
+    "test:sensors-demo": "node scripts/run-demo-sensor-flow-tests.cjs"
   },
   "dependencies": {
     "klinthru": "file:..",

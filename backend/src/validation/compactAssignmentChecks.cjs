@@ -1,0 +1,27 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript'),{createRequire}=require('node:module');
+const root=path.resolve(__dirname,'../../..'),backendRequire=createRequire(path.join(root,'backend/package.json'));
+const snapshot=JSON.parse(fs.readFileSync(path.join(root,'artifacts/sensors-local-activation/inventory.json'),'utf8'));
+assert.equal(snapshot.readOnly,true);let writes=0;
+const store={listPipelines:async scope=>snapshot.pipelines.filter(row=>scope?.viewerRole==='Admin'||row.createdById===scope?.viewerUserId),listSegments:async scope=>snapshot.segments.filter(row=>row.pipelineId===scope.pipelineId),listAssets:async scope=>snapshot.assets.filter(row=>row.pipelineId===scope.pipelineId),listDevices:async()=>snapshot.devices,findAssetById:async id=>snapshot.assets.find(row=>row.id===id),createDevice:async()=>{writes++;throw Error('Writes are forbidden in preparation tests');},updateDeviceLocation:async()=>{writes++;throw Error('Writes forbidden');},findDeviceById:async id=>snapshot.devices.find(row=>row.id===id)};
+const cache={};function load(relative){const file=path.resolve(root,'backend/src',relative);if(cache[file])return cache[file];const mod={exports:{}};const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;vm.runInNewContext(code,{module:mod,exports:mod.exports,require:name=>{if(name==='../data/store')return{store};if(name==='../lib/prisma')return{getPrismaClient:()=>{throw Error('No database connections permitted');}};if(name==='../middleware/auth')return{requireAuth:()=>{}};if(name==='express')return{Router:()=>router};if(name.startsWith('.'))return load(path.relative(path.join(root,'backend/src'),path.resolve(path.dirname(file),name+'.ts')));return backendRequire(name);},console});cache[file]=mod.exports;return mod.exports;}
+const routes=new Map(),router={use:()=>{},get:(route,fn)=>routes.set('GET '+route,fn),post:(route,fn)=>routes.set('POST '+route,fn),patch:(route,fn)=>routes.set('PATCH '+route,fn),put:(route,fn)=>routes.set('PUT '+route,fn),delete:()=>{}};
+const validation=load('validation/deviceValidation.ts'),mapping=load('validation/sensorAssetRegistration.ts');load('routes/devices.ts');
+const user={id:snapshot.pipelines.find(row=>row.pipelineCode==='PL-002').createdById,role:'Admin'};
+async function call(route,request){let result,error;const response={json:value=>{result=value;return response;},status:()=>response};await routes.get(route)({...request,user},response,value=>{error=value;});return{result,error};}
+
+
+load('routes/sensorAssignments.ts');
+(async()=>{
+const pressure=snapshot.devices.find(row=>row.deviceId==='SNS-001');
+const input={sensorId:pressure.deviceId,sensorName:pressure.deviceType,sensorCategory:'Internal Process Sensors',sensorDeviceType:pressure.deviceType,pipelineOrAsset:'PL-002',installationLocation:pressure.pipelineOrLocation,installationType:'Inline',valuesMeasured:'Pressure',measurementUnit:pressure.unit,installationDate:'2026-09-15',dataSource:'Other',assignmentStatus:'Inactive',notes:'Administrative assignment only; no ingestion source channel asserted.'};
+let captures=[];store.saveSensorAssignment=async value=>{captures.push(value);throw Error('TEST PERSISTENCE BLOCKED');};
+async function post(body,actor=user){let result,error,status=200;const response={status(code){status=code;return this;},json(value){result=value;return this;}};await routes.get('POST /')({body,user:actor},response,value=>{error=value;});return{result,error,status};}
+for(const change of [{sensorId:'SNS-002'},{sensorId:'SNS-DEMO-001'},{sensorId:'missing'},{pipelineOrAsset:'PL-001'},{installationLocation:'PL-002 / SEG-04 / KP 190'},{measurementUnit:'mpy'},{measurementUnit:'kPa'},{valuesMeasured:'Corrosion rate'},{installationDate:'2026-02-30'},{installationDate:''},{installationType:'Other',notes:''},{sensorName:'Temperature Sensor',sensorDeviceType:'Temperature Sensor'}])assert.ok((await post({...input,...change})).error,JSON.stringify(change));
+assert.equal(captures.length,0);assert.equal((await post(input,{...user,role:'Viewer'})).status,403);
+const originalPipelines=store.listPipelines;store.listPipelines=async()=>[];assert.ok((await post(input,{...user,id:'foreign',role:'Engineer'})).error);store.listPipelines=originalPipelines;
+const originalAssets=store.listAssets;store.listAssets=async()=>[];assert.ok((await post(input)).error);store.listAssets=originalAssets;
+const result=await post(input);assert.equal(result.error.message,'TEST PERSISTENCE BLOCKED');assert.equal(captures.length,1);assert.equal(captures[0].assignment.assignmentStatus,'Inactive');assert.equal(captures[0].assignment.measurementUnit,'bar');assert.equal(writes,0);
+const {validateSavedAssignmentIdentity}=load('validation/savedAssignmentIdentity.ts');
+const meta=snapshot.assets.find(row=>row.assetId==='SNS-001'),originalManufacturer=meta.manufacturer;meta.manufacturer='DEMO supplier';await assert.rejects(validateSavedAssignmentIdentity(input,user));meta.manufacturer=originalManufacturer;
+console.log('PASS compact assignment API: saved REAL identity/parameter/unit/location, Inactive, scoped pipeline/asset, strict dates, role checks, DEMO/quarantine rejection, and persistence blocked. Zero actual database writes.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -3,8 +3,8 @@ export type Coordinate = Position;
 export function validCoordinate(point: unknown): point is Coordinate {
   return Array.isArray(point) && point.length >= 2 && typeof point[0] === "number" && typeof point[1] === "number" && Number.isFinite(point[0]) && Number.isFinite(point[1]) && Math.abs(point[0]) <= 180 && Math.abs(point[1]) <= 90;
 }
-function validate(points: Coordinate[]) {
-  if (points.length < 3 || !points.every(validCoordinate)) throw new Error("Route requires surveyed alignment with at least three valid WGS84 [longitude, latitude] coordinates. No rows were imported.");
+function validate(points: Coordinate[], minimumPoints = 3) {
+  if (points.length < minimumPoints || !points.every(validCoordinate)) throw new Error(minimumPoints === 2 ? "Proposed route requires at least two valid WGS84 [longitude, latitude] coordinates. No rows were imported." : "Route requires surveyed alignment with at least three valid WGS84 [longitude, latitude] coordinates. No rows were imported.");
   alignmentLength({ type: "LineString", coordinates: points });
   return points;
 }
@@ -15,18 +15,41 @@ export function parseLineString(value: string): Coordinate[] {
   if (geometry?.type !== "LineString" || !Array.isArray(geometry.coordinates)) throw new Error("Select a single GeoJSON LineString route.");
   return validate(geometry.coordinates.map((p: unknown) => { if (!validCoordinate(p)) throw new Error("Invalid GPS coordinate; the complete import was rejected."); return [p[0], p[1]] as Coordinate; }));
 }
+// Display-only parser for previously saved endpoint pairs. Import/save remains
+// strict through parseLineString, which requires surveyed intermediate points.
+export function parseLineStringForDisplay(value: string): Coordinate[] {
+  if (!value.trim()) return [];
+  const geometry = JSON.parse(value);
+  if (geometry?.crs && !/4326|CRS84/i.test(JSON.stringify(geometry.crs))) throw new Error("Import WGS84 longitude/latitude GIS data; the source coordinate system is unsupported.");
+  if (geometry?.type !== "LineString" || !Array.isArray(geometry.coordinates)) throw new Error("Select a single GeoJSON LineString route.");
+  const points: Coordinate[] = geometry.coordinates.map((p: unknown) => { if (!validCoordinate(p)) throw new Error("Invalid GPS coordinate; the complete import was rejected."); return [p[0], p[1]] as Coordinate; });
+  if (points.length < 2 || points.every(([longitude, latitude]) => longitude === points[0][0] && latitude === points[0][1])) throw new Error("Saved route endpoints are invalid.");
+  return points;
+}
 export function distanceKm(points: Coordinate[]) { return points.length >= 2 ? metersToKm(alignmentLength({ type: "LineString", coordinates: points })) : 0; }
+function parseKmlCoordinates(raw: string): Coordinate[] {
+  const entries = raw.trim().split(/\s+/).filter(Boolean);
+  if (!entries.length) throw new Error("KML LineString coordinates are missing.");
+  return entries.map((entry, index) => {
+    const parts = entry.split(",").map((part) => part.trim());
+    // KML order is longitude,latitude[,altitude]. The saved GIS contract is
+    // 2D WGS84 GeoJSON, so altitude is validated when present and intentionally
+    // omitted from the saved route; it must never be mistaken for latitude.
+    if (parts.length < 2 || parts.length > 3 || parts.some((part) => !part)) throw new Error(`KML coordinate ${index + 1} must be longitude, latitude[, altitude].`);
+    const values = parts.map(Number);
+    if (!values.every(Number.isFinite)) throw new Error(`KML coordinate ${index + 1} contains a non-numeric value.`);
+    return [values[0], values[1]] as Coordinate;
+  });
+}
 export function parseKml(text: string): Coordinate[] {
   const doc = new DOMParser().parseFromString(text, "application/xml");
   if (doc.getElementsByTagName("parsererror").length) throw new Error("KML XML is invalid.");
-  const lines = doc.getElementsByTagNameNS("*", "LineString");
-  if (lines.length !== 1) throw new Error("KML must contain one LineString. Separate routes are never joined automatically.");
-  const coordinates = lines[0].getElementsByTagNameNS("*", "coordinates");
+  const lines = Array.from(doc.getElementsByTagNameNS("*", "LineString"));
+  if (!lines.length) throw new Error("KML has no supported LineString geometry. Import a route LineString, not a point or polygon.");
+  if (lines.length > 1) throw new Error("KML contains multiple LineString segments. Separate segments are not joined; import one continuous route.");
+  const coordinates = Array.from(lines[0].getElementsByTagNameNS("*", "coordinates"));
   if (coordinates.length !== 1 || !coordinates[0].textContent?.trim()) throw new Error("KML LineString coordinates are missing.");
-  return validate(coordinates[0].textContent.trim().split(/\s+/).map(entry => {
-    const parts = entry.split(","); if (parts.length < 2 || !parts[0].trim() || !parts[1].trim()) throw new Error("KML contains an incomplete GPS coordinate.");
-    return [Number(parts[0]), Number(parts[1])] as Coordinate;
-  }));
+  return validate(parseKmlCoordinates(coordinates[0].textContent));
 }
 export function parseCsv(text: string): Coordinate[] {
   const rows: string[][] = []; let row: string[] = [], cell = "", quoted = false;
@@ -83,19 +106,27 @@ async function unzipKmz(buffer: ArrayBuffer) {
   if (((crc ^ 0xffffffff) >>> 0) !== file.crc) throw new Error("KMZ checksum failed.");
   return new TextDecoder().decode(content);
 }
-export async function readImportedRoute(file: File): Promise<Coordinate[]> {
+export async function readImportedRoute(file: File, options: { minimumPoints?: 2 | 3 } = {}): Promise<Coordinate[]> {
   if (file.size > 20 * 1024 * 1024) throw new Error("GIS import exceeds 20 MB.");
   const extension = file.name.toLowerCase().split(".").pop();
-  if (extension === "kmz") return parseKml(await unzipKmz(await file.arrayBuffer()));
+  const minimumPoints = options.minimumPoints ?? 3;
+  const parseImportedLineString = (value: string): Coordinate[] => {
+    if (!value.trim()) return [];
+    const geometry = JSON.parse(value);
+    if (geometry?.crs && !/4326|CRS84/i.test(JSON.stringify(geometry.crs))) throw new Error("Import WGS84 longitude/latitude GIS data; the source coordinate system is unsupported.");
+    if (geometry?.type !== "LineString" || !Array.isArray(geometry.coordinates)) throw new Error("Select a single GeoJSON LineString route.");
+    return validate(geometry.coordinates.map((point: unknown) => { if (!validCoordinate(point)) throw new Error("Invalid GPS coordinate; the complete import was rejected."); return [point[0], point[1]] as Coordinate; }), minimumPoints);
+  };
+  if (extension === "kmz") { const points = parseKml(await unzipKmz(await file.arrayBuffer())); return minimumPoints === 2 ? validate(points, 2) : points; }
   const text = await file.text();
-  if (extension === "kml") return parseKml(text);
-  if (extension === "csv") return parseCsv(text);
+  if (extension === "kml") { const points = parseKml(text); return minimumPoints === 2 ? validate(points, 2) : points; }
+  if (extension === "csv") { const points = parseCsv(text); return minimumPoints === 2 ? validate(points, 2) : points; }
   const parsed = JSON.parse(text);
   if (parsed?.crs && !/4326|CRS84/i.test(JSON.stringify(parsed.crs))) throw new Error("Import WGS84 GIS coordinates.");
   if (parsed?.type === "FeatureCollection") {
     const lines = parsed.features?.filter((f: any) => f?.geometry?.type === "LineString");
     if (lines?.length !== 1 || parsed.features.some((f: any) => f?.geometry?.type === "MultiLineString")) throw new Error("Select one verified LineString; multiple routes are never joined.");
-    return parseLineString(JSON.stringify(lines[0].geometry));
+    return parseImportedLineString(JSON.stringify(lines[0].geometry));
   }
-  return parseLineString(JSON.stringify(parsed?.type === "Feature" ? parsed.geometry : parsed));
+  return parseImportedLineString(JSON.stringify(parsed?.type === "Feature" ? parsed.geometry : parsed));
 }

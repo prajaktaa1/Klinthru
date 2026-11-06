@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui";
 import { loadLeaflet } from "@/components/segment-map-card";
 import { fetchMasterSegments, fetchPipelines } from "@/lib/apiClient";
 import { savedMapRoute } from "@/lib/dashboard-map-data";
+import { PIPELINE_BLUE } from "@/lib/saved-pipeline-overlay";
 import { attachBasemap, GEOGRAPHIC_MAP_OPTIONS, UAE_VIEW } from "@/lib/map-provider";
 import type { AssetMasterSegmentRecord, DeviceRecord, PipelineRecord } from "@/lib/types";
 
@@ -45,8 +46,7 @@ function LeafletRouteMap({ pipeline, segment }: { pipeline: PipelineRecord | nul
       if (cancelled || !mapElement.current) return;
       map = L.map(mapElement.current, { ...GEOGRAPHIC_MAP_OPTIONS, scrollWheelZoom: false }).setView(UAE_VIEW, 7);
       basemap = attachBasemap(map, L, "hybrid");
-      const primary = getComputedStyle(mapElement.current).getPropertyValue("--app-primary").trim() || "#0891b2";
-      L.polyline(route, { color: primary, weight: 5, opacity: 0.95 }).addTo(map);
+      L.polyline(route, { color: PIPELINE_BLUE, weight: 5, opacity: 1, className: "saved-pipeline-overlay" }).addTo(map);
       map.fitBounds(L.latLngBounds(route), { padding: [30, 30], maxZoom: 15 });
       resize = new ResizeObserver(() => map?.invalidateSize());
       resize.observe(mapElement.current);
@@ -71,7 +71,7 @@ export function SensorByPipelineView({ records, onViewSensors }: { records: Devi
   const realRecords = records.filter(record => !record.isDemoData);
 
   useEffect(() => { let active = true; setLoading(true); setError(""); void fetchPipelines().then(items => { if (!active) return; setPipelines(items); setPipelineId(current => items.some(item => item.id === current) ? current : items[0]?.id ?? ""); }).catch(() => { if (active) { setPipelines([]); setPipelineId(""); setError("Pipeline records could not be loaded. Use Refresh to retry."); } }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, [refresh]);
-  useEffect(() => { if (!pipelineId) { setSegments([]); return; } let active = true; void fetchMasterSegments(pipelineId).then(items => { if (active) setSegments(items); }).catch(() => { if (active) setSegments([]); }); return () => { active = false; }; }, [pipelineId, refresh]);
+  useEffect(() => { if (!pipelineId) { setSegments([]); return; } let active = true; setSegments([]); void fetchMasterSegments(pipelineId).then(items => { if (active) {setSegments(items.filter(item=>item.pipelineId===pipelineId));setSegmentId(current=>items.some(item=>item.pipelineId===pipelineId&&item.id===current)?current:"");} }).catch(() => { if (active) setSegments([]); }); return () => { active = false; }; }, [pipelineId, refresh]);
 
   const pipeline = pipelines.find(item => item.id === pipelineId) ?? null;
   const selectedSegment = segments.find(item => item.id === segmentId) ?? null;

@@ -18,6 +18,7 @@
     "validation:pipeline-metadata-save": "tsx src/validation/pipelineMetadataSaveChecks.ts",
     "validation:asset-master": "tsx src/validation/assetMasterChecks.ts",
     "validation:inspection-records": "tsx src/validation/inspectionRecordChecks.ts",
+    "validation:pl001-demo-cleanup": "tsx src/validation/pl001DemoCleanupChecks.ts",
     "validation:pipeline-history-actions": "tsx src/validation/pipelineHistoryActionsChecks.ts",
     "test:integrations": "tsx src/validation/integrationChecks.ts",
     "test:settings-contracts": "tsx src/validation/settingsContractChecks.ts",
@@ -34,7 +35,9 @@
     "validation:chainage-database": "tsx src/validation/chainageDatabaseChecks.ts",
     "validation:gis-map": "tsx src/validation/gisMapChecks.ts",
     "validation:sensor-lifecycle": "tsx src/validation/sensorLifecycleContractChecks.ts",
-    "audit:gis-map": "node src/validation/gisMapAudit.cjs"
+    "audit:gis-map": "node src/validation/gisMapAudit.cjs",
+    "test:sensor-ingestion": "npm run build && node src/validation/scadaApiChecks.cjs",
+    "test:sensors-demo": "npm run build && node src/validation/demoSensorFlowChecks.cjs"
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
@@ -44,6 +47,7 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "klinthru": "file:..",
+    "mqtt": "^5.16.1",
     "pdf-lib": "^1.17.1",
     "zod": "^4.4.3"
   },

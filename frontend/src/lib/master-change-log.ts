@@ -28,7 +28,7 @@ export function masterChangeRows(response: SettingsAuditLogResponse | null, pipe
     const target = records.get(`${entity}:${recordId}`);
     if (!target) continue;
     const before = object(event.beforeValues), after = object(event.afterValues);
-    const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])].filter((field) => canonical(before?.[field]) !== canonical(after?.[field]));
+    const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])].filter((field) => !["createdAt", "updatedAt"].includes(field) && canonical(before?.[field]) !== canonical(after?.[field]));
     const userId = string(event.userId);
     const base = { eventId: id, occurredAt: string(event.occurredAt), userId, userName: userId ? users.get(userId) : undefined,
       entity: target.entity, recordId, recordLabel: target.label, details: string(event.details), action: string(event.action), result: string(event.result) };
